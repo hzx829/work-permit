@@ -39,7 +39,12 @@ export default function List() {
         <>
             {/* Mobile Header */}
             <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 md:hidden">
-                <h1 className="text-lg font-bold text-gray-800">作业票列表</h1>
+                <div className="flex items-center gap-3">
+                    <Link to="/" className="text-gray-500 hover:text-blue-600 transition-colors">
+                        <i className="fas fa-arrow-left text-lg"></i>
+                    </Link>
+                    <h1 className="text-lg font-bold text-gray-800">作业票列表</h1>
+                </div>
                 <div className="flex items-center gap-3">
                     <span className="text-sm text-gray-600">{user?.full_name}</span>
                     <button onClick={logout} className="text-sm text-red-500 hover:underline">
@@ -51,7 +56,12 @@ export default function List() {
             {/* Content */}
             <div className="flex-1 overflow-auto p-6">
                 <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                    <h2 className="text-2xl font-bold text-gray-800">所有作业票</h2>
+                    <div className="flex items-center gap-4">
+                        <Link to="/" className="text-gray-500 hover:text-blue-600 transition-colors hidden md:block">
+                            <i className="fas fa-arrow-left text-xl"></i>
+                        </Link>
+                        <h2 className="text-2xl font-bold text-gray-800">所有作业票</h2>
+                    </div>
                     
                     <div className="flex gap-3 w-full md:w-auto">
                         <div className="relative w-full md:w-64">

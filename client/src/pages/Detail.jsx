@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { getPermit, formatDate, getStatusColor } from '../utils/api';
+import { getPermit, formatDate, getStatusColor, updatePermitStatus } from '../utils/api';
 
 export default function Detail() {
     const { id } = useParams();
@@ -9,6 +9,7 @@ export default function Detail() {
     const { user, logout } = useAuth();
     const [permit, setPermit] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [approving, setApproving] = useState(false);
 
     useEffect(() => {
         const fetchPermit = async () => {
@@ -25,6 +26,75 @@ export default function Detail() {
 
         fetchPermit();
     }, [id, navigate]);
+
+    const handleApprove = async () => {
+        if (!window.confirm('确认批准该作业票？')) return;
+        
+        setApproving(true);
+        try {
+            await updatePermitStatus(id, '已批准');
+            alert('审批成功');
+            const data = await getPermit(id);
+            setPermit(data);
+        } catch (error) {
+            console.error('Error approving permit:', error);
+            alert('审批失败，请重试');
+        } finally {
+            setApproving(false);
+        }
+    };
+
+    const handleReject = async () => {
+        const reason = window.prompt('请输入驳回原因：');
+        if (!reason) return;
+        
+        setApproving(true);
+        try {
+            await updatePermitStatus(id, '已驳回');
+            alert('已驳回该作业票');
+            const data = await getPermit(id);
+            setPermit(data);
+        } catch (error) {
+            console.error('Error rejecting permit:', error);
+            alert('操作失败，请重试');
+        } finally {
+            setApproving(false);
+        }
+    };
+
+    const handleStartWork = async () => {
+        if (!window.confirm('确认开始作业？')) return;
+        
+        setApproving(true);
+        try {
+            await updatePermitStatus(id, '作业中');
+            alert('作业已开始');
+            const data = await getPermit(id);
+            setPermit(data);
+        } catch (error) {
+            console.error('Error starting work:', error);
+            alert('操作失败，请重试');
+        } finally {
+            setApproving(false);
+        }
+    };
+
+    const handleCompleteWork = async () => {
+        if (!window.confirm('确认结束作业？')) return;
+        
+        setApproving(true);
+        try {
+            await updatePermitStatus(id, '已完工');
+            alert('作业已完成');
+            const data = await getPermit(id);
+            setPermit(data);
+        } catch (error) {
+            console.error('Error completing work:', error);
+            alert('操作失败，请重试');
+        } finally {
+            setApproving(false);
+        }
+    };
 
     if (loading || !permit) {
         return (
@@ -153,19 +223,62 @@ export default function Detail() {
                         {/* Actions */}
                         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                             <h3 className="text-sm font-medium text-gray-500 mb-4">操作</h3>
-                            <button
-                                onClick={() => window.print()}
-                                className="w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors mb-2"
-                            >
-                                <i className="fas fa-print mr-2"></i>
-                                打印
-                            </button>
-                            <Link
-                                to="/list"
-                                className="block w-full py-2 px-4 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-center"
-                            >
-                                返回列表
-                            </Link>
+                            
+                            {/* 安全员审批按钮 - 仅安全员且状态为待审批时显示 */}
+                            {user?.role === 'safety' && permit.status === '待审批' && (
+                                <>
+                                    <button
+                                        onClick={handleApprove}
+                                        disabled={approving}
+                                        className="w-full py-3 px-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors mb-3 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                                    >
+                                        <i className="fas fa-check mr-2"></i>
+                                        {approving ? '处理中...' : '批准'}
+                                    </button>
+                                    <button
+                                        onClick={handleReject}
+                                        disabled={approving}
+                                        className="w-full py-3 px-4 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                                    >
+                                        <i className="fas fa-times mr-2"></i>
+                                        {approving ? '处理中...' : '驳回'}
+                                    </button>
+                                </>
+                            )}
+                            
+                            {/* 作业人员开始作业按钮 - 仅作业人员本人且状态为已批准时显示 */}
+                            {user?.role === 'worker' && user?.id === permit.applicant_id && permit.status === '已批准' && (
+                                <button
+                                    onClick={handleStartWork}
+                                    disabled={approving}
+                                    className="w-full py-3 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                                >
+                                    <i className="fas fa-play mr-2"></i>
+                                    {approving ? '处理中...' : '开始作业'}
+                                </button>
+                            )}
+                            
+                            {/* 作业人员结束作业按钮 - 仅作业人员本人且状态为作业中时显示 */}
+                            {user?.role === 'worker' && user?.id === permit.applicant_id && permit.status === '作业中' && (
+                                <button
+                                    onClick={handleCompleteWork}
+                                    disabled={approving}
+                                    className="w-full py-3 px-4 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                                >
+                                    <i className="fas fa-flag-checkered mr-2"></i>
+                                    {approving ? '处理中...' : '结束作业'}
+                                </button>
+                            )}
+                            
+                            {/* 无可操作时显示提示 */}
+                            {!((user?.role === 'safety' && permit.status === '待审批') ||
+                               (user?.role === 'worker' && user?.id === permit.applicant_id && permit.status === '已批准') ||
+                               (user?.role === 'worker' && user?.id === permit.applicant_id && permit.status === '作业中')) && (
+                                <div className="text-center py-4 text-gray-400 text-sm">
+                                    <i className="fas fa-info-circle mb-2"></i>
+                                    <p>当前状态无可执行操作</p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
