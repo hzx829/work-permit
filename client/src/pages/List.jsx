@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { loadPermits, formatDate, getStatusColor } from '../utils/api';
 
@@ -9,16 +9,18 @@ export default function List() {
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
     const { user, logout } = useAuth();
+    const [searchParams] = useSearchParams();
+    const statusFilter = searchParams.get('status') || '';
 
     useEffect(() => {
         fetchPermits();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [search]);
+    }, [search, statusFilter]);
 
     const fetchPermits = async () => {
         setLoading(true);
         try {
-            const data = await loadPermits('', search);
+            const data = await loadPermits(statusFilter, search);
             setPermits(data);
             setLoading(false);
         } catch (error) {
@@ -43,7 +45,9 @@ export default function List() {
                     <Link to="/" className="text-gray-500 hover:text-blue-600 transition-colors">
                         <i className="fas fa-arrow-left text-lg"></i>
                     </Link>
-                    <h1 className="text-lg font-bold text-gray-800">作业票列表</h1>
+                    <h1 className="text-lg font-bold text-gray-800">
+                        {statusFilter ? `${statusFilter} - 作业票` : '作业票列表'}
+                    </h1>
                 </div>
                 <div className="flex items-center gap-3">
                     <span className="text-sm text-gray-600">{user?.full_name}</span>
@@ -60,7 +64,20 @@ export default function List() {
                         <Link to="/" className="text-gray-500 hover:text-blue-600 transition-colors hidden md:block">
                             <i className="fas fa-arrow-left text-xl"></i>
                         </Link>
-                        <h2 className="text-2xl font-bold text-gray-800">所有作业票</h2>
+                        <div className="flex items-center gap-3">
+                            <h2 className="text-2xl font-bold text-gray-800">
+                                {statusFilter ? `${statusFilter}作业票` : '所有作业票'}
+                            </h2>
+                            {statusFilter && (
+                                <Link
+                                    to="/list"
+                                    className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1 px-3 py-1 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
+                                >
+                                    <i className="fas fa-times"></i>
+                                    <span>清除筛选</span>
+                                </Link>
+                            )}
+                        </div>
                     </div>
                     
                     <div className="flex gap-3 w-full md:w-auto">

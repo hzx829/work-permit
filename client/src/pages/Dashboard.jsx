@@ -7,8 +7,10 @@ export default function Dashboard() {
     const [permits, setPermits] = useState([]);
     const [stats, setStats] = useState({
         total: 0,
+        approved: 0,
         active: 0,
         pending: 0,
+        completed: 0,
         rejected: 0
     });
     const [loading, setLoading] = useState(true);
@@ -23,8 +25,10 @@ export default function Dashboard() {
                 
                 setStats({
                     total: data.length || 0,
+                    approved: data.filter(p => p.status === '已批准').length,
                     active: data.filter(p => p.status === '作业中').length,
                     pending: data.filter(p => p.status === '待审批').length,
+                    completed: data.filter(p => p.status === '已完工').length,
                     rejected: data.filter(p => p.status === '已驳回').length
                 });
                 
@@ -52,38 +56,30 @@ export default function Dashboard() {
     return (
         <div className="flex-1 overflow-auto p-6">
             {/* Welcome Section */}
-            <div className="mb-8">
+            <div className="mb-6">
                 <h2 className="text-2xl font-bold text-gray-800">工作台概览</h2>
                 <p className="text-gray-500">欢迎回来，{user?.full_name}，今日安全生产无事故。</p>
             </div>
 
-            {/* Stats Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                <div className="bg-white rounded-xl p-4 md:p-6 shadow-sm border border-gray-100">
-                    <div className="flex justify-between items-start">
-                        <div>
-                            <p className="text-xs md:text-sm text-gray-500 font-medium">今日作业总数</p>
-                            <h3 className="text-2xl md:text-3xl font-bold text-gray-800 mt-1 md:mt-2">{stats.total}</h3>
-                        </div>
-                        <div className="p-2 md:p-3 bg-blue-50 text-blue-500 rounded-lg">
-                            <i className="fas fa-clipboard-list text-lg md:text-xl"></i>
-                        </div>
+            {/* Total Summary */}
+            <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl p-6 mb-6 text-white shadow-lg">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <p className="text-blue-100 text-sm mb-1">今日作业总数</p>
+                        <h3 className="text-4xl font-bold">{stats.total}</h3>
+                    </div>
+                    <div className="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                        <i className="fas fa-clipboard-list text-3xl"></i>
                     </div>
                 </div>
-                
-                <div className="bg-white rounded-xl p-4 md:p-6 shadow-sm border border-gray-100">
-                    <div className="flex justify-between items-start">
-                        <div>
-                            <p className="text-xs md:text-sm text-gray-500 font-medium">进行中</p>
-                            <h3 className="text-2xl md:text-3xl font-bold text-green-600 mt-1 md:mt-2">{stats.active}</h3>
-                        </div>
-                        <div className="p-2 md:p-3 bg-green-50 text-green-500 rounded-lg">
-                            <i className="fas fa-hammer text-lg md:text-xl"></i>
-                        </div>
-                    </div>
-                </div>
+            </div>
 
-                <div className="bg-white rounded-xl p-4 md:p-6 shadow-sm border border-gray-100">
+            {/* Status Cards - Clickable */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                <button
+                    onClick={() => navigate('/list?status=待审批')}
+                    className="bg-white rounded-xl p-4 md:p-6 shadow-sm border border-gray-100 hover:shadow-md hover:border-yellow-200 transition-all text-left"
+                >
                     <div className="flex justify-between items-start">
                         <div>
                             <p className="text-xs md:text-sm text-gray-500 font-medium">待审批</p>
@@ -93,19 +89,52 @@ export default function Dashboard() {
                             <i className="fas fa-clock text-lg md:text-xl"></i>
                         </div>
                     </div>
-                </div>
+                </button>
 
-                <div className="bg-white rounded-xl p-4 md:p-6 shadow-sm border border-gray-100">
+                <button
+                    onClick={() => navigate('/list?status=已批准')}
+                    className="bg-white rounded-xl p-4 md:p-6 shadow-sm border border-gray-100 hover:shadow-md hover:border-blue-200 transition-all text-left"
+                >
                     <div className="flex justify-between items-start">
                         <div>
-                            <p className="text-xs md:text-sm text-gray-500 font-medium">异常/已驳回</p>
-                            <h3 className="text-2xl md:text-3xl font-bold text-red-600 mt-1 md:mt-2">{stats.rejected}</h3>
+                            <p className="text-xs md:text-sm text-gray-500 font-medium">已批准</p>
+                            <h3 className="text-2xl md:text-3xl font-bold text-blue-600 mt-1 md:mt-2">{stats.approved}</h3>
                         </div>
-                        <div className="p-2 md:p-3 bg-red-50 text-red-500 rounded-lg">
-                            <i className="fas fa-triangle-exclamation text-lg md:text-xl"></i>
+                        <div className="p-2 md:p-3 bg-blue-50 text-blue-500 rounded-lg">
+                            <i className="fas fa-check-circle text-lg md:text-xl"></i>
                         </div>
                     </div>
-                </div>
+                </button>
+                
+                <button
+                    onClick={() => navigate('/list?status=作业中')}
+                    className="bg-white rounded-xl p-4 md:p-6 shadow-sm border border-gray-100 hover:shadow-md hover:border-green-200 transition-all text-left"
+                >
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <p className="text-xs md:text-sm text-gray-500 font-medium">作业中</p>
+                            <h3 className="text-2xl md:text-3xl font-bold text-green-600 mt-1 md:mt-2">{stats.active}</h3>
+                        </div>
+                        <div className="p-2 md:p-3 bg-green-50 text-green-500 rounded-lg">
+                            <i className="fas fa-hammer text-lg md:text-xl"></i>
+                        </div>
+                    </div>
+                </button>
+
+                <button
+                    onClick={() => navigate('/list?status=已完工')}
+                    className="bg-white rounded-xl p-4 md:p-6 shadow-sm border border-gray-100 hover:shadow-md hover:border-gray-200 transition-all text-left"
+                >
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <p className="text-xs md:text-sm text-gray-500 font-medium">已完工</p>
+                            <h3 className="text-2xl md:text-3xl font-bold text-gray-600 mt-1 md:mt-2">{stats.completed}</h3>
+                        </div>
+                        <div className="p-2 md:p-3 bg-gray-50 text-gray-500 rounded-lg">
+                            <i className="fas fa-flag-checkered text-lg md:text-xl"></i>
+                        </div>
+                    </div>
+                </button>
             </div>
 
             {/* Quick Actions */}
