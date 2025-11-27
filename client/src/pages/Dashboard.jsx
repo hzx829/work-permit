@@ -58,51 +58,51 @@ export default function Dashboard() {
             </div>
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                <div className="bg-white rounded-xl p-4 md:p-6 shadow-sm border border-gray-100">
                     <div className="flex justify-between items-start">
                         <div>
-                            <p className="text-sm text-gray-500 font-medium">今日作业总数</p>
-                            <h3 className="text-3xl font-bold text-gray-800 mt-2">{stats.total}</h3>
+                            <p className="text-xs md:text-sm text-gray-500 font-medium">今日作业总数</p>
+                            <h3 className="text-2xl md:text-3xl font-bold text-gray-800 mt-1 md:mt-2">{stats.total}</h3>
                         </div>
-                        <div className="p-3 bg-blue-50 text-blue-500 rounded-lg">
-                            <i className="fas fa-clipboard-list text-xl"></i>
+                        <div className="p-2 md:p-3 bg-blue-50 text-blue-500 rounded-lg">
+                            <i className="fas fa-clipboard-list text-lg md:text-xl"></i>
                         </div>
                     </div>
                 </div>
                 
-                <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+                <div className="bg-white rounded-xl p-4 md:p-6 shadow-sm border border-gray-100">
                     <div className="flex justify-between items-start">
                         <div>
-                            <p className="text-sm text-gray-500 font-medium">进行中</p>
-                            <h3 className="text-3xl font-bold text-green-600 mt-2">{stats.active}</h3>
+                            <p className="text-xs md:text-sm text-gray-500 font-medium">进行中</p>
+                            <h3 className="text-2xl md:text-3xl font-bold text-green-600 mt-1 md:mt-2">{stats.active}</h3>
                         </div>
-                        <div className="p-3 bg-green-50 text-green-500 rounded-lg">
-                            <i className="fas fa-hammer text-xl"></i>
+                        <div className="p-2 md:p-3 bg-green-50 text-green-500 rounded-lg">
+                            <i className="fas fa-hammer text-lg md:text-xl"></i>
                         </div>
                     </div>
                 </div>
 
-                <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+                <div className="bg-white rounded-xl p-4 md:p-6 shadow-sm border border-gray-100">
                     <div className="flex justify-between items-start">
                         <div>
-                            <p className="text-sm text-gray-500 font-medium">待审批</p>
-                            <h3 className="text-3xl font-bold text-yellow-600 mt-2">{stats.pending}</h3>
+                            <p className="text-xs md:text-sm text-gray-500 font-medium">待审批</p>
+                            <h3 className="text-2xl md:text-3xl font-bold text-yellow-600 mt-1 md:mt-2">{stats.pending}</h3>
                         </div>
-                        <div className="p-3 bg-yellow-50 text-yellow-500 rounded-lg">
-                            <i className="fas fa-clock text-xl"></i>
+                        <div className="p-2 md:p-3 bg-yellow-50 text-yellow-500 rounded-lg">
+                            <i className="fas fa-clock text-lg md:text-xl"></i>
                         </div>
                     </div>
                 </div>
 
-                <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+                <div className="bg-white rounded-xl p-4 md:p-6 shadow-sm border border-gray-100">
                     <div className="flex justify-between items-start">
                         <div>
-                            <p className="text-sm text-gray-500 font-medium">异常/已驳回</p>
-                            <h3 className="text-3xl font-bold text-red-600 mt-2">{stats.rejected}</h3>
+                            <p className="text-xs md:text-sm text-gray-500 font-medium">异常/已驳回</p>
+                            <h3 className="text-2xl md:text-3xl font-bold text-red-600 mt-1 md:mt-2">{stats.rejected}</h3>
                         </div>
-                        <div className="p-3 bg-red-50 text-red-500 rounded-lg">
-                            <i className="fas fa-triangle-exclamation text-xl"></i>
+                        <div className="p-2 md:p-3 bg-red-50 text-red-500 rounded-lg">
+                            <i className="fas fa-triangle-exclamation text-lg md:text-xl"></i>
                         </div>
                     </div>
                 </div>
