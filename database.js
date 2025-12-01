@@ -1,7 +1,8 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
-const dbPath = path.resolve(__dirname, 'work_permits.db');
+// 支持通过环境变量配置数据库路径（用于Docker部署）
+const dbPath = process.env.DB_PATH || path.resolve(__dirname, 'work_permits.db');
 
 const db = new sqlite3.Database(dbPath, (err) => {
     if (err) {

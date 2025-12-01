@@ -1,11 +1,16 @@
 const express = require('express');
+const path = require('path');
 const db = require('./database');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 app.use(express.json({ limit: '10mb' })); // Increased limit for base64 images
-// Static files now served by Vite dev server (client/)
+
+// 在生产环境下提供静态文件
+if (process.env.NODE_ENV === 'production') {
+    app.use(express.static(path.join(__dirname, 'client/dist')));
+}
 
 // --- Auth Routes ---
 
@@ -140,6 +145,13 @@ app.put('/api/work-permits/:id/status', (req, res) => {
         res.json({ success: true });
     });
 });
+
+// 在生产环境下，所有其他请求返回index.html（支持前端路由）
+if (process.env.NODE_ENV === 'production') {
+    app.get('*', (req, res) => {
+        res.sendFile(path.join(__dirname, 'client/dist/index.html'));
+    });
+}
 
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);

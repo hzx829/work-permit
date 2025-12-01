@@ -1,0 +1,14 @@
+node_modules
+npm-debug.log
+.DS_Store
+*.log
+.env
+.git
+.gitignore
+README.md
+TODO
+start-dev.sh
+work_permits.db
+client/node_modules
+client/dist
+.vscode
