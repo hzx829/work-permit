@@ -19,8 +19,6 @@ export default function Create() {
     
     const [formData, setFormData] = useState({
         work_type: searchParams.get('type') || '',
-        department: '',
-        location: '',
         applicant: user?.full_name || '',
         supervisor: '',
         guardian: '',
@@ -101,8 +99,6 @@ export default function Create() {
             type: formData.work_type,
             applicant_id: user?.id || 0,
             applicant_name: formData.applicant,
-            department: formData.department,
-            location: formData.location,
             start_time: formData.start_time,
             end_time: formData.end_time,
             content: formData.content,
@@ -202,36 +198,6 @@ export default function Create() {
                                         readOnly
                                         className="w-full rounded-lg border-gray-300 border p-2.5 bg-gray-100 text-gray-500 cursor-not-allowed"
                                         value="自动生成"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        申请单位/部门 <span className="text-red-500">*</span>
-                                    </label>
-                                    <input
-                                        type="text"
-                                        name="department"
-                                        value={formData.department}
-                                        onChange={handleChange}
-                                        required
-                                        className="w-full rounded-lg border-gray-300 border p-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                                        placeholder="例如：维修车间"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        作业地点 <span className="text-red-500">*</span>
-                                    </label>
-                                    <input
-                                        type="text"
-                                        name="location"
-                                        value={formData.location}
-                                        onChange={handleChange}
-                                        required
-                                        className="w-full rounded-lg border-gray-300 border p-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                                        placeholder="具体区域或设备名称"
                                     />
                                 </div>
                             </div>
