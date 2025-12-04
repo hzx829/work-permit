@@ -10,6 +10,8 @@ export default function Detail() {
     const [permit, setPermit] = useState(null);
     const [loading, setLoading] = useState(true);
     const [approving, setApproving] = useState(false);
+    const [showConfinedSpaceModal, setShowConfinedSpaceModal] = useState(false);
+    const [blindPlateStatus, setBlindPlateStatus] = useState(null); // null, 'checking', 'completed'
 
     useEffect(() => {
         const fetchPermit = async () => {
@@ -28,14 +30,26 @@ export default function Detail() {
     }, [id, navigate]);
 
     const handleApprove = async () => {
+        // 特殊逻辑：受限空间作业需要二次确认
+        if (permit.type === '受限空间作业') {
+            setShowConfinedSpaceModal(true);
+            setBlindPlateStatus(null); // 重置状态
+            return;
+        }
+
         if (!window.confirm('确认批准该作业票？')) return;
         
+        await executeApprove();
+    };
+
+    const executeApprove = async () => {
         setApproving(true);
         try {
             await updatePermitStatus(id, '已批准');
             alert('审批成功');
             const data = await getPermit(id);
             setPermit(data);
+            setShowConfinedSpaceModal(false);
         } catch (error) {
             console.error('Error approving permit:', error);
             alert('审批失败，请重试');
@@ -320,6 +334,91 @@ export default function Detail() {
                     </div>
                 </div>
             </main>
+
+            {/* 受限空间作业二次确认弹窗 */}
+            {showConfinedSpaceModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-xl max-w-md w-full overflow-hidden">
+                        <div className="p-6">
+                            <div className="flex items-center gap-3 mb-4 text-amber-600">
+                                <i className="fas fa-exclamation-triangle text-2xl"></i>
+                                <h3 className="text-lg font-bold">特殊作业审批确认</h3>
+                            </div>
+                            
+                            <p className="text-gray-600 mb-6">
+                                当前为<span className="font-bold text-gray-800">受限空间作业</span>，批准前请务必确认以下关联作业状态：
+                            </p>
+
+                            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 mb-6">
+                                <div className="flex items-center justify-between">
+                                    <span className="font-medium text-gray-700">盲板抽堵作业进度</span>
+                                    
+                                    {/* 交互区域 */}
+                                    <div 
+                                        className="relative group"
+                                        onMouseEnter={() => {
+                                            if (!blindPlateStatus) {
+                                                // 模拟查询延迟
+                                                setBlindPlateStatus('checking');
+                                                setTimeout(() => {
+                                                    setBlindPlateStatus('completed');
+                                                }, 600);
+                                            }
+                                        }}
+                                    >
+                                        <div className={`px-3 py-1.5 rounded text-sm font-medium transition-all duration-300 cursor-help select-none ${
+                                            blindPlateStatus === 'completed' 
+                                                ? 'bg-green-100 text-green-700' 
+                                                : 'bg-gray-200 text-gray-500'
+                                        }`}>
+                                            {blindPlateStatus === 'completed' ? (
+                                                <span className="flex items-center gap-1">
+                                                    <i className="fas fa-check-circle"></i>
+                                                    已完成
+                                                </span>
+                                            ) : blindPlateStatus === 'checking' ? (
+                                                <span className="flex items-center gap-1">
+                                                    <i className="fas fa-spinner fa-spin"></i>
+                                                    查询中...
+                                                </span>
+                                            ) : (
+                                                <span className="flex items-center gap-1">
+                                                    <i className="fas fa-mouse-pointer"></i>
+                                                    移入查看
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        {/* Tooltip - optional extra info */}
+                                        {blindPlateStatus === 'completed' && (
+                                            <div className="absolute bottom-full right-0 mb-2 w-48 bg-gray-800 text-white text-xs rounded p-2 shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                                                关联作业票：BP-20240320-001<br/>
+                                                状态：已验收合格
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setShowConfinedSpaceModal(false)}
+                                    className="flex-1 py-2.5 px-4 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                                >
+                                    取消
+                                </button>
+                                <button
+                                    onClick={executeApprove}
+                                    disabled={blindPlateStatus !== 'completed' || approving}
+                                    className="flex-1 py-2.5 px-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                                >
+                                    {approving ? '处理中...' : '确认批准'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     );
 }
