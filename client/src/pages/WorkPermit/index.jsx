@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { loadPermits, formatDate, getStatusColor } from '../utils/api';
+import { useAuth } from '../../contexts/AuthContext';
+import { loadPermits, formatDate, getStatusColor } from '../../utils/api';
 
 export default function Dashboard() {
     const [permits, setPermits] = useState([]);
@@ -62,7 +62,7 @@ export default function Dashboard() {
                     <p className="text-gray-500">欢迎回来，{user?.full_name}，今日安全生产无事故。</p>
                 </div>
                 <button 
-                    onClick={() => navigate('/cockpit')}
+                    onClick={() => navigate('/')}
                     className="bg-indigo-600 text-white px-4 py-2 rounded-lg shadow hover:bg-indigo-700 transition-colors flex items-center gap-2"
                 >
                     <i className="fas fa-chart-line"></i>
@@ -86,7 +86,7 @@ export default function Dashboard() {
             {/* Status Cards - Clickable */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                 <button
-                    onClick={() => navigate('/list?status=待审批')}
+                    onClick={() => navigate('/work-permit/list?status=待审批')}
                     className="bg-white rounded-xl p-4 md:p-6 shadow-sm border border-gray-100 hover:shadow-md hover:border-yellow-200 transition-all text-left"
                 >
                     <div className="flex justify-between items-start">
@@ -101,7 +101,7 @@ export default function Dashboard() {
                 </button>
 
                 <button
-                    onClick={() => navigate('/list?status=已批准')}
+                    onClick={() => navigate('/work-permit/list?status=已批准')}
                     className="bg-white rounded-xl p-4 md:p-6 shadow-sm border border-gray-100 hover:shadow-md hover:border-blue-200 transition-all text-left"
                 >
                     <div className="flex justify-between items-start">
@@ -116,7 +116,7 @@ export default function Dashboard() {
                 </button>
                 
                 <button
-                    onClick={() => navigate('/list?status=作业中')}
+                    onClick={() => navigate('/work-permit/list?status=作业中')}
                     className="bg-white rounded-xl p-4 md:p-6 shadow-sm border border-gray-100 hover:shadow-md hover:border-green-200 transition-all text-left"
                 >
                     <div className="flex justify-between items-start">
@@ -131,7 +131,7 @@ export default function Dashboard() {
                 </button>
 
                 <button
-                    onClick={() => navigate('/list?status=已完工')}
+                    onClick={() => navigate('/work-permit/list?status=已完工')}
                     className="bg-white rounded-xl p-4 md:p-6 shadow-sm border border-gray-100 hover:shadow-md hover:border-gray-200 transition-all text-left"
                 >
                     <div className="flex justify-between items-start">
@@ -152,7 +152,7 @@ export default function Dashboard() {
                 {workTypes.map(({ type, icon, color }) => (
                     <Link
                         key={type}
-                        to={`/create?type=${encodeURIComponent(type)}`}
+                        to={`/work-permit/create?type=${encodeURIComponent(type)}`}
                         className={`bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center justify-center text-center group cursor-pointer hover:border-${color}-200 transition-colors`}
                     >
                         <div className={`w-14 h-14 rounded-full bg-${color}-50 text-${color}-500 flex items-center justify-center mb-3 group-hover:bg-${color}-500 group-hover:text-white transition-colors`}>
@@ -169,7 +169,7 @@ export default function Dashboard() {
             <div className="bg-white rounded-xl shadow-sm border border-gray-100">
                 <div className="p-6 border-b border-gray-100 flex justify-between items-center">
                     <h3 className="text-lg font-bold text-gray-800">近期作业申请</h3>
-                    <Link to="/list" className="text-blue-500 hover:text-blue-700 text-sm font-medium">
+                    <Link to="/work-permit/list" className="text-blue-500 hover:text-blue-700 text-sm font-medium">
                         查看全部
                     </Link>
                 </div>
@@ -204,7 +204,7 @@ export default function Dashboard() {
                                         <tr
                                             key={permit.id}
                                             className="border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer"
-                                            onClick={() => navigate(`/detail/${permit.id}`)}
+                                            onClick={() => navigate(`/work-permit/detail/${permit.id}`)}
                                         >
                                             <td className="py-3 font-mono text-xs text-gray-500">
                                                 {permit.permit_number || 'N/A'}

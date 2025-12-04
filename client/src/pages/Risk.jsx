@@ -22,12 +22,6 @@ export default function Risk() {
         }
     };
 
-    if (loading) {
-        return <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-            <div className="text-gray-500">加载中...</div>
-        </div>;
-    }
-
     const getRiskColor = (level) => {
         const colors = {
             '重大风险': 'bg-red-100 text-red-800 border-red-300',
@@ -38,76 +32,104 @@ export default function Risk() {
         return colors[level] || 'bg-gray-100 text-gray-800 border-gray-300';
     };
 
-    return (
-        <div className="min-h-screen bg-gray-50">
-            {/* Header */}
-            <div className="bg-white shadow">
-                <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex justify-between items-center">
-                    <h1 className="text-2xl font-bold text-gray-900">风险管理系统</h1>
-                    <button
-                        onClick={() => navigate('/')}
-                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                    >
-                        返回数字座舱
-                    </button>
+    if (loading) {
+        return (
+            <div className="h-screen bg-gray-50 flex items-center justify-center">
+                <div className="text-center">
+                    <i className="fas fa-spinner fa-spin text-4xl text-blue-500 mb-4"></i>
+                    <div className="text-gray-500">加载中...</div>
                 </div>
             </div>
+        );
+    }
 
-            <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-                {/* Risk Stats */}
-                <div className="grid grid-cols-1 gap-5 sm:grid-cols-4 mb-8">
+    return (
+        <div className="flex-1 overflow-auto p-6">
+            {/* Header Section */}
+            <div className="mb-6 flex justify-between items-end">
+                <div>
+                    <h2 className="text-2xl font-bold text-gray-800">风险分析</h2>
+                    <p className="text-gray-500">全厂风险点分布及管控情况。</p>
+                </div>
+                <button 
+                    onClick={() => navigate('/')}
+                    className="bg-indigo-600 text-white px-4 py-2 rounded-lg shadow hover:bg-indigo-700 transition-colors flex items-center gap-2"
+                >
+                    <i className="fas fa-chart-line"></i>
+                    进入数字驾驶舱
+                </button>
+            </div>
+
+            {/* Main Content */}
+            <div className="max-w-7xl mx-auto">
+                {/* Risk Stats Cards */}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
                     {data?.stats?.map((stat, idx) => (
-                        <div key={idx} className={`overflow-hidden shadow rounded-lg border-l-4 ${
-                            stat.level === '重大风险' ? 'border-red-600 bg-red-50' :
-                            stat.level === '较大风险' ? 'border-orange-600 bg-orange-50' :
-                            stat.level === '一般风险' ? 'border-yellow-600 bg-yellow-50' :
-                            'border-blue-600 bg-blue-50'
-                        }`}>
-                            <div className="p-5">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <p className="text-sm font-medium text-gray-600">{stat.level}</p>
-                                        <p className="text-3xl font-bold text-gray-900 mt-1">{stat.count}</p>
-                                    </div>
-                                    <div className="text-2xl opacity-50">
-                                        <i className="fas fa-exclamation-triangle"></i>
-                                    </div>
+                        <div
+                            key={idx}
+                            className={`rounded-xl p-6 shadow-sm border-l-4 hover:shadow-md transition-all bg-white ${
+                                stat.level === '重大风险' ? 'border-red-600' :
+                                stat.level === '较大风险' ? 'border-orange-600' :
+                                stat.level === '一般风险' ? 'border-yellow-600' :
+                                'border-blue-600'
+                            }`}
+                        >
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <p className="text-sm text-gray-500 font-medium">{stat.level}</p>
+                                    <h3 className="text-4xl font-bold text-gray-900 mt-2">{stat.count}</h3>
+                                    <p className="text-xs text-gray-400 mt-1">个风险点</p>
+                                </div>
+                                <div className={`p-3 rounded-lg ${
+                                    stat.level === '重大风险' ? 'bg-red-50 text-red-500' :
+                                    stat.level === '较大风险' ? 'bg-orange-50 text-orange-500' :
+                                    stat.level === '一般风险' ? 'bg-yellow-50 text-yellow-500' :
+                                    'bg-blue-50 text-blue-500'
+                                }`}>
+                                    <i className="fas fa-exclamation-triangle text-2xl"></i>
                                 </div>
                             </div>
                         </div>
                     ))}
                 </div>
 
-                {/* Risk List */}
-                <div className="bg-white shadow rounded-lg">
-                    <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
-                        <h3 className="text-lg font-medium leading-6 text-gray-900">风险清单</h3>
+                {/* Risk List Table */}
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div className="px-6 py-5 border-b border-gray-200">
+                        <h3 className="text-lg font-bold text-gray-800">风险清单</h3>
                     </div>
                     <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
+                        <table className="w-full text-left border-collapse">
+                            <thead className="bg-gray-50 text-gray-500 text-sm uppercase font-medium">
                                 <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">风险名称</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">位置</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">类别</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">等级</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">管控措施</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">责任人</th>
+                                    <th className="px-6 py-4">风险名称</th>
+                                    <th className="px-6 py-4">位置</th>
+                                    <th className="px-6 py-4">类别</th>
+                                    <th className="px-6 py-4">等级</th>
+                                    <th className="px-6 py-4">管控措施</th>
+                                    <th className="px-6 py-4">责任人</th>
                                 </tr>
                             </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
+                            <tbody className="divide-y divide-gray-100 text-sm text-gray-700">
                                 {data?.riskList?.map((risk) => (
-                                    <tr key={risk.id} className="hover:bg-gray-50">
-                                        <td className="px-6 py-4 text-sm font-medium text-gray-900">{risk.name}</td>
-                                        <td className="px-6 py-4 text-sm text-gray-500">{risk.location}</td>
-                                        <td className="px-6 py-4 text-sm text-gray-500">{risk.category}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full border ${getRiskColor(risk.level)}`}>
+                                    <tr key={risk.id} className="hover:bg-gray-50 transition-colors">
+                                        <td className="px-6 py-4 font-medium text-gray-900">{risk.name}</td>
+                                        <td className="px-6 py-4">{risk.location}</td>
+                                        <td className="px-6 py-4">{risk.category}</td>
+                                        <td className="px-6 py-4">
+                                            <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getRiskColor(risk.level)}`}>
                                                 {risk.level}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 text-sm text-gray-500">{risk.control}</td>
-                                        <td className="px-6 py-4 text-sm text-gray-500">{risk.responsible}</td>
+                                        <td className="px-6 py-4">{risk.control}</td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold">
+                                                    {risk.responsible ? risk.responsible.charAt(0) : '?'}
+                                                </div>
+                                                <span>{risk.responsible}</span>
+                                            </div>
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -118,3 +140,4 @@ export default function Risk() {
         </div>
     );
 }
+

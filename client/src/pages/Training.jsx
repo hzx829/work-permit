@@ -29,23 +29,20 @@ export default function Training() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            {/* Header */}
-            <div className="bg-white shadow">
-                <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex justify-between items-center">
-                    <h1 className="text-2xl font-bold text-gray-900">培训管理系统</h1>
-                    <button
-                        onClick={() => navigate('/')}
-                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                    >
-                        返回数字座舱
-                    </button>
-                </div>
+        <div className="flex-1 overflow-auto p-6">
+            <div className="flex justify-between items-center mb-6">
+                <h1 className="text-2xl font-bold text-gray-900">培训管理系统</h1>
+                <button
+                    onClick={() => navigate('/')}
+                    className="bg-indigo-600 text-white px-4 py-2 rounded-lg shadow hover:bg-indigo-700 transition-colors flex items-center gap-2"
+                >
+                    <i className="fas fa-chart-line"></i>
+                    进入数字座舱
+                </button>
             </div>
 
-            <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-                {/* Stats */}
-                <div className="grid grid-cols-1 gap-5 sm:grid-cols-4 mb-8">
+            {/* Stats */}
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-4 mb-8">
                     <div className="bg-white overflow-hidden shadow rounded-lg">
                         <div className="p-5">
                             <div className="flex items-center">
@@ -173,7 +170,6 @@ export default function Training() {
                             </tbody>
                         </table>
                     </div>
-                </div>
             </div>
         </div>
     );

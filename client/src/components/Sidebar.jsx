@@ -8,9 +8,18 @@ export default function Sidebar() {
     const isActive = (path) => location.pathname === path;
 
     const menuItems = [
-        { path: '/', icon: 'fa-chart-line', label: '工作台' },
-        { path: '/list', icon: 'fa-list', label: '作业票列表' },
-        { path: '/create', icon: 'fa-plus-circle', label: '新建申请' }
+        { path: '/comprehensive', icon: 'fa-chart-pie', label: '总体分析' },
+        { path: '/risk', icon: 'fa-exclamation-triangle', label: '风险分析' },
+        { path: '/hazard', icon: 'fa-search', label: '隐患排查' },
+        { path: '/equipment', icon: 'fa-bell', label: '生产报警' },
+        { type: 'divider', label: '作业管理' },
+        { path: '/work-permit', icon: 'fa-chart-line', label: '工作台' },
+        { path: '/work-permit/list', icon: 'fa-list', label: '作业票列表' },
+        { path: '/work-permit/create', icon: 'fa-plus-circle', label: '新建申请' },
+        { type: 'divider', label: '其他模块' },
+        { path: '/regulation', icon: 'fa-book', label: '法律法规' },
+        { path: '/training', icon: 'fa-graduation-cap', label: '教育培训' },
+        { path: '/video', icon: 'fa-video', label: 'AI报警' },
     ];
 
     return (
@@ -18,25 +27,31 @@ export default function Sidebar() {
             <div className="h-16 flex items-center justify-center border-b border-slate-700">
                 <h1 className="text-xl font-bold">
                     <i className="fas fa-shield-halved mr-2"></i>
-                    安全作业管理
+                    安全生产管控
                 </h1>
             </div>
-            <nav className="flex-1 py-6">
+            <nav className="flex-1 py-6 overflow-y-auto">
                 <ul>
-                    {menuItems.map(item => (
-                        <li key={item.path}>
-                            <Link
-                                to={item.path}
-                                className={`flex items-center px-6 py-3 ${
-                                    isActive(item.path)
-                                        ? 'bg-slate-700 text-white border-l-4 border-blue-500'
-                                        : 'text-slate-300 hover:bg-slate-700 hover:text-white transition-colors'
-                                }`}
-                            >
-                                <i className={`fas ${item.icon} w-6`}></i>
-                                <span>{item.label}</span>
-                            </Link>
-                        </li>
+                    {menuItems.map((item, index) => (
+                        item.type === 'divider' ? (
+                            <li key={index} className="px-6 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                {item.label}
+                            </li>
+                        ) : (
+                            <li key={item.path}>
+                                <Link
+                                    to={item.path}
+                                    className={`flex items-center px-6 py-3 ${
+                                        isActive(item.path)
+                                            ? 'bg-slate-700 text-white border-l-4 border-blue-500'
+                                            : 'text-slate-300 hover:bg-slate-700 hover:text-white transition-colors'
+                                    }`}
+                                >
+                                    <i className={`fas ${item.icon} w-6`}></i>
+                                    <span>{item.label}</span>
+                                </Link>
+                            </li>
+                        )
                     ))}
                 </ul>
             </nav>

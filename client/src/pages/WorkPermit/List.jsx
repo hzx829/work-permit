@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { loadPermits, formatDate, getStatusColor } from '../utils/api';
+import { useAuth } from '../../contexts/AuthContext';
+import { loadPermits, formatDate, getStatusColor } from '../../utils/api';
 
 export default function List() {
     const [permits, setPermits] = useState([]);
@@ -42,7 +42,7 @@ export default function List() {
             {/* Mobile Header */}
             <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 md:hidden">
                 <div className="flex items-center gap-3">
-                    <Link to="/" className="text-gray-500 hover:text-blue-600 transition-colors">
+                    <Link to="/work-permit" className="text-gray-500 hover:text-blue-600 transition-colors">
                         <i className="fas fa-arrow-left text-lg"></i>
                     </Link>
                     <h1 className="text-lg font-bold text-gray-800">
@@ -61,7 +61,7 @@ export default function List() {
             <div className="flex-1 overflow-auto p-6">
                 <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                     <div className="flex items-center gap-4">
-                        <Link to="/" className="text-gray-500 hover:text-blue-600 transition-colors hidden md:block">
+                        <Link to="/work-permit" className="text-gray-500 hover:text-blue-600 transition-colors hidden md:block">
                             <i className="fas fa-arrow-left text-xl"></i>
                         </Link>
                         <div className="flex items-center gap-3">
@@ -70,7 +70,7 @@ export default function List() {
                             </h2>
                             {statusFilter && (
                                 <Link
-                                    to="/list"
+                                    to="/work-permit/list"
                                     className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1 px-3 py-1 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
                                 >
                                     <i className="fas fa-times"></i>
@@ -91,7 +91,7 @@ export default function List() {
                             />
                         </div>
                         <Link
-                            to="/create"
+                            to="/work-permit/create"
                             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-md flex items-center whitespace-nowrap"
                         >
                             <i className="fas fa-plus mr-2"></i>新建
@@ -132,7 +132,7 @@ export default function List() {
                                         <tr
                                             key={permit.id}
                                             className="hover:bg-gray-50 transition-colors cursor-pointer"
-                                            onClick={() => navigate(`/detail/${permit.id}`)}
+                                            onClick={() => navigate(`/work-permit/detail/${permit.id}`)}
                                         >
                                             <td className="px-6 py-4 font-mono text-xs text-gray-500">
                                                 {permit.permit_number || 'N/A'}
@@ -160,7 +160,7 @@ export default function List() {
                                                     className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-2 rounded-full transition-colors"
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        navigate(`/detail/${permit.id}`);
+                                                        navigate(`/work-permit/detail/${permit.id}`);
                                                     }}
                                                 >
                                                     <i className="fas fa-chevron-right"></i>

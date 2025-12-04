@@ -29,21 +29,23 @@ export default function Hazard() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            {/* Header */}
-            <div className="bg-white shadow">
-                <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex justify-between items-center">
-                    <h1 className="text-2xl font-bold text-gray-900">隐患管理系统</h1>
-                    <button
-                        onClick={() => navigate('/')}
-                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                    >
-                        返回数字座舱
-                    </button>
+        <div className="flex-1 overflow-auto p-6">
+            {/* Header Section */}
+            <div className="mb-6 flex justify-between items-end">
+                <div>
+                    <h2 className="text-2xl font-bold text-gray-800">隐患排查</h2>
+                    <p className="text-gray-500">隐患排查与治理情况。</p>
                 </div>
+                <button 
+                    onClick={() => navigate('/')}
+                    className="bg-indigo-600 text-white px-4 py-2 rounded-lg shadow hover:bg-indigo-700 transition-colors flex items-center gap-2"
+                >
+                    <i className="fas fa-chart-line"></i>
+                    进入数字驾驶舱
+                </button>
             </div>
 
-            <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+            <div className="max-w-7xl mx-auto">
                 {/* Stats */}
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-4 mb-8">
                     <div className="bg-white overflow-hidden shadow rounded-lg">
@@ -168,3 +170,4 @@ export default function Hazard() {
         </div>
     );
 }
+

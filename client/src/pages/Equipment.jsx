@@ -28,22 +28,24 @@ export default function Equipment() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            {/* Header */}
-            <div className="bg-white shadow">
-                <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex justify-between items-center">
-                    <h1 className="text-2xl font-bold text-gray-900">设备监控系统</h1>
-                    <button
-                        onClick={() => navigate('/')}
-                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                    >
-                        返回数字座舱
-                    </button>
+        <div className="flex-1 overflow-auto p-6">
+            {/* Header Section */}
+            <div className="mb-6 flex justify-between items-end">
+                <div>
+                    <h2 className="text-2xl font-bold text-gray-800">生产报警</h2>
+                    <p className="text-gray-500">设备运行状态与报警信息。</p>
                 </div>
+                <button 
+                    onClick={() => navigate('/')}
+                    className="bg-indigo-600 text-white px-4 py-2 rounded-lg shadow hover:bg-indigo-700 transition-colors flex items-center gap-2"
+                >
+                    <i className="fas fa-chart-line"></i>
+                    进入数字驾驶舱
+                </button>
             </div>
 
             {/* Stats */}
-            <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+            <div className="max-w-7xl mx-auto">
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-4">
                     <div className="bg-white overflow-hidden shadow rounded-lg">
                         <div className="p-5">
@@ -235,3 +237,4 @@ export default function Equipment() {
         </div>
     );
 }
+
