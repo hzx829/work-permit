@@ -187,23 +187,37 @@ export default function DigitalCockpit() {
 
                 {/* Center Column */}
                 <div className="col-span-12 lg:col-span-6 flex flex-col gap-4 h-full relative">
-                    {/* Safe Days Counter */}
-                    <div className="h-20 flex-none flex flex-col items-center justify-center relative z-10">
-                        <div className="text-blue-300 text-sm mb-2 tracking-widest uppercase">安全运行天数</div>
-                        <div className="flex gap-3">
-                            {'1024'.split('').map((num, i) => (
-                                <div key={i} className="w-10 h-14 bg-gradient-to-b from-[#1e293b] to-[#0f172a] border border-blue-500/50 rounded flex items-center justify-center text-3xl font-bold text-blue-400 shadow-[0_0_20px_rgba(59,130,246,0.4)] relative overflow-hidden">
-                                    <div className="absolute top-0 left-0 right-0 h-1/2 bg-white/5 border-b border-black/20"></div>
-                                    {num}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
                     {/* 3D Map Area */}
                     <div className="flex-1 relative rounded-xl overflow-hidden border border-blue-500/30 bg-[#020617]/80 shadow-[0_0_50px_rgba(30,58,138,0.2)_inset]">
                         <ThreeMap />
                         
+                        {/* Safe Days Counter */}
+                        <div className="absolute top-8 left-1/2 transform -translate-x-1/2 flex flex-col items-center justify-center z-20 pointer-events-none">
+                            <div className="text-white font-bold text-sm mb-1 tracking-wider drop-shadow-md">安全运行天数(天)</div>
+                            
+                            <div className="relative flex items-center justify-center px-12 py-2">
+                                {/* Background Bar */}
+                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-900/60 to-transparent"></div>
+                                <div className="absolute inset-x-6 top-0 bottom-0 border-y border-blue-500/20 bg-gradient-to-r from-transparent via-blue-950/80 to-transparent"></div>
+
+                                {/* Left Decoration */}
+                                <div className="absolute left-0 w-4 h-10 border-l-4 border-blue-500 rounded-l-full shadow-[-4px_0_10px_rgba(59,130,246,0.6)]"></div>
+                                <div className="absolute left-2 w-2 h-8 border-l-2 border-blue-400/50 rounded-l-full"></div>
+
+                                {/* Numbers */}
+                                <div className="relative z-10 text-4xl font-bold text-white tracking-[0.5em] font-mono drop-shadow-[0_0_10px_rgba(255,255,255,0.8)] pl-[0.5em]">
+                                    1024
+                                </div>
+
+                                {/* Right Decoration */}
+                                <div className="absolute right-0 w-4 h-10 border-r-4 border-blue-500 rounded-r-full shadow-[4px_0_10px_rgba(59,130,246,0.6)]"></div>
+                                <div className="absolute right-2 w-2 h-8 border-r-2 border-blue-400/50 rounded-r-full"></div>
+                                
+                                {/* Bottom Accent */}
+                                <div className="absolute bottom-0 w-12 h-[2px] bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,1)]"></div>
+                            </div>
+                        </div>
+
                         {/* Overlay UI Elements on Map */}
                         <div className="absolute top-4 left-4 flex flex-col gap-2 pointer-events-none">
                             <div className="bg-black/40 backdrop-blur-md border-l-2 border-orange-500 px-3 py-1 text-xs text-orange-300">
