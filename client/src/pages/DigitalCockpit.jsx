@@ -88,12 +88,6 @@ export default function DigitalCockpit() {
                         <i className="fas fa-cloud text-blue-400 animate-pulse"></i>
                         <span>多云 24°C</span>
                     </div>
-                    <button 
-                        onClick={() => navigate('/')} 
-                        className="px-4 py-1.5 border border-blue-500/50 bg-blue-500/10 rounded hover:bg-blue-500/30 transition-all text-sm text-blue-200 hover:text-white hover:shadow-[0_0_15px_rgba(59,130,246,0.5)]"
-                    >
-                        进入后台
-                    </button>
                 </div>
             </header>
 
@@ -103,7 +97,11 @@ export default function DigitalCockpit() {
                 {/* Left Column */}
                 <div className="col-span-12 lg:col-span-3 flex flex-col gap-4 h-full overflow-y-auto lg:overflow-hidden pr-2 lg:pr-0">
                     {/* Overall Analysis */}
-                    <TechPanel title="总体分析" className="flex-none">
+                    <TechPanel 
+                        title="总体分析" 
+                        className="flex-none cursor-pointer hover:border-blue-400 transition-all hover:shadow-[0_0_30px_rgba(59,130,246,0.4)]"
+                        onClick={() => navigate('/comprehensive')}
+                    >
                         <div className="grid grid-cols-2 gap-3">
                             {overallStats.map((stat, index) => (
                                 <div key={index} className="bg-blue-950/30 p-3 rounded border border-blue-800/30 flex flex-col items-center justify-center text-center group hover:bg-blue-900/40 transition-colors">
@@ -116,7 +114,11 @@ export default function DigitalCockpit() {
                     </TechPanel>
 
                     {/* Risk Analysis */}
-                    <TechPanel title="风险分析" className="flex-none">
+                    <TechPanel 
+                        title="风险分析" 
+                        className="flex-none cursor-pointer hover:border-blue-400 transition-all hover:shadow-[0_0_30px_rgba(59,130,246,0.4)]"
+                        onClick={() => navigate('/risk')}
+                    >
                         <div className="space-y-3 px-1">
                             {riskStats.map((risk, index) => (
                                 <div key={index} className="flex items-center gap-3 text-sm">
@@ -131,7 +133,11 @@ export default function DigitalCockpit() {
                     </TechPanel>
 
                     {/* Hidden Danger Analysis */}
-                    <TechPanel title="隐患风险分析" className="flex-none">
+                    <TechPanel 
+                        title="隐患风险分析" 
+                        className="flex-none cursor-pointer hover:border-blue-400 transition-all hover:shadow-[0_0_30px_rgba(59,130,246,0.4)]"
+                        onClick={() => navigate('/hazard')}
+                    >
                         <div className="flex justify-around items-center py-2">
                             <CircleProgress percentage={88.9} label="检查率" color="text-blue-500" />
                             <CircleProgress percentage={89.0} label="整改率" color="text-green-500" />
@@ -149,7 +155,11 @@ export default function DigitalCockpit() {
                     </TechPanel>
 
                     {/* Production Alarm */}
-                    <TechPanel title="生产报警信息" className="flex-1 min-h-[200px]">
+                    <TechPanel 
+                        title="生产报警信息" 
+                        className="flex-1 min-h-[200px] cursor-pointer hover:border-blue-400 transition-all hover:shadow-[0_0_30px_rgba(59,130,246,0.4)]"
+                        onClick={() => navigate('/equipment')}
+                    >
                         <div className="h-full overflow-y-auto overflow-x-hidden dark-scrollbar" style={{ maxHeight: 'calc(100% - 0px)' }}>
                             <table className="w-full text-left text-xs">
                                 <thead className="text-blue-400 sticky top-0 bg-[#0f172a]/95 z-10 backdrop-blur-sm">
@@ -202,16 +212,16 @@ export default function DigitalCockpit() {
                         </div>
                     </div>
 
-                    {/* Bottom Stats (Optional or Placeholder) */}
-                    <div className="h-16 flex-none grid grid-cols-4 gap-4">
-                         {/* Additional KPIs can go here */}
-                    </div>
                 </div>
 
                 {/* Right Column */}
                 <div className="col-span-12 lg:col-span-3 flex flex-col gap-4 h-full overflow-y-auto lg:overflow-hidden pl-2 lg:pl-0">
                     {/* Work Permit Analysis */}
-                    <TechPanel title="作业票分析" className="flex-none h-48">
+                    <TechPanel 
+                        title="作业票分析" 
+                        className="flex-none h-48 cursor-pointer hover:border-blue-400 transition-all hover:shadow-[0_0_30px_rgba(59,130,246,0.4)]"
+                        onClick={() => navigate('/work-permit')}
+                    >
                         <div className="flex items-end justify-between h-full px-1 pb-2 gap-1">
                             {workPermitStats.map((stat, index) => (
                                 <div key={index} className="flex flex-col items-center flex-1 group h-full justify-end">
@@ -225,7 +235,11 @@ export default function DigitalCockpit() {
                     </TechPanel>
 
                     {/* Legal Analysis */}
-                    <TechPanel title="法律法规分析" className="flex-none">
+                    <TechPanel 
+                        title="法律法规分析" 
+                        className="flex-none cursor-pointer hover:border-blue-400 transition-all hover:shadow-[0_0_30px_rgba(59,130,246,0.4)]"
+                        onClick={() => navigate('/regulation')}
+                    >
                         <div className="grid grid-cols-3 gap-2 text-center">
                             {['法律法规', '规章制度', '操作规程'].map((label, i) => (
                                 <div key={i} className="bg-blue-950/20 p-2 rounded border border-blue-900/20">
@@ -242,7 +256,11 @@ export default function DigitalCockpit() {
                     </TechPanel>
 
                     {/* Safety Education */}
-                    <TechPanel title="安全教育培训" className="flex-none">
+                    <TechPanel 
+                        title="安全教育培训" 
+                        className="flex-none cursor-pointer hover:border-blue-400 transition-all hover:shadow-[0_0_30px_rgba(59,130,246,0.4)]"
+                        onClick={() => navigate('/training')}
+                    >
                         <div className="flex items-center gap-4 mb-2">
                             <div className="relative w-16 h-16 flex-none">
                                 <svg className="w-full h-full transform -rotate-90">
@@ -265,7 +283,11 @@ export default function DigitalCockpit() {
                     </TechPanel>
 
                     {/* AI Alarm Info */}
-                    <TechPanel title="AI报警信息" className="flex-1 min-h-[200px]">
+                    <TechPanel 
+                        title="AI报警信息" 
+                        className="flex-1 min-h-[200px] cursor-pointer hover:border-blue-400 transition-all hover:shadow-[0_0_30px_rgba(59,130,246,0.4)]"
+                        onClick={() => navigate('/video')}
+                    >
                         <div className="h-full overflow-y-auto overflow-x-hidden dark-scrollbar" style={{ maxHeight: 'calc(100% - 0px)' }}>
                             <table className="w-full text-left text-xs">
                                 <thead className="text-blue-400 sticky top-0 bg-[#0f172a]/95 z-10 backdrop-blur-sm">
@@ -296,9 +318,12 @@ export default function DigitalCockpit() {
 }
 
 // Enhanced Tech Panel Component
-function TechPanel({ title, children, className = '' }) {
+function TechPanel({ title, children, className = '', onClick }) {
     return (
-        <div className={`bg-[#0f172a]/60 border border-blue-500/30 rounded-xl p-4 flex flex-col relative overflow-hidden backdrop-blur-md shadow-lg ${className}`}>
+        <div 
+            className={`bg-[#0f172a]/60 border border-blue-500/30 rounded-xl p-4 flex flex-col relative overflow-hidden backdrop-blur-md shadow-lg ${className}`}
+            onClick={onClick}
+        >
             {/* Glowing Corner Accents */}
             <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-blue-400 rounded-tl-lg shadow-[0_0_10px_rgba(96,165,250,0.8)]"></div>
             <div className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-blue-400 rounded-tr-lg shadow-[0_0_10px_rgba(96,165,250,0.8)]"></div>
@@ -321,6 +346,27 @@ function TechPanel({ title, children, className = '' }) {
             
             <div className="flex-1 overflow-hidden relative">
                 {children}
+            </div>
+        </div>
+    );
+}
+
+// System Module Component
+function SystemModule({ title, icon, color, onClick }) {
+    return (
+        <div 
+            onClick={onClick}
+            className="group relative bg-[#0f172a]/80 border border-blue-500/30 rounded-xl p-4 cursor-pointer hover:border-blue-400 transition-all duration-300 hover:scale-105 hover:shadow-[0_0_30px_rgba(59,130,246,0.4)] backdrop-blur-md overflow-hidden"
+        >
+            <div className={`absolute inset-0 bg-gradient-to-br ${color} opacity-0 group-hover:opacity-20 transition-opacity duration-300`}></div>
+            <div className="relative flex flex-col items-center justify-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center group-hover:bg-blue-500/40 transition-colors">
+                    <i className={`fas ${icon} text-2xl text-blue-400 group-hover:text-blue-300 group-hover:scale-110 transition-all`}></i>
+                </div>
+                <span className="text-blue-100 font-medium text-sm group-hover:text-white transition-colors">{title}</span>
+            </div>
+            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <i className="fas fa-arrow-right text-blue-400 text-xs"></i>
             </div>
         </div>
     );

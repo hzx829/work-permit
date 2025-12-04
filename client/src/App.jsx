@@ -8,6 +8,13 @@ import DigitalCockpit from './pages/DigitalCockpit';
 import List from './pages/List';
 import Create from './pages/Create';
 import Detail from './pages/Detail';
+import Comprehensive from './pages/Comprehensive';
+import Risk from './pages/Risk';
+import Hazard from './pages/Hazard';
+import Equipment from './pages/Equipment';
+import Training from './pages/Training';
+import Regulation from './pages/Regulation';
+import Video from './pages/Video';
 
 function App() {
   return (
@@ -15,9 +22,16 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
-          <Route path="/cockpit" element={<DigitalCockpit />} />
           <Route
             path="/"
+            element={
+              <ProtectedRoute>
+                <DigitalCockpit />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/work-permit"
             element={
               <ProtectedRoute>
                 <Layout />
@@ -29,6 +43,62 @@ function App() {
             <Route path="create" element={<Create />} />
             <Route path="detail/:id" element={<Detail />} />
           </Route>
+          <Route
+            path="/comprehensive"
+            element={
+              <ProtectedRoute>
+                <Comprehensive />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/risk"
+            element={
+              <ProtectedRoute>
+                <Risk />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/hazard"
+            element={
+              <ProtectedRoute>
+                <Hazard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/equipment"
+            element={
+              <ProtectedRoute>
+                <Equipment />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/training"
+            element={
+              <ProtectedRoute>
+                <Training />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/regulation"
+            element={
+              <ProtectedRoute>
+                <Regulation />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/video"
+            element={
+              <ProtectedRoute>
+                <Video />
+              </ProtectedRoute>
+            }
+          />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
