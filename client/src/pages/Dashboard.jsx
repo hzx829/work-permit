@@ -56,9 +56,18 @@ export default function Dashboard() {
     return (
         <div className="flex-1 overflow-auto p-6">
             {/* Welcome Section */}
-            <div className="mb-6">
-                <h2 className="text-2xl font-bold text-gray-800">工作台概览</h2>
-                <p className="text-gray-500">欢迎回来，{user?.full_name}，今日安全生产无事故。</p>
+            <div className="mb-6 flex justify-between items-end">
+                <div>
+                    <h2 className="text-2xl font-bold text-gray-800">工作台概览</h2>
+                    <p className="text-gray-500">欢迎回来，{user?.full_name}，今日安全生产无事故。</p>
+                </div>
+                <button 
+                    onClick={() => navigate('/cockpit')}
+                    className="bg-indigo-600 text-white px-4 py-2 rounded-lg shadow hover:bg-indigo-700 transition-colors flex items-center gap-2"
+                >
+                    <i className="fas fa-chart-line"></i>
+                    进入数字驾驶舱
+                </button>
             </div>
 
             {/* Total Summary */}

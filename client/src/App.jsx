@@ -4,6 +4,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import DigitalCockpit from './pages/DigitalCockpit';
 import List from './pages/List';
 import Create from './pages/Create';
 import Detail from './pages/Detail';
@@ -14,6 +15,7 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/cockpit" element={<DigitalCockpit />} />
           <Route
             path="/"
             element={
