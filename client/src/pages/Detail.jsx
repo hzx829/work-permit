@@ -211,7 +211,44 @@ export default function Detail() {
                             <div className="space-y-3">
                                 <div>
                                     <span className="text-xs text-gray-500">申请人</span>
-                                    <p className="font-medium text-gray-900">{permit.applicant_name}</p>
+                                    <div className="group relative inline-block">
+                                        <p className="font-medium text-gray-900 cursor-help border-b border-dashed border-gray-300 inline-block">
+                                            {permit.applicant_name}
+                                        </p>
+                                        {/* Tooltip */}
+                                        <div className="invisible group-hover:visible opacity-0 group-hover:opacity-100 absolute right-full top-1/2 -translate-y-1/2 mr-3 w-72 bg-gray-800 text-white text-xs rounded-lg shadow-xl p-4 z-50 transition-all duration-200">
+                                            <div className="space-y-3">
+                                                <div>
+                                                    <h4 className="font-bold text-blue-200 mb-1.5 border-b border-gray-600 pb-1">培训考核教育纪录</h4>
+                                                    <ul className="space-y-1 text-gray-300">
+                                                        <li className="flex items-start gap-2">
+                                                            <i className="fas fa-check text-green-400 mt-0.5"></i>
+                                                            <span>2024年度安全生产教育培训 (合格)</span>
+                                                        </li>
+                                                        <li className="flex items-start gap-2">
+                                                            <i className="fas fa-check text-green-400 mt-0.5"></i>
+                                                            <span>入场三级安全教育 (通过)</span>
+                                                        </li>
+                                                    </ul>
+                                                </div>
+                                                <div>
+                                                    <h4 className="font-bold text-blue-200 mb-1.5 border-b border-gray-600 pb-1">考核合格记录</h4>
+                                                    <ul className="space-y-1 text-gray-300">
+                                                        <li className="flex items-start gap-2">
+                                                            <i className="fas fa-certificate text-yellow-400 mt-0.5"></i>
+                                                            <span>特殊作业监护人资格证 (有效)</span>
+                                                        </li>
+                                                        <li className="flex items-start gap-2">
+                                                            <i className="fas fa-certificate text-yellow-400 mt-0.5"></i>
+                                                            <span>安全管理人员资格证 (有效)</span>
+                                                        </li>
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                            {/* Arrow pointing right */}
+                                            <div className="absolute left-full top-1/2 -translate-y-1/2 -ml-[1px] border-8 border-transparent border-l-gray-800"></div>
+                                        </div>
+                                    </div>
                                 </div>
                                 <div>
                                     <span className="text-xs text-gray-500">申请时间</span>
