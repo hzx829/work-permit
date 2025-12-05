@@ -2,6 +2,14 @@ import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getPermit, formatDate, getStatusColor, updatePermitStatus } from '../utils/api';
+import HotWorkPermitForm from '../components/HotWorkPermitForm';
+import ConfinedSpacePermitForm from '../components/ConfinedSpacePermitForm';
+import BlindPlatePermitForm from '../components/BlindPlatePermitForm';
+import HeightWorkPermitForm from '../components/HeightWorkPermitForm';
+import LiftingPermitForm from '../components/LiftingPermitForm';
+import TemporaryElectricityPermitForm from '../components/TemporaryElectricityPermitForm';
+import GroundBreakingPermitForm from '../components/GroundBreakingPermitForm';
+import RoadBreakingPermitForm from '../components/RoadBreakingPermitForm';
 
 export default function Detail() {
     const { id } = useParams();
@@ -17,6 +25,10 @@ export default function Detail() {
         const fetchPermit = async () => {
             try {
                 const data = await getPermit(id);
+                // 适配不同组件对编号字段的命名差异
+                if (data.permit_number) {
+                    data.permit_code = data.permit_number;
+                }
                 setPermit(data);
                 setLoading(false);
             } catch (error) {
@@ -48,6 +60,7 @@ export default function Detail() {
             await updatePermitStatus(id, '已批准');
             alert('审批成功');
             const data = await getPermit(id);
+            if (data.permit_number) data.permit_code = data.permit_number;
             setPermit(data);
             setShowConfinedSpaceModal(false);
         } catch (error) {
@@ -67,6 +80,7 @@ export default function Detail() {
             await updatePermitStatus(id, '已驳回');
             alert('已驳回该作业票');
             const data = await getPermit(id);
+            if (data.permit_number) data.permit_code = data.permit_number;
             setPermit(data);
         } catch (error) {
             console.error('Error rejecting permit:', error);
@@ -84,6 +98,7 @@ export default function Detail() {
             await updatePermitStatus(id, '作业中');
             alert('作业已开始');
             const data = await getPermit(id);
+            if (data.permit_number) data.permit_code = data.permit_number;
             setPermit(data);
         } catch (error) {
             console.error('Error starting work:', error);
@@ -101,6 +116,7 @@ export default function Detail() {
             await updatePermitStatus(id, '已完工');
             alert('作业已完成');
             const data = await getPermit(id);
+            if (data.permit_number) data.permit_code = data.permit_number;
             setPermit(data);
         } catch (error) {
             console.error('Error completing work:', error);
@@ -119,6 +135,22 @@ export default function Detail() {
     }
 
     const safetyMeasures = JSON.parse(permit.safety_measures || '[]');
+
+    const getSpecificForm = () => {
+        switch (permit.type) {
+            case '动火作业': return HotWorkPermitForm;
+            case '受限空间作业': return ConfinedSpacePermitForm;
+            case '盲板抽堵作业': return BlindPlatePermitForm;
+            case '高处作业': return HeightWorkPermitForm;
+            case '吊装作业': return LiftingPermitForm;
+            case '临时用电作业': return TemporaryElectricityPermitForm;
+            case '动土作业': return GroundBreakingPermitForm;
+            case '断路作业': return RoadBreakingPermitForm;
+            default: return null;
+        }
+    };
+
+    const SpecificForm = getSpecificForm();
 
     return (
         <>
@@ -146,67 +178,75 @@ export default function Detail() {
                 <div className="max-w-6xl mx-auto w-full grid grid-cols-1 lg:grid-cols-3 gap-8">
                     {/* Left: Content Details */}
                     <div className="lg:col-span-2 space-y-6">
-                        {/* Basic Info */}
-                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 relative overflow-hidden">
-                            <div className="absolute -right-6 -top-6 w-32 h-32 bg-blue-50 rounded-full flex items-center justify-center opacity-50 pointer-events-none">
-                                <i className="fas fa-file-contract text-6xl text-blue-200 ml-4 mt-4"></i>
+                        {SpecificForm ? (
+                            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                                <SpecificForm data={permit} readOnly={true} onChange={() => {}} />
                             </div>
+                        ) : (
+                            <>
+                                {/* Basic Info */}
+                                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 relative overflow-hidden">
+                                    <div className="absolute -right-6 -top-6 w-32 h-32 bg-blue-50 rounded-full flex items-center justify-center opacity-50 pointer-events-none">
+                                        <i className="fas fa-file-contract text-6xl text-blue-200 ml-4 mt-4"></i>
+                                    </div>
 
-                            <h2 className="text-lg font-bold text-gray-800 mb-4 pb-2 border-b border-gray-100">基础信息</h2>
-                            <div className="grid grid-cols-2 gap-y-4 text-sm">
-                                <div>
-                                    <span className="text-gray-500 block mb-1">作业类型</span>
-                                    <span className="font-medium text-gray-900 text-lg">{permit.type}</span>
+                                    <h2 className="text-lg font-bold text-gray-800 mb-4 pb-2 border-b border-gray-100">基础信息</h2>
+                                    <div className="grid grid-cols-2 gap-y-4 text-sm">
+                                        <div>
+                                            <span className="text-gray-500 block mb-1">作业类型</span>
+                                            <span className="font-medium text-gray-900 text-lg">{permit.type}</span>
+                                        </div>
+                                        <div>
+                                            <span className="text-gray-500 block mb-1">作业编号</span>
+                                            <span className="font-mono text-gray-700">{permit.permit_number}</span>
+                                        </div>
+                                        <div>
+                                            <span className="text-gray-500 block mb-1">申请单位/部门</span>
+                                            <span className="text-gray-900">{permit.department}</span>
+                                        </div>
+                                        <div>
+                                            <span className="text-gray-500 block mb-1">作业地点</span>
+                                            <span className="text-gray-900">{permit.location}</span>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div>
-                                    <span className="text-gray-500 block mb-1">作业编号</span>
-                                    <span className="font-mono text-gray-700">{permit.permit_number}</span>
-                                </div>
-                                <div>
-                                    <span className="text-gray-500 block mb-1">申请单位/部门</span>
-                                    <span className="text-gray-900">{permit.department}</span>
-                                </div>
-                                <div>
-                                    <span className="text-gray-500 block mb-1">作业地点</span>
-                                    <span className="text-gray-900">{permit.location}</span>
-                                </div>
-                            </div>
-                        </div>
 
-                        {/* Time */}
-                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                            <h2 className="text-lg font-bold text-gray-800 mb-4 pb-2 border-b border-gray-100">时间安排</h2>
-                            <div className="flex items-center gap-4 text-sm">
-                                <div className="flex-1">
-                                    <span className="text-gray-500 block mb-1">计划开始时间</span>
-                                    <span className="text-gray-900 font-mono">{formatDate(permit.start_time)}</span>
+                                {/* Time */}
+                                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                                    <h2 className="text-lg font-bold text-gray-800 mb-4 pb-2 border-b border-gray-100">时间安排</h2>
+                                    <div className="flex items-center gap-4 text-sm">
+                                        <div className="flex-1">
+                                            <span className="text-gray-500 block mb-1">计划开始时间</span>
+                                            <span className="text-gray-900 font-mono">{formatDate(permit.start_time)}</span>
+                                        </div>
+                                        <i className="fas fa-arrow-right text-gray-300"></i>
+                                        <div className="flex-1 text-right">
+                                            <span className="text-gray-500 block mb-1">计划结束时间</span>
+                                            <span className="text-gray-900 font-mono">{formatDate(permit.end_time)}</span>
+                                        </div>
+                                    </div>
                                 </div>
-                                <i className="fas fa-arrow-right text-gray-300"></i>
-                                <div className="flex-1 text-right">
-                                    <span className="text-gray-500 block mb-1">计划结束时间</span>
-                                    <span className="text-gray-900 font-mono">{formatDate(permit.end_time)}</span>
+
+                                {/* Details */}
+                                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                                    <h2 className="text-lg font-bold text-gray-800 mb-4 pb-2 border-b border-gray-100">作业内容</h2>
+                                    <p className="text-gray-700 leading-relaxed whitespace-pre-line">{permit.content}</p>
                                 </div>
-                            </div>
-                        </div>
 
-                        {/* Details */}
-                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                            <h2 className="text-lg font-bold text-gray-800 mb-4 pb-2 border-b border-gray-100">作业内容</h2>
-                            <p className="text-gray-700 leading-relaxed whitespace-pre-line">{permit.content}</p>
-                        </div>
-
-                        {/* Safety Measures */}
-                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                            <h2 className="text-lg font-bold text-gray-800 mb-4 pb-2 border-b border-gray-100">安全措施</h2>
-                            <ul className="space-y-2">
-                                {safetyMeasures.map((measure, index) => (
-                                    <li key={index} className="flex items-start gap-2 text-gray-700">
-                                        <i className="fas fa-check-circle text-green-500 mt-1"></i>
-                                        <span>{measure}</span>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
+                                {/* Safety Measures */}
+                                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                                    <h2 className="text-lg font-bold text-gray-800 mb-4 pb-2 border-b border-gray-100">安全措施</h2>
+                                    <ul className="space-y-2">
+                                        {safetyMeasures.map((measure, index) => (
+                                            <li key={index} className="flex items-start gap-2 text-gray-700">
+                                                <i className="fas fa-check-circle text-green-500 mt-1"></i>
+                                                <span>{measure}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            </>
+                        )}
                     </div>
 
                     {/* Right: Status & Actions */}
@@ -230,37 +270,37 @@ export default function Detail() {
                                             {permit.applicant_name}
                                         </p>
                                         {/* Tooltip */}
-                                        <div className="invisible group-hover:visible opacity-0 group-hover:opacity-100 absolute right-full top-1/2 -translate-y-1/2 mr-3 w-72 bg-gray-800 text-white text-xs rounded-lg shadow-xl p-4 z-50 transition-all duration-200">
-                                            <div className="space-y-3">
+                                        <div className="invisible group-hover:visible opacity-0 group-hover:opacity-100 absolute right-full top-1/2 -translate-y-1/2 mr-3 w-[36rem] bg-gray-800 text-white text-base rounded-xl shadow-xl p-6 z-50 transition-all duration-200">
+                                            <div className="space-y-5">
                                                 <div>
-                                                    <h4 className="font-bold text-blue-200 mb-1.5 border-b border-gray-600 pb-1">培训考核教育纪录</h4>
-                                                    <ul className="space-y-1 text-gray-300">
-                                                        <li className="flex items-start gap-2">
-                                                            <i className="fas fa-check text-green-400 mt-0.5"></i>
+                                                    <h4 className="font-bold text-blue-200 text-lg mb-3 border-b border-gray-600 pb-2">培训考核教育纪录</h4>
+                                                    <ul className="space-y-2 text-gray-300">
+                                                        <li className="flex items-start gap-3">
+                                                            <i className="fas fa-check text-green-400 mt-1"></i>
                                                             <span>2024年度安全生产教育培训 (合格)</span>
                                                         </li>
-                                                        <li className="flex items-start gap-2">
-                                                            <i className="fas fa-check text-green-400 mt-0.5"></i>
+                                                        <li className="flex items-start gap-3">
+                                                            <i className="fas fa-check text-green-400 mt-1"></i>
                                                             <span>入场三级安全教育 (通过)</span>
                                                         </li>
                                                     </ul>
                                                 </div>
                                                 <div>
-                                                    <h4 className="font-bold text-blue-200 mb-1.5 border-b border-gray-600 pb-1">考核合格记录</h4>
-                                                    <ul className="space-y-1 text-gray-300">
-                                                        <li className="flex items-start gap-2">
-                                                            <i className="fas fa-certificate text-yellow-400 mt-0.5"></i>
+                                                    <h4 className="font-bold text-blue-200 text-lg mb-3 border-b border-gray-600 pb-2">考核合格记录</h4>
+                                                    <ul className="space-y-2 text-gray-300">
+                                                        <li className="flex items-start gap-3">
+                                                            <i className="fas fa-certificate text-yellow-400 mt-1"></i>
                                                             <span>特殊作业监护人资格证 (有效)</span>
                                                         </li>
-                                                        <li className="flex items-start gap-2">
-                                                            <i className="fas fa-certificate text-yellow-400 mt-0.5"></i>
+                                                        <li className="flex items-start gap-3">
+                                                            <i className="fas fa-certificate text-yellow-400 mt-1"></i>
                                                             <span>安全管理人员资格证 (有效)</span>
                                                         </li>
                                                     </ul>
                                                 </div>
                                             </div>
                                             {/* Arrow pointing right */}
-                                            <div className="absolute left-full top-1/2 -translate-y-1/2 -ml-[1px] border-8 border-transparent border-l-gray-800"></div>
+                                            <div className="absolute left-full top-1/2 -translate-y-1/2 -ml-[1px] border-[12px] border-transparent border-l-gray-800"></div>
                                         </div>
                                     </div>
                                 </div>
