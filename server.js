@@ -63,7 +63,14 @@ app.get('/api/work-permits', (req, res) => {
             res.status(500).json({ error: err.message });
             return;
         }
-        res.json(rows);
+        const processedRows = rows.map(row => {
+            let extra = {};
+            try {
+                extra = JSON.parse(row.extra_data || '{}');
+            } catch (e) {}
+            return { ...row, ...extra };
+        });
+        res.json(processedRows);
     });
 });
 
@@ -76,7 +83,11 @@ app.get('/api/work-permits/:id', (req, res) => {
             return;
         }
         if (row) {
-            res.json(row);
+            let extra = {};
+            try {
+                extra = JSON.parse(row.extra_data || '{}');
+            } catch (e) {}
+            res.json({ ...row, ...extra });
         } else {
             res.status(404).json({ error: "Work permit not found" });
         }
@@ -87,7 +98,8 @@ app.get('/api/work-permits/:id', (req, res) => {
 app.post('/api/work-permits', (req, res) => {
     const {
         type, applicant_id, applicant_name, department, location,
-        start_time, end_time, content, safety_measures, signatures
+        start_time, end_time, content, safety_measures, signatures,
+        ...otherFields
     } = req.body;
 
     // Generate a simple permit number: WP-YYYYMMDD-XXXX
@@ -99,13 +111,14 @@ app.post('/api/work-permits', (req, res) => {
     const sql = `INSERT INTO work_permits (
         permit_number, status, type, applicant_id, applicant_name, 
         department, location, start_time, end_time, content, 
-        safety_measures, signatures
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+        safety_measures, signatures, extra_data
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
     const params = [
         permit_number, status, type, applicant_id, applicant_name,
         department, location, start_time, end_time, content,
-        JSON.stringify(safety_measures), JSON.stringify(signatures || {})
+        JSON.stringify(safety_measures), JSON.stringify(signatures || {}),
+        JSON.stringify(otherFields)
     ];
 
     db.run(sql, params, function(err) {
