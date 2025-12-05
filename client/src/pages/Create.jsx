@@ -212,14 +212,56 @@ export default function Create() {
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                         作业申请人 <span className="text-red-500">*</span>
                                     </label>
-                                    <input
-                                        type="text"
-                                        name="applicant"
-                                        value={formData.applicant}
-                                        onChange={handleChange}
-                                        required
-                                        className="w-full rounded-lg border-gray-300 border p-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                                    />
+                                    <div className="relative group">
+                                        <input
+                                            type="text"
+                                            name="applicant"
+                                            value={formData.applicant}
+                                            onChange={handleChange}
+                                            required
+                                            className={`w-full rounded-lg border p-2.5 outline-none transition-all duration-200 ${
+                                                formData.applicant 
+                                                ? 'border-green-500 bg-green-50 text-green-700 font-medium focus:ring-2 focus:ring-green-200' 
+                                                : 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
+                                            }`}
+                                            placeholder="请输入申请人姓名"
+                                        />
+                                        
+                                        {formData.applicant && (
+                                            <div className="invisible group-hover:visible opacity-0 group-hover:opacity-100 absolute bottom-full left-0 mb-2 w-72 bg-gray-800 text-white text-xs rounded-lg shadow-xl p-4 z-50 transition-all duration-200 pointer-events-none transform origin-bottom">
+                                                <div className="space-y-3">
+                                                    <div>
+                                                        <h4 className="font-bold text-blue-200 mb-1.5 border-b border-gray-600 pb-1">培训考核教育纪录</h4>
+                                                        <ul className="space-y-1 text-gray-300">
+                                                            <li className="flex items-start gap-2">
+                                                                <i className="fas fa-check text-green-400 mt-0.5"></i>
+                                                                <span>2024年度安全生产教育培训 (合格)</span>
+                                                            </li>
+                                                            <li className="flex items-start gap-2">
+                                                                <i className="fas fa-check text-green-400 mt-0.5"></i>
+                                                                <span>入场三级安全教育 (通过)</span>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                    <div>
+                                                        <h4 className="font-bold text-blue-200 mb-1.5 border-b border-gray-600 pb-1">考核合格记录</h4>
+                                                        <ul className="space-y-1 text-gray-300">
+                                                            <li className="flex items-start gap-2">
+                                                                <i className="fas fa-certificate text-yellow-400 mt-0.5"></i>
+                                                                <span>特殊作业监护人资格证 (有效)</span>
+                                                            </li>
+                                                            <li className="flex items-start gap-2">
+                                                                <i className="fas fa-certificate text-yellow-400 mt-0.5"></i>
+                                                                <span>安全管理人员资格证 (有效)</span>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                {/* Arrow pointing down */}
+                                                <div className="absolute left-6 top-full -mt-[1px] border-8 border-transparent border-t-gray-800"></div>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
