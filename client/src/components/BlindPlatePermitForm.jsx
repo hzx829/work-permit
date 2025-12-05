@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function ConfinedSpacePermitForm({ data, onChange, readOnly = false }) {
+export default function BlindPlatePermitForm({ data, onChange, readOnly = false }) {
     const handleChange = (e) => {
         if (readOnly) return;
         const { name, value, type, checked } = e.target;
@@ -15,34 +15,25 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
         onChange('safety_measures_list', newMeasures);
     };
 
-    const handleGasAnalysisChange = (field, value) => {
-        if (readOnly) return;
-        onChange(field, value);
-    };
-
     // Initialize safety measures if empty and not readOnly
     React.useEffect(() => {
         if (!readOnly && (!data.safety_measures_list || data.safety_measures_list.length === 0)) {
             const initialMeasures = [
-                { id: 1, content: '盛装过有毒、可燃物料的受限空间，所有与受限空间有联系的阀门、管线已加盲板 隔离，并落实盲板责任人，未采用水封或关闭阀门代替盲板', applicable: '', confirmer: '' },
-                { id: 2, content: '盛装过有毒、可燃物料的受限空间，设备已经过置换、吹扫或蒸煮', applicable: '', confirmer: '' },
-                { id: 3, content: '设备通风孔已打开进行自然通风，温度适宜人员作业；必要时采用强制通风或佩戴隔绝式呼吸防护装备，不应采用直接通入氧气或富氧空气的方法补充氧', applicable: '', confirmer: '' },
-                { id: 4, content: '转动设备已切断电源，电源开关处已加锁并悬挂“禁止合闸”标志牌', applicable: '', confirmer: '' },
-                { id: 5, content: '受限空间内部已具备进入作业条件，易燃易爆物料容器内作业，作业人员未采用非防爆工具，手持电动工具符合作业安全要求', applicable: '', confirmer: '' },
-                { id: 6, content: '受限空间进出口通道畅通，无阻碍人员进出的障碍物', applicable: '', confirmer: '' },
-                { id: 7, content: '盛装过可燃有毒液体、气体的受限空间，已分析其中的可燃、有毒有害气体和氧气 含量，且在安全范围内', applicable: '', confirmer: '' },
-                { id: 8, content: '存在大量扬尘的设备已停止扬尘', applicable: '', confirmer: '' },
-                { id: 9, content: '用于连续检测的移动式可燃、有毒气体、氧气检测仪已配备到位', applicable: '', confirmer: '' },
-                { id: 10, content: '作业人员已佩戴必要的个体防护装备，清除受限空间内存在的危险因素', applicable: '', confirmer: '' },
-                { id: 11, content: '已配备作业应急设施：消防器材（ ）、救生绳（ ）、气防装备（ ），盛有腐蚀性介 质的容器作业现场已配备应急冲洗水', applicable: '', confirmer: '' },
-                { id: 12, content: '受限空间内作业已配备通信设备', applicable: '', confirmer: '' },
-                { id: 13, content: '受限空间出入口四周已设立警戒区', applicable: '', confirmer: '' },
-                { id: 14, content: '其他相关特殊作业已办理相应安全作业票', applicable: '', confirmer: '' },
-                { id: 15, content: '其他安全措施：', applicable: '', confirmer: '' },
+                { id: 1, content: '在管道、设备上作业时，降低系统压力，作业点应为常压或微正压', applicable: '', confirmer: '' },
+                { id: 2, content: '在有毒介质的管道、设备上作业时，作业人员应穿戴适合的个体防护装备', applicable: '', confirmer: '' },
+                { id: 3, content: '火灾爆炸危险场所，作业人员穿防静电工作服、工作鞋；作业时使用防爆灯具和防爆工具', applicable: '', confirmer: '' },
+                { id: 4, content: '火灾爆炸危险场所的气体管道，距作业地点 30 m 内无其他动火作业', applicable: '', confirmer: '' },
+                { id: 5, content: '在强腐蚀性介质的管道、设备上作业时，作业人员已采取防止酸碱化学灼伤的措施', applicable: '', confirmer: '' },
+                { id: 6, content: '介质温度较高、可能造成烫伤的情况下，作业人员已采取防烫措施', applicable: '', confirmer: '' },
+                { id: 7, content: '介质温度较低、可能造成人员冻伤的情况下，作业人员已采取防冻伤措施', applicable: '', confirmer: '' },
+                { id: 8, content: '同一管道上未同时进行两处及两处以上的盲板抽堵作业', applicable: '', confirmer: '' },
+                { id: 9, content: '其他相关特殊作业已办理相应安全作业票', applicable: '', confirmer: '' },
+                { id: 10, content: '作业现场四周已设警戒区', applicable: '', confirmer: '' },
+                { id: 11, content: '其他安全措施：', applicable: '', confirmer: '' },
             ];
             onChange('safety_measures_list', initialMeasures);
         }
-    }, []);
+    }, []); // Run once on mount
 
     const FormField = ({ label, required = false, children, className = "" }) => (
         <div className={`flex flex-col ${className}`}>
@@ -68,7 +59,7 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
             <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-3">
                     <div className="w-1.5 h-6 bg-blue-600 rounded-full"></div>
-                    <h1 className="text-xl font-bold text-gray-800">受限空间安全作业票申请表</h1>
+                    <h1 className="text-xl font-bold text-gray-800">盲板抽堵安全作业票申请表</h1>
                 </div>
                 <div className="text-sm text-gray-500 bg-gray-50 px-3 py-1 rounded border border-gray-200">
                     编号：{data.permit_code || '系统自动生成'}
@@ -79,48 +70,13 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
             <div className="mb-8">
                 <h2 className="text-base font-bold text-blue-600 mb-6">申请基本信息</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-                    <FormField label="作业申请单位">
+                    <FormField label="申请单位">
                         <Input 
                             type="text" 
                             name="applicant_unit"
                             value={data.applicant_unit || ''}
                             onChange={handleChange}
-                            placeholder="请输入单位"
-                        />
-                    </FormField>
-                    <FormField label="作业申请时间">
-                        <Input 
-                            type="datetime-local" 
-                            name="apply_time"
-                            value={data.apply_time || ''}
-                            onChange={handleChange}
-                        />
-                    </FormField>
-                    <FormField label="受限空间名称">
-                        <Input 
-                            type="text" 
-                            name="work_location"
-                            value={data.work_location || ''}
-                            onChange={handleChange}
-                            placeholder="请输入受限空间名称"
-                        />
-                    </FormField>
-                    <FormField label="受限空间内原有介质名称">
-                        <Input 
-                            type="text" 
-                            name="original_media"
-                            value={data.original_media || ''}
-                            onChange={handleChange}
-                            placeholder="请输入原有介质"
-                        />
-                    </FormField>
-                    <FormField label="作业内容" className="md:col-span-2">
-                        <Input 
-                            type="text" 
-                            name="content"
-                            value={data.content || ''}
-                            onChange={handleChange}
-                            placeholder="请输入作业内容"
+                            placeholder="请输入申请单位"
                         />
                     </FormField>
                     <FormField label="作业单位">
@@ -132,13 +88,129 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                             placeholder="请输入作业单位"
                         />
                     </FormField>
+                    <FormField label="作业类别">
+                        <div className="flex gap-4 mt-2">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <input 
+                                    type="radio" 
+                                    name="blind_plate_work_type" 
+                                    value="堵盲板"
+                                    checked={data.blind_plate_work_type === '堵盲板'}
+                                    onChange={handleChange}
+                                    disabled={readOnly}
+                                    className="w-4 h-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                                /> 
+                                <span className="text-sm text-gray-700">堵盲板</span>
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <input 
+                                    type="radio" 
+                                    name="blind_plate_work_type" 
+                                    value="抽盲板"
+                                    checked={data.blind_plate_work_type === '抽盲板'}
+                                    onChange={handleChange}
+                                    disabled={readOnly}
+                                    className="w-4 h-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                                /> 
+                                <span className="text-sm text-gray-700">抽盲板</span>
+                            </label>
+                        </div>
+                    </FormField>
+                    <FormField label="设备、管道名称">
+                        <Input 
+                            type="text" 
+                            name="equipment_pipeline_name"
+                            value={data.equipment_pipeline_name || ''}
+                            onChange={handleChange}
+                            placeholder="请输入设备/管道名称"
+                        />
+                    </FormField>
+                    
+                    {/* Pipeline Parameters */}
+                    <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-6 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        <div className="md:col-span-3 text-sm font-bold text-gray-700 mb-2">管道参数</div>
+                        <FormField label="介质">
+                            <Input 
+                                type="text" 
+                                name="pipeline_media"
+                                value={data.pipeline_media || ''}
+                                onChange={handleChange}
+                            />
+                        </FormField>
+                        <FormField label="温度">
+                            <Input 
+                                type="text" 
+                                name="pipeline_temp"
+                                value={data.pipeline_temp || ''}
+                                onChange={handleChange}
+                            />
+                        </FormField>
+                        <FormField label="压力">
+                            <Input 
+                                type="text" 
+                                name="pipeline_pressure"
+                                value={data.pipeline_pressure || ''}
+                                onChange={handleChange}
+                            />
+                        </FormField>
+                    </div>
+
+                    {/* Blind Plate Parameters */}
+                    <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-6 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        <div className="md:col-span-3 text-sm font-bold text-gray-700 mb-2">盲板参数</div>
+                        <FormField label="材质">
+                            <Input 
+                                type="text" 
+                                name="blind_plate_material"
+                                value={data.blind_plate_material || ''}
+                                onChange={handleChange}
+                            />
+                        </FormField>
+                        <FormField label="规格">
+                            <Input 
+                                type="text" 
+                                name="blind_plate_spec"
+                                value={data.blind_plate_spec || ''}
+                                onChange={handleChange}
+                            />
+                        </FormField>
+                        <FormField label="编号">
+                            <Input 
+                                type="text" 
+                                name="blind_plate_number"
+                                value={data.blind_plate_number || ''}
+                                onChange={handleChange}
+                            />
+                        </FormField>
+                    </div>
+
+                    <FormField label="实际作业开始时间">
+                        <Input 
+                            type="datetime-local" 
+                            name="start_time"
+                            value={data.start_time || ''}
+                            onChange={handleChange}
+                        />
+                    </FormField>
+                     <FormField label="盲板位置图及编号" className="md:col-span-2">
+                        <textarea
+                            name="blind_plate_map"
+                            value={data.blind_plate_map || ''}
+                            onChange={handleChange}
+                            readOnly={readOnly}
+                            disabled={readOnly}
+                            className="w-full bg-gray-50 border border-gray-200 rounded px-3 py-2.5 text-sm text-gray-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder-gray-400 disabled:cursor-not-allowed h-24 resize-none"
+                            placeholder="请描述或附上图纸说明"
+                        />
+                    </FormField>
+
                     <FormField label="作业负责人">
                         <Input 
                             type="text" 
                             name="supervisor"
                             value={data.supervisor || ''}
                             onChange={handleChange}
-                            placeholder="请输入负责人姓名"
+                            placeholder="负责人姓名"
                         />
                     </FormField>
                     <FormField label="作业人">
@@ -147,7 +219,7 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                             name="workers"
                             value={data.workers || ''}
                             onChange={handleChange}
-                            placeholder="请输入作业人姓名"
+                            placeholder="作业人姓名"
                         />
                     </FormField>
                     <FormField label="监护人">
@@ -156,7 +228,7 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                             name="guardian"
                             value={data.guardian || ''}
                             onChange={handleChange}
-                            placeholder="请输入监护人姓名"
+                            placeholder="监护人姓名"
                         />
                     </FormField>
                     <FormField label="关联的其他特殊作业及安全作业票编号" className="md:col-span-2">
@@ -165,6 +237,7 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                             name="related_permits"
                             value={data.related_permits || ''}
                             onChange={handleChange}
+                            placeholder="如：动火作业 DH2022040101"
                         />
                     </FormField>
                     <FormField label="风险辨识结果" className="md:col-span-2">
@@ -173,130 +246,7 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                             name="risk_identification"
                             value={data.risk_identification || ''}
                             onChange={handleChange}
-                        />
-                    </FormField>
-                </div>
-            </div>
-
-            {/* Gas Analysis */}
-            <div className="mb-8">
-                <h2 className="text-base font-bold text-blue-600 mb-6">气体分析</h2>
-                <div className="bg-gray-50 rounded-lg border border-gray-200 p-6">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                        <FormField label="有毒有害气体名称">
-                            <Input 
-                                type="text" 
-                                name="gas_toxic_name"
-                                value={data.gas_toxic_name || ''}
-                                onChange={handleChange}
-                                placeholder="如: H2S, 苯"
-                            />
-                        </FormField>
-                        <FormField label="可燃气体名称">
-                            <Input 
-                                type="text" 
-                                name="gas_comb_name"
-                                value={data.gas_comb_name || ''}
-                                onChange={handleChange}
-                                placeholder="如: 甲烷"
-                            />
-                        </FormField>
-                        <FormField label="氧气含量(体积分数)">
-                            <Input value="19.5% ~ 21%" disabled className="bg-gray-100" />
-                        </FormField>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                        <FormField label="有毒有害气体合格标准">
-                            <Input 
-                                type="text" 
-                                name="gas_toxic_std"
-                                value={data.gas_toxic_std || ''}
-                                onChange={handleChange}
-                            />
-                        </FormField>
-                        <FormField label="可燃气体合格标准">
-                            <Input 
-                                type="text" 
-                                name="gas_comb_std"
-                                value={data.gas_comb_std || ''}
-                                onChange={handleChange}
-                            />
-                        </FormField>
-                    </div>
-                    <div className="border-t border-gray-200 pt-6 mt-2">
-                         <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-                            <FormField label="有毒有害气体分析数据">
-                                <Input 
-                                    type="text" 
-                                    name="gas_toxic_result"
-                                    value={data.gas_toxic_result || ''}
-                                    onChange={handleChange}
-                                />
-                            </FormField>
-                            <FormField label="可燃气体分析数据">
-                                <Input 
-                                    type="text" 
-                                    name="gas_comb_result"
-                                    value={data.gas_comb_result || ''}
-                                    onChange={handleChange}
-                                />
-                            </FormField>
-                            <FormField label="氧气分析数据">
-                                <Input 
-                                    type="text" 
-                                    name="gas_oxygen_result"
-                                    value={data.gas_oxygen_result || ''}
-                                    onChange={handleChange}
-                                />
-                            </FormField>
-                            <FormField label="取样分析时间">
-                                <Input 
-                                    type="text" 
-                                    name="gas_time"
-                                    value={data.gas_time || ''}
-                                    onChange={handleChange}
-                                    placeholder="月 日 时 分"
-                                />
-                            </FormField>
-                             <FormField label="分析部位">
-                                <Input 
-                                    type="text" 
-                                    name="gas_location"
-                                    value={data.gas_location || ''}
-                                    onChange={handleChange}
-                                />
-                            </FormField>
-                             <FormField label="分析人">
-                                <Input 
-                                    type="text" 
-                                    name="gas_analyst"
-                                    value={data.gas_analyst || ''}
-                                    onChange={handleChange}
-                                />
-                            </FormField>
-                         </div>
-                    </div>
-                </div>
-            </div>
-
-             {/* Time Range */}
-             <div className="mb-8">
-                <h2 className="text-base font-bold text-blue-600 mb-6">作业实施时间</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-gray-50 p-6 rounded-lg border border-gray-200">
-                    <FormField label="开始时间">
-                        <Input 
-                            type="datetime-local" 
-                            name="start_time"
-                            value={data.start_time || ''}
-                            onChange={handleChange}
-                        />
-                    </FormField>
-                    <FormField label="结束时间">
-                        <Input 
-                            type="datetime-local" 
-                            name="end_time"
-                            value={data.end_time || ''}
-                            onChange={handleChange}
+                            placeholder="如：灼伤、火灾爆炸..."
                         />
                     </FormField>
                 </div>
@@ -322,7 +272,7 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                                 <div className="col-span-1 text-sm text-gray-500">{measure.id}</div>
                                 <div className="col-span-6 text-sm text-gray-700 leading-relaxed">
                                     {measure.content}
-                                    {measure.id === 15 && (
+                                    {measure.id === 11 && (
                                         <input 
                                             type="text" 
                                             value={measure.extraContent || ''}
@@ -365,21 +315,12 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
             <div className="mt-8">
                 <h2 className="text-base font-bold text-blue-600 mb-6">签字与验收</h2>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                     <FormField label="安全交底人">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                     <FormField label="编制人">
                         <Input 
                             type="text" 
-                            name="safety_discloser"
-                            value={data.safety_discloser || ''}
-                            onChange={handleChange}
-                            placeholder="请输入"
-                        />
-                    </FormField>
-                    <FormField label="接受交底人">
-                        <Input 
-                            type="text" 
-                            name="safety_receiver"
-                            value={data.safety_receiver || ''}
+                            name="preparer"
+                            value={data.preparer || ''}
                             onChange={handleChange}
                             placeholder="请输入"
                         />
@@ -429,15 +370,15 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                         </FormField>
                     </div>
 
-                    {/* Unit Opinion */}
+                    {/* Production Unit Opinion */}
                     <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                        <FormField label="所在单位意见">
+                        <FormField label="生产单位意见">
                             <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                                 <div className="md:col-span-6">
                                     <Input 
                                         type="text" 
-                                        name="unit_opinion"
-                                        value={data.unit_opinion || '同意作业'}
+                                        name="production_unit_opinion"
+                                        value={data.production_unit_opinion || '同意作业'}
                                         onChange={handleChange}
                                     />
                                 </div>
@@ -445,16 +386,16 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                                     <Input 
                                         type="text" 
                                         placeholder="签字"
-                                        name="unit_sign"
-                                        value={data.unit_sign || ''}
+                                        name="production_unit_sign"
+                                        value={data.production_unit_sign || ''}
                                         onChange={handleChange}
                                     />
                                 </div>
                                 <div className="md:col-span-3">
                                     <Input 
                                         type="datetime-local" 
-                                        name="unit_sign_time"
-                                        value={data.unit_sign_time || ''}
+                                        name="production_unit_sign_time"
+                                        value={data.production_unit_sign_time || ''}
                                         onChange={handleChange}
                                     />
                                 </div>
@@ -462,15 +403,15 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                         </FormField>
                     </div>
 
-                    {/* Safety Dept Opinion */}
+                    {/* Equipment Management Dept Opinion */}
                     <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                        <FormField label="安全管理部门意见">
+                        <FormField label="设备管理部门意见">
                             <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                                 <div className="md:col-span-6">
                                     <Input 
                                         type="text" 
-                                        name="safety_dept_opinion"
-                                        value={data.safety_dept_opinion || '同意作业'}
+                                        name="equipment_dept_opinion"
+                                        value={data.equipment_dept_opinion || '同意作业'}
                                         onChange={handleChange}
                                     />
                                 </div>
@@ -478,16 +419,16 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                                     <Input 
                                         type="text" 
                                         placeholder="签字"
-                                        name="safety_dept_sign"
-                                        value={data.safety_dept_sign || ''}
+                                        name="equipment_dept_sign"
+                                        value={data.equipment_dept_sign || ''}
                                         onChange={handleChange}
                                     />
                                 </div>
                                 <div className="md:col-span-3">
                                     <Input 
                                         type="datetime-local" 
-                                        name="safety_dept_sign_time"
-                                        value={data.safety_dept_sign_time || ''}
+                                        name="equipment_dept_sign_time"
+                                        value={data.equipment_dept_sign_time || ''}
                                         onChange={handleChange}
                                     />
                                 </div>

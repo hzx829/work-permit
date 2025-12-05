@@ -48,83 +48,178 @@ export default function HotWorkPermitForm({ data, onChange, readOnly = false }) 
         }
     }, []); // Run once on mount
 
-    const inputProps = {
-        readOnly,
-        disabled: readOnly,
-        className: "w-full outline-none bg-transparent text-black placeholder-red-600 disabled:cursor-not-allowed"
-    };
+    // Helper components for consistent styling
+    const FormField = ({ label, required = false, children, className = "" }) => (
+        <div className={`flex flex-col ${className}`}>
+            <label className="text-sm font-medium text-gray-500 mb-1.5">
+                {label}
+            </label>
+            {children}
+        </div>
+    );
+
+    const Input = ({ className = "", ...props }) => (
+        <input 
+            {...props}
+            readOnly={readOnly}
+            disabled={readOnly}
+            className={`w-full bg-gray-50 border border-gray-200 rounded px-3 py-2.5 text-sm text-gray-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder-gray-400 disabled:cursor-not-allowed ${className}`}
+        />
+    );
 
     return (
-        <div className="w-full max-w-7xl mx-auto bg-white p-6 overflow-x-auto">
-            <div className="text-center mb-6 relative">
-                <h1 className="text-3xl font-bold text-black">动火安全作业票申请表</h1>
-                <div className="absolute right-0 top-0 text-base text-black">
-                    编号：{data.permit_code}
+        <div className="w-full max-w-7xl mx-auto bg-white p-8">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-3">
+                    <div className="w-1.5 h-6 bg-blue-600 rounded-full"></div>
+                    <h1 className="text-xl font-bold text-gray-800">动火作业票申请</h1>
+                </div>
+                <div className="text-sm text-gray-500 bg-gray-50 px-3 py-1 rounded border border-gray-200">
+                    编号：{data.permit_code || '系统自动生成'}
                 </div>
             </div>
 
-            <table className="w-full border-collapse border border-black text-base">
-                <tbody>
-                    {/* Row 1 */}
-                    <tr>
-                        <td className="border border-black p-2 w-32 font-medium">作业申请单位</td>
-                        <td className="border border-black p-2">
-                            <input 
-                                type="text" 
-                                name="applicant_unit"
-                                value={data.applicant_unit || ''}
-                                onChange={handleChange}
-                                {...inputProps}
-                                placeholder={readOnly ? "" : "请输入单位"}
-                            />
-                        </td>
-                        <td className="border border-black p-2 w-32 font-medium">作业申请时间</td>
-                        <td className="border border-black p-2">
-                            <input 
-                                type="datetime-local" 
-                                name="apply_time"
-                                value={data.apply_time || ''}
-                                onChange={handleChange}
-                                {...inputProps}
-                            />
-                        </td>
-                    </tr>
+            {/* Basic Info Section */}
+            <div className="mb-8">
+                <h2 className="text-base font-bold text-blue-600 mb-6">申请基本信息</h2>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                    <FormField label="作业票编号">
+                        <Input value={data.permit_code || 'YH-DH-2021-0006'} disabled />
+                    </FormField>
 
-                    {/* Row 2 */}
-                    <tr>
-                        <td className="border border-black p-2 font-medium">作业内容</td>
-                        <td className="border border-black p-2">
-                            <input 
+                    <FormField label="作业申请时间">
+                        <Input 
+                            type="datetime-local" 
+                            name="apply_time"
+                            value={data.apply_time || ''}
+                            onChange={handleChange}
+                        />
+                    </FormField>
+
+                    <FormField label="作业负责人">
+                        <Input 
+                            type="text" 
+                            name="supervisor"
+                            value={data.supervisor || ''}
+                            onChange={handleChange}
+                            placeholder="张承包"
+                        />
+                    </FormField>
+
+                    <FormField label="属地单位">
+                        <Input 
+                            type="text" 
+                            name="applicant_unit"
+                            value={data.applicant_unit || ''}
+                            onChange={handleChange}
+                            placeholder="请输入"
+                        />
+                    </FormField>
+
+                    <FormField label="施工单位">
+                        <Input 
+                            type="text" 
+                            name="work_unit"
+                            value={data.work_unit || ''}
+                            onChange={handleChange}
+                        />
+                    </FormField>
+
+                    <div className="md:col-span-2">
+                        <FormField label="作业内容">
+                            <Input 
                                 type="text" 
                                 name="content"
                                 value={data.content || ''}
                                 onChange={handleChange}
-                                {...inputProps}
-                                placeholder={readOnly ? "" : "请输入作业内容"}
+                                placeholder="请输入"
                             />
-                        </td>
-                        <td className="border border-black p-2 font-medium">
-                            动火地点<br/>及动火部位
-                        </td>
-                        <td className="border border-black p-2">
-                            <input 
-                                type="text" 
-                                name="work_location"
-                                value={data.work_location || ''}
-                                onChange={handleChange}
-                                {...inputProps}
-                                placeholder={readOnly ? "" : "请输入地点及部位"}
-                            />
-                        </td>
-                    </tr>
+                        </FormField>
+                    </div>
 
-                    {/* Row 3 */}
-                    <tr>
-                        <td className="border border-black p-2 font-medium">动火级别</td>
-                        <td className="border border-black p-2">
-                            <div className="flex gap-4">
+                    <FormField label="动火地点及动火部位">
+                        <Input 
+                            type="text" 
+                            name="work_location"
+                            value={data.work_location || ''}
+                            onChange={handleChange}
+                            placeholder="请输入"
+                        />
+                    </FormField>
+
+                    <FormField label="动火方式">
+                        <select 
+                            name="work_method"
+                            value={data.work_method || ''}
+                            onChange={handleChange}
+                            disabled={readOnly}
+                            className="w-full bg-gray-50 border border-gray-200 rounded px-3 py-2.5 text-sm text-gray-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all disabled:cursor-not-allowed appearance-none"
+                        >
+                            <option value="">请选择</option>
+                            <option value="电焊">电焊</option>
+                            <option value="气割">气割</option>
+                            <option value="打磨">打磨</option>
+                        </select>
+                    </FormField>
+
+                    {/* Gas Analysis Section - Styled as Form Fields for consistency with the new image */}
+                    <FormField label="分析点名称">
+                        <Input 
+                            type="text" 
+                            value={data.gas_analysis?.[0]?.location || ''}
+                            onChange={(e) => handleGasAnalysisChange(0, 'location', e.target.value)}
+                            placeholder="请输入"
+                        />
+                    </FormField>
+
+                    <FormField label="代表性气体">
+                        <Input 
+                            type="text" 
+                            value={data.gas_analysis?.[0]?.gas || ''}
+                            onChange={(e) => handleGasAnalysisChange(0, 'gas', e.target.value)}
+                            placeholder="请输入"
+                        />
+                    </FormField>
+
+                    <FormField label="合格标准">
+                        <Input 
+                            type="text" 
+                            value={data.gas_analysis?.[0]?.standard || ''}
+                            onChange={(e) => handleGasAnalysisChange(0, 'standard', e.target.value)}
+                            placeholder="请输入"
+                        />
+                    </FormField>
+                     
+                     <FormField label="涉及的其他特殊作业">
+                        <Input 
+                            type="text" 
+                            name="related_permits"
+                            value={data.related_permits || ''}
+                            onChange={handleChange}
+                            placeholder="请输入"
+                        />
+                    </FormField>
+
+                     <FormField label="相关作业票编号">
+                        <Input 
+                            type="text" 
+                            name="related_permit_code"
+                            value={data.related_permit_code || ''}
+                            onChange={handleChange}
+                            placeholder="请输入"
+                        />
+                    </FormField>
+
+                    <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <FormField label="动火级别">
+                            <div className="flex gap-6 pt-2">
                                 {['特级', '一级', '二级'].map(level => (
-                                    <label key={level} className="flex items-center gap-1">
+                                    <label key={level} className="flex items-center gap-2 cursor-pointer">
+                                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${data.work_level === level ? 'border-blue-500' : 'border-gray-300'}`}>
+                                            {data.work_level === level && <div className="w-2 h-2 bg-blue-500 rounded-full"></div>}
+                                        </div>
                                         <input 
                                             type="radio" 
                                             name="work_level" 
@@ -132,264 +227,367 @@ export default function HotWorkPermitForm({ data, onChange, readOnly = false }) 
                                             checked={data.work_level === level}
                                             onChange={handleChange}
                                             disabled={readOnly}
-                                        /> {level}
+                                            className="hidden"
+                                        /> 
+                                        <span className="text-sm text-gray-700">{level}</span>
                                     </label>
                                 ))}
                             </div>
-                        </td>
-                        <td className="border border-black p-2 font-medium">动火方式</td>
-                        <td className="border border-black p-2">
-                            <input 
-                                type="text" 
-                                name="work_method"
-                                value={data.work_method || ''}
-                                onChange={handleChange}
-                                {...inputProps}
-                                placeholder={readOnly ? "" : "如：电焊、气割"}
-                            />
-                        </td>
-                    </tr>
+                        </FormField>
 
-                    {/* Row 4 */}
-                    <tr>
-                        <td className="border border-black p-2 font-medium">动火人及证书编号</td>
-                        <td colSpan="3" className="border border-black p-2">
-                            <input 
-                                type="text" 
-                                name="worker_cert"
-                                value={data.worker_cert || ''}
-                                onChange={handleChange}
-                                {...inputProps}
-                                placeholder={readOnly ? "" : "请输入姓名及证书编号"}
-                            />
-                        </td>
-                    </tr>
-
-                    {/* Row 5 */}
-                    <tr>
-                        <td className="border border-black p-2 font-medium">作业单位</td>
-                        <td className="border border-black p-2">
-                            <input 
-                                type="text" 
-                                name="work_unit"
-                                value={data.work_unit || ''}
-                                onChange={handleChange}
-                                {...inputProps}
-                                placeholder={readOnly ? "" : "请输入作业单位"}
-                            />
-                        </td>
-                        <td className="border border-black p-2 font-medium">作业负责人</td>
-                        <td className="border border-black p-2">
-                            <input 
-                                type="text" 
-                                name="supervisor"
-                                value={data.supervisor || ''}
-                                onChange={handleChange}
-                                {...inputProps}
-                                placeholder={readOnly ? "" : "请输入负责人姓名"}
-                            />
-                        </td>
-                    </tr>
-
-                    {/* Gas Analysis Header */}
-                    <tr>
-                        <td className="border border-black p-2 font-medium text-center">气体取样分析时间</td>
-                        <td className="border border-black p-2 font-medium text-center">代表性气体</td>
-                        <td className="border border-black p-2 font-medium text-center">分析结果/%</td>
-                        <td className="border border-black p-2 font-medium text-center">分析人</td>
-                    </tr>
-
-                    {/* Gas Analysis Rows (3 rows) */}
-                    {[0, 1, 2].map((idx) => (
-                        <tr key={`gas-${idx}`}>
-                            <td className="border border-black p-2">
+                        <FormField label="装置已清洗、置换，并采取安全隔离措施">
+                             <label className="flex items-center gap-2 cursor-pointer pt-2">
                                 <input 
-                                    type="text" 
-                                    value={data.gas_analysis?.[idx]?.time || ''}
-                                    onChange={(e) => handleGasAnalysisChange(idx, 'time', e.target.value)}
-                                    {...inputProps}
-                                    className="w-full outline-none bg-transparent text-center text-black placeholder-red-600 disabled:cursor-not-allowed"
-                                    placeholder={readOnly ? "" : "月 日 时 分"}
+                                    type="checkbox" 
+                                    className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                                    disabled={readOnly}
                                 />
-                            </td>
-                            <td className="border border-black p-2">
-                                <input 
-                                    type="text" 
-                                    value={data.gas_analysis?.[idx]?.gas || ''}
-                                    onChange={(e) => handleGasAnalysisChange(idx, 'gas', e.target.value)}
-                                    {...inputProps}
-                                    className="w-full outline-none bg-transparent text-center text-black placeholder-red-600 disabled:cursor-not-allowed"
-                                />
-                            </td>
-                            <td className="border border-black p-2">
-                                <input 
-                                    type="text" 
-                                    value={data.gas_analysis?.[idx]?.result || ''}
-                                    onChange={(e) => handleGasAnalysisChange(idx, 'result', e.target.value)}
-                                    {...inputProps}
-                                    className="w-full outline-none bg-transparent text-center text-black placeholder-red-600 disabled:cursor-not-allowed"
-                                />
-                            </td>
-                            <td className="border border-black p-2">
-                                <input 
-                                    type="text" 
-                                    value={data.gas_analysis?.[idx]?.analyst || ''}
-                                    onChange={(e) => handleGasAnalysisChange(idx, 'analyst', e.target.value)}
-                                    {...inputProps}
-                                    className="w-full outline-none bg-transparent text-center text-black placeholder-red-600 disabled:cursor-not-allowed"
-                                />
-                            </td>
-                        </tr>
-                    ))}
+                                <span className="text-sm text-gray-700">确认</span>
+                            </label>
+                        </FormField>
+                    </div>
 
-                    {/* Related Permits */}
-                    <tr>
-                        <td className="border border-black p-2 font-medium">
-                            关联的其他特殊作业<br/>及安全作业票编号
-                        </td>
-                        <td colSpan="3" className="border border-black p-2">
-                            <input 
-                                type="text" 
-                                name="related_permits"
-                                value={data.related_permits || ''}
-                                onChange={handleChange}
-                                {...inputProps}
-                            />
-                        </td>
-                    </tr>
+                    <FormField label="计划作业开始时间">
+                        <Input 
+                            type="datetime-local" 
+                            name="start_time"
+                            value={data.start_time || ''}
+                            onChange={handleChange}
+                            placeholder="选择时间"
+                        />
+                    </FormField>
 
-                    {/* Risk Identification */}
-                    <tr>
-                        <td className="border border-black p-2 font-medium">风险辨识结果</td>
-                        <td colSpan="3" className="border border-black p-2">
-                            <input 
-                                type="text" 
-                                name="risk_identification"
-                                value={data.risk_identification || ''}
-                                onChange={handleChange}
-                                {...inputProps}
-                            />
-                        </td>
-                    </tr>
+                    <FormField label="计划作业结束时间">
+                        <Input 
+                            type="datetime-local" 
+                            name="end_time"
+                            value={data.end_time || ''}
+                            onChange={handleChange}
+                            placeholder="选择时间"
+                        />
+                    </FormField>
+                </div>
+            </div>
 
-                    {/* Implementation Time */}
-                    <tr>
-                        <td className="border border-black p-2 font-medium">动火作业实施时间</td>
-                        <td colSpan="3" className="border border-black p-2 text-center">
-                            自 
-                            <input 
-                                type="datetime-local" 
-                                name="start_time"
-                                value={data.start_time || ''}
-                                onChange={handleChange}
-                                {...inputProps}
-                                className="mx-2 outline-none bg-transparent text-black placeholder-red-600 disabled:cursor-not-allowed"
-                            />
-                            至
-                            <input 
-                                type="datetime-local" 
-                                name="end_time"
-                                value={data.end_time || ''}
-                                onChange={handleChange}
-                                {...inputProps}
-                                className="mx-2 outline-none bg-transparent text-black placeholder-red-600 disabled:cursor-not-allowed"
-                            />
-                            止
-                        </td>
-                    </tr>
+            {/* Safety Measures Section */}
+            <div>
+                <h2 className="text-base font-bold text-blue-600 mb-4">安全措施预判定</h2>
+                
+                <div className="border border-gray-200 rounded-lg overflow-hidden">
+                    {/* Header */}
+                    <div className="bg-gray-50 px-6 py-3 grid grid-cols-12 gap-4 border-b border-gray-200">
+                        <div className="col-span-1 flex justify-center">
+                             <input type="checkbox" disabled className="rounded border-gray-300" />
+                        </div>
+                        <div className="col-span-1 text-sm font-medium text-gray-500">序号</div>
+                        <div className="col-span-6 text-sm font-medium text-gray-500">措施内容</div>
+                        <div className="col-span-2 text-center text-sm font-medium text-gray-500">是否涉及</div>
+                        <div className="col-span-2 text-center text-sm font-medium text-gray-500">确认人</div>
+                    </div>
 
-                    {/* Safety Measures Header */}
-                    <tr>
-                        <td className="border border-black p-2 font-medium text-center w-12">序号</td>
-                        <td colSpan="2" className="border border-black p-2 font-medium text-center">安全措施</td>
-                        <td className="border border-black p-2 font-medium text-center w-24">是否涉及</td>
-                        <td className="border border-black p-2 font-medium text-center w-24">确认人</td>
-                    </tr>
-
-                    {/* Safety Measures List */}
-                    {(data.safety_measures_list || []).map((measure, idx) => (
-                        <tr key={measure.id}>
-                            <td className="border border-black p-2 text-center">{measure.id}</td>
-                            <td colSpan="2" className="border border-black p-2">
-                                {measure.content}
-                                {measure.id === 16 && (
+                    {/* List */}
+                    <div className="divide-y divide-gray-100">
+                        {(data.safety_measures_list || []).map((measure, idx) => (
+                            <div key={measure.id} className="px-6 py-4 grid grid-cols-12 gap-4 items-center hover:bg-blue-50/30 transition-colors group">
+                                <div className="col-span-1 flex justify-center">
                                     <input 
-                                        type="text" 
-                                        value={measure.extraContent || ''}
-                                        onChange={(e) => handleMeasureChange(idx, 'extraContent', e.target.value)}
-                                        readOnly={readOnly}
+                                        type="checkbox" 
+                                        className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
                                         disabled={readOnly}
-                                        className="ml-2 outline-none border-b border-gray-300 w-1/2 text-black placeholder-red-600 disabled:cursor-not-allowed"
                                     />
-                                )}
-                            </td>
-                            <td className="border border-black p-2 text-center">
-                                <select
-                                    value={measure.applicable || ''}
-                                    onChange={(e) => handleMeasureChange(idx, 'applicable', e.target.value)}
-                                    disabled={readOnly}
-                                    className="outline-none bg-transparent text-center text-black disabled:cursor-not-allowed appearance-none w-full"
-                                >
-                                    <option value="">请选择</option>
-                                    <option value="yes">√</option>
-                                    <option value="no">×</option>
-                                </select>
-                            </td>
-                            <td className="border border-black p-2 text-center">
-                                <input 
-                                    type="text" 
-                                    value={measure.confirmer || ''}
-                                    onChange={(e) => handleMeasureChange(idx, 'confirmer', e.target.value)}
-                                    readOnly={readOnly}
-                                    disabled={readOnly}
-                                    className="w-full outline-none bg-transparent text-center text-black placeholder-red-600 disabled:cursor-not-allowed"
-                                />
-                            </td>
-                        </tr>
-                    ))}
-
-                    {/* Signatures Section */}
-                    <tr>
-                        <td className="border border-black p-2 font-medium">安全交底人</td>
-                        <td className="border border-black p-2">
-                            <input type="text" name="safety_discloser" onChange={handleChange} value={data.safety_discloser || ''} {...inputProps}/>
-                        </td>
-                        <td className="border border-black p-2 font-medium">接受交底人</td>
-                        <td className="border border-black p-2">
-                            <input type="text" name="disclosure_receiver" onChange={handleChange} value={data.disclosure_receiver || ''} {...inputProps}/>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td className="border border-black p-2 font-medium">监护人</td>
-                        <td colSpan="3" className="border border-black p-2">
-                            <input type="text" name="guardian" onChange={handleChange} value={data.guardian || ''} {...inputProps}/>
-                        </td>
-                    </tr>
-
-                    {/* Opinions */}
-                    <tr>
-                        <td colSpan="4" className="border border-black p-0">
-                            {[
-                                { title: '作业负责人意见', ph: '同意作业' },
-                                { title: '所在单位意见', ph: '同意作业' },
-                                { title: '安全管理部门意见', ph: '同意作业' },
-                                { title: '动火审批人意见', ph: '同意作业' },
-                                { title: '动火前，岗位当班班长验票情况', ph: '安全措施到位，已经验票' },
-                                { title: '完工验收', ph: '动火作业已完成，作业现场已清理' },
-                            ].map((item, idx) => (
-                                <div key={idx} className={`p-2 ${idx < 5 ? 'border-b border-black' : ''} flex justify-between items-center`}>
-                                    <span className="font-medium">{item.title}</span>
-                                    <div className="flex gap-4 w-2/3 justify-end">
-                                        <input type="text" placeholder={readOnly ? '' : item.ph} className="flex-1 text-right text-black placeholder-red-600 outline-none disabled:cursor-not-allowed" readOnly={readOnly} disabled={readOnly}/>
-                                        <span className="whitespace-nowrap">签字：<input type="text" className="w-24 text-black placeholder-red-600 outline-none disabled:cursor-not-allowed" readOnly={readOnly} disabled={readOnly}/></span>
-                                        <span><input type="datetime-local" className="text-black placeholder-red-600 outline-none disabled:cursor-not-allowed" readOnly={readOnly} disabled={readOnly}/></span>
+                                </div>
+                                <div className="col-span-1 text-sm text-gray-500">{measure.id}</div>
+                                <div className="col-span-6 text-sm text-gray-700 leading-relaxed">
+                                    {measure.content}
+                                    {measure.id === 16 && (
+                                        <input 
+                                            type="text" 
+                                            value={measure.extraContent || ''}
+                                            onChange={(e) => handleMeasureChange(idx, 'extraContent', e.target.value)}
+                                            readOnly={readOnly}
+                                            disabled={readOnly}
+                                            className="ml-2 border-b border-gray-300 outline-none focus:border-blue-500 bg-transparent"
+                                            placeholder="请输入"
+                                        />
+                                    )}
+                                </div>
+                                <div className="col-span-2 flex justify-center gap-4">
+                                    <label className="flex items-center gap-1 cursor-pointer">
+                                        <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${measure.applicable === 'yes' ? 'border-blue-500' : 'border-gray-300'}`}>
+                                            {measure.applicable === 'yes' && <div className="w-2 h-2 bg-blue-500 rounded-full"></div>}
+                                        </div>
+                                        <input 
+                                            type="radio" 
+                                            name={`applicable-${idx}`}
+                                            value="yes"
+                                            checked={measure.applicable === 'yes'}
+                                            onChange={() => handleMeasureChange(idx, 'applicable', 'yes')}
+                                            disabled={readOnly}
+                                            className="hidden"
+                                        />
+                                        <span className="text-xs text-gray-600">是</span>
+                                    </label>
+                                    <label className="flex items-center gap-1 cursor-pointer">
+                                        <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${measure.applicable === 'no' ? 'border-blue-500' : 'border-gray-300'}`}>
+                                            {measure.applicable === 'no' && <div className="w-2 h-2 bg-blue-500 rounded-full"></div>}
+                                        </div>
+                                        <input 
+                                            type="radio" 
+                                            name={`applicable-${idx}`}
+                                            value="no"
+                                            checked={measure.applicable === 'no'}
+                                            onChange={() => handleMeasureChange(idx, 'applicable', 'no')}
+                                            disabled={readOnly}
+                                            className="hidden"
+                                        />
+                                        <span className="text-xs text-gray-600">否</span>
+                                    </label>
+                                </div>
+                                <div className="col-span-2 flex justify-center">
+                                    <div className="px-4 py-1.5 bg-gray-100 text-gray-500 rounded-full text-xs font-medium cursor-pointer hover:bg-gray-200 transition-colors">
+                                        {measure.confirmer || '待确认'}
                                     </div>
                                 </div>
-                            ))}
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            {/* Signatures and Approvals Section */}
+            <div className="mt-8">
+                <h2 className="text-base font-bold text-blue-600 mb-6">签字与验收</h2>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                     <FormField label="安全交底人">
+                        <Input 
+                            type="text" 
+                            name="safety_discloser"
+                            value={data.safety_discloser || ''}
+                            onChange={handleChange}
+                            placeholder="请输入"
+                        />
+                    </FormField>
+                    <FormField label="接受交底人">
+                        <Input 
+                            type="text" 
+                            name="safety_receiver"
+                            value={data.safety_receiver || ''}
+                            onChange={handleChange}
+                            placeholder="请输入"
+                        />
+                    </FormField>
+                    <FormField label="监护人">
+                        <Input 
+                            type="text" 
+                            name="guardian"
+                            value={data.guardian || ''}
+                            onChange={handleChange}
+                            placeholder="请输入"
+                        />
+                    </FormField>
+                </div>
+
+                <div className="space-y-6">
+                    {/* Supervisor Opinion */}
+                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        <FormField label="作业负责人意见">
+                            <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                                <div className="md:col-span-6">
+                                    <Input 
+                                        type="text" 
+                                        name="supervisor_opinion"
+                                        value={data.supervisor_opinion || '同意作业'}
+                                        onChange={handleChange}
+                                    />
+                                </div>
+                                <div className="md:col-span-3">
+                                    <Input 
+                                        type="text" 
+                                        placeholder="签字"
+                                        name="supervisor_sign"
+                                        value={data.supervisor_sign || ''}
+                                        onChange={handleChange}
+                                    />
+                                </div>
+                                <div className="md:col-span-3">
+                                    <Input 
+                                        type="datetime-local" 
+                                        name="supervisor_sign_time"
+                                        value={data.supervisor_sign_time || ''}
+                                        onChange={handleChange}
+                                    />
+                                </div>
+                            </div>
+                        </FormField>
+                    </div>
+
+                    {/* Unit Opinion */}
+                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        <FormField label="所在单位意见">
+                            <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                                <div className="md:col-span-6">
+                                    <Input 
+                                        type="text" 
+                                        name="unit_opinion"
+                                        value={data.unit_opinion || '同意作业'}
+                                        onChange={handleChange}
+                                    />
+                                </div>
+                                <div className="md:col-span-3">
+                                    <Input 
+                                        type="text" 
+                                        placeholder="签字"
+                                        name="unit_sign"
+                                        value={data.unit_sign || ''}
+                                        onChange={handleChange}
+                                    />
+                                </div>
+                                <div className="md:col-span-3">
+                                    <Input 
+                                        type="datetime-local" 
+                                        name="unit_sign_time"
+                                        value={data.unit_sign_time || ''}
+                                        onChange={handleChange}
+                                    />
+                                </div>
+                            </div>
+                        </FormField>
+                    </div>
+
+                    {/* Safety Dept Opinion */}
+                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        <FormField label="安全管理部门意见">
+                            <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                                <div className="md:col-span-6">
+                                    <Input 
+                                        type="text" 
+                                        name="safety_dept_opinion"
+                                        value={data.safety_dept_opinion || '同意作业'}
+                                        onChange={handleChange}
+                                    />
+                                </div>
+                                <div className="md:col-span-3">
+                                    <Input 
+                                        type="text" 
+                                        placeholder="签字"
+                                        name="safety_dept_sign"
+                                        value={data.safety_dept_sign || ''}
+                                        onChange={handleChange}
+                                    />
+                                </div>
+                                <div className="md:col-span-3">
+                                    <Input 
+                                        type="datetime-local" 
+                                        name="safety_dept_sign_time"
+                                        value={data.safety_dept_sign_time || ''}
+                                        onChange={handleChange}
+                                    />
+                                </div>
+                            </div>
+                        </FormField>
+                    </div>
+
+                    {/* Approver Opinion */}
+                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        <FormField label="动火审批人意见">
+                            <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                                <div className="md:col-span-6">
+                                    <Input 
+                                        type="text" 
+                                        name="approver_opinion"
+                                        value={data.approver_opinion || '同意作业'}
+                                        onChange={handleChange}
+                                    />
+                                </div>
+                                <div className="md:col-span-3">
+                                    <Input 
+                                        type="text" 
+                                        placeholder="签字"
+                                        name="approver_sign"
+                                        value={data.approver_sign || ''}
+                                        onChange={handleChange}
+                                    />
+                                </div>
+                                <div className="md:col-span-3">
+                                    <Input 
+                                        type="datetime-local" 
+                                        name="approver_sign_time"
+                                        value={data.approver_sign_time || ''}
+                                        onChange={handleChange}
+                                    />
+                                </div>
+                            </div>
+                        </FormField>
+                    </div>
+
+                    {/* Shift Leader Check */}
+                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        <FormField label="动火前，岗位当班班长验票情况">
+                            <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                                <div className="md:col-span-6">
+                                    <Input 
+                                        type="text" 
+                                        name="shift_leader_check"
+                                        value={data.shift_leader_check || '安全措施到位，已经验票'}
+                                        onChange={handleChange}
+                                    />
+                                </div>
+                                <div className="md:col-span-3">
+                                    <Input 
+                                        type="text" 
+                                        placeholder="签字"
+                                        name="shift_leader_sign"
+                                        value={data.shift_leader_sign || ''}
+                                        onChange={handleChange}
+                                    />
+                                </div>
+                                <div className="md:col-span-3">
+                                    <Input 
+                                        type="datetime-local" 
+                                        name="shift_leader_sign_time"
+                                        value={data.shift_leader_sign_time || ''}
+                                        onChange={handleChange}
+                                    />
+                                </div>
+                            </div>
+                        </FormField>
+                    </div>
+
+                    {/* Completion Acceptance */}
+                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        <FormField label="完工验收">
+                            <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                                <div className="md:col-span-6">
+                                    <Input 
+                                        type="text" 
+                                        name="completion_acceptance"
+                                        value={data.completion_acceptance || '动火作业已完成，作业现场已清理'}
+                                        onChange={handleChange}
+                                    />
+                                </div>
+                                <div className="md:col-span-3">
+                                    <Input 
+                                        type="text" 
+                                        placeholder="签字"
+                                        name="completion_sign"
+                                        value={data.completion_sign || ''}
+                                        onChange={handleChange}
+                                    />
+                                </div>
+                                <div className="md:col-span-3">
+                                    <Input 
+                                        type="datetime-local" 
+                                        name="completion_sign_time"
+                                        value={data.completion_sign_time || ''}
+                                        onChange={handleChange}
+                                    />
+                                </div>
+                            </div>
+                        </FormField>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 }
