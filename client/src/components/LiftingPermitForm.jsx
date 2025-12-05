@@ -1,5 +1,23 @@
 import React from 'react';
 
+const FormField = ({ label, required = false, children, className = "" }) => (
+    <div className={`flex flex-col ${className}`}>
+        <label className="text-sm font-medium text-gray-500 mb-1.5">
+            {label} {required && <span className="text-red-500">*</span>}
+        </label>
+        {children}
+    </div>
+);
+
+const Input = ({ className = "", readOnly, ...props }) => (
+    <input 
+        {...props}
+        readOnly={readOnly}
+        disabled={readOnly}
+        className={`w-full bg-gray-50 border border-gray-200 rounded px-3 py-2.5 text-sm text-gray-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder-gray-400 disabled:cursor-not-allowed ${className}`}
+    />
+);
+
 export default function LiftingPermitForm({ data, onChange, readOnly = false }) {
     const handleChange = (e) => {
         if (readOnly) return;
@@ -44,24 +62,6 @@ export default function LiftingPermitForm({ data, onChange, readOnly = false }) 
         }
     }, []);
 
-    const FormField = ({ label, required = false, children, className = "" }) => (
-        <div className={`flex flex-col ${className}`}>
-            <label className="text-sm font-medium text-gray-500 mb-1.5">
-                {label} {required && <span className="text-red-500">*</span>}
-            </label>
-            {children}
-        </div>
-    );
-
-    const Input = ({ className = "", ...props }) => (
-        <input 
-            {...props}
-            readOnly={readOnly}
-            disabled={readOnly}
-            className={`w-full bg-gray-50 border border-gray-200 rounded px-3 py-2.5 text-sm text-gray-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder-gray-400 disabled:cursor-not-allowed ${className}`}
-        />
-    );
-
     return (
         <div className="w-full max-w-7xl mx-auto bg-white p-8">
             {/* Header */}
@@ -86,6 +86,7 @@ export default function LiftingPermitForm({ data, onChange, readOnly = false }) 
                             value={data.applicant_unit || ''}
                             onChange={handleChange}
                             placeholder="请输入单位"
+                            readOnly={readOnly}
                         />
                     </FormField>
                     <FormField label="作业申请时间">
@@ -94,6 +95,7 @@ export default function LiftingPermitForm({ data, onChange, readOnly = false }) 
                             name="apply_time"
                             value={data.apply_time || ''}
                             onChange={handleChange}
+                            readOnly={readOnly}
                         />
                     </FormField>
                     <FormField label="吊装地点">
@@ -103,6 +105,7 @@ export default function LiftingPermitForm({ data, onChange, readOnly = false }) 
                             value={data.work_location || ''}
                             onChange={handleChange}
                             placeholder="请输入吊装地点"
+                            readOnly={readOnly}
                         />
                     </FormField>
                     <FormField label="吊具名称">
@@ -112,6 +115,7 @@ export default function LiftingPermitForm({ data, onChange, readOnly = false }) 
                             value={data.rigging_name || ''}
                             onChange={handleChange}
                             placeholder="请输入吊具名称"
+                            readOnly={readOnly}
                         />
                     </FormField>
                     <FormField label="吊物内容" className="md:col-span-2">
@@ -121,6 +125,7 @@ export default function LiftingPermitForm({ data, onChange, readOnly = false }) 
                             value={data.content || ''}
                             onChange={handleChange}
                             placeholder="请输入吊物内容"
+                            readOnly={readOnly}
                         />
                     </FormField>
 
@@ -132,6 +137,7 @@ export default function LiftingPermitForm({ data, onChange, readOnly = false }) 
                                 value={data.lifting_weight || ''}
                                 onChange={handleChange}
                                 placeholder="请输入质量"
+                                readOnly={readOnly}
                             />
                         </FormField>
                         <FormField label="作业级别">
@@ -141,6 +147,7 @@ export default function LiftingPermitForm({ data, onChange, readOnly = false }) 
                                 value={data.work_level || ''}
                                 onChange={handleChange}
                                 placeholder="请输入级别"
+                                readOnly={readOnly}
                             />
                         </FormField>
                     </div>
@@ -152,6 +159,7 @@ export default function LiftingPermitForm({ data, onChange, readOnly = false }) 
                             value={data.work_unit || ''}
                             onChange={handleChange}
                             placeholder="请输入作业单位"
+                            readOnly={readOnly}
                         />
                     </FormField>
                     <FormField label="吊装作业人">
@@ -161,6 +169,7 @@ export default function LiftingPermitForm({ data, onChange, readOnly = false }) 
                             value={data.lifting_workers || ''}
                             onChange={handleChange}
                             placeholder="请输入吊装作业人"
+                            readOnly={readOnly}
                         />
                     </FormField>
                     <FormField label="司索人">
@@ -170,6 +179,7 @@ export default function LiftingPermitForm({ data, onChange, readOnly = false }) 
                             value={data.rigger || ''}
                             onChange={handleChange}
                             placeholder="请输入司索人"
+                            readOnly={readOnly}
                         />
                     </FormField>
                     <FormField label="指挥人员">
@@ -179,6 +189,7 @@ export default function LiftingPermitForm({ data, onChange, readOnly = false }) 
                             value={data.commander || ''}
                             onChange={handleChange}
                             placeholder="请输入指挥人员"
+                            readOnly={readOnly}
                         />
                     </FormField>
                     <FormField label="监护人">
@@ -188,6 +199,7 @@ export default function LiftingPermitForm({ data, onChange, readOnly = false }) 
                             value={data.guardian || ''}
                             onChange={handleChange}
                             placeholder="请输入监护人"
+                            readOnly={readOnly}
                         />
                     </FormField>
                     
@@ -198,6 +210,7 @@ export default function LiftingPermitForm({ data, onChange, readOnly = false }) 
                             value={data.risk_identification || ''}
                             onChange={handleChange}
                             placeholder="物体打击、起重伤害、车辆伤害……"
+                            readOnly={readOnly}
                         />
                     </FormField>
                 </div>
@@ -213,6 +226,7 @@ export default function LiftingPermitForm({ data, onChange, readOnly = false }) 
                             name="start_time"
                             value={data.start_time || ''}
                             onChange={handleChange}
+                            readOnly={readOnly}
                         />
                     </FormField>
                     <FormField label="结束时间">
@@ -221,6 +235,7 @@ export default function LiftingPermitForm({ data, onChange, readOnly = false }) 
                             name="end_time"
                             value={data.end_time || ''}
                             onChange={handleChange}
+                            readOnly={readOnly}
                         />
                     </FormField>
                 </div>
@@ -297,6 +312,7 @@ export default function LiftingPermitForm({ data, onChange, readOnly = false }) 
                             value={data.safety_discloser || ''}
                             onChange={handleChange}
                             placeholder="请输入"
+                            readOnly={readOnly}
                         />
                     </FormField>
                     <FormField label="接受交底人">
@@ -306,6 +322,7 @@ export default function LiftingPermitForm({ data, onChange, readOnly = false }) 
                             value={data.safety_disclosee || ''}
                             onChange={handleChange}
                             placeholder="请输入"
+                            readOnly={readOnly}
                         />
                     </FormField>
                 </div>
@@ -321,6 +338,7 @@ export default function LiftingPermitForm({ data, onChange, readOnly = false }) 
                                         name="commander_opinion"
                                         value={data.commander_opinion || '同意作业'}
                                         onChange={handleChange}
+                                        readOnly={readOnly}
                                     />
                                 </div>
                                 <div className="md:col-span-3">
@@ -330,6 +348,7 @@ export default function LiftingPermitForm({ data, onChange, readOnly = false }) 
                                         name="commander_sign"
                                         value={data.commander_sign || ''}
                                         onChange={handleChange}
+                                        readOnly={readOnly}
                                     />
                                 </div>
                                 <div className="md:col-span-3">
@@ -338,6 +357,7 @@ export default function LiftingPermitForm({ data, onChange, readOnly = false }) 
                                         name="commander_sign_time"
                                         value={data.commander_sign_time || ''}
                                         onChange={handleChange}
+                                        readOnly={readOnly}
                                     />
                                 </div>
                             </div>
@@ -354,6 +374,7 @@ export default function LiftingPermitForm({ data, onChange, readOnly = false }) 
                                         name="unit_opinion"
                                         value={data.unit_opinion || '同意作业'}
                                         onChange={handleChange}
+                                        readOnly={readOnly}
                                     />
                                 </div>
                                 <div className="md:col-span-3">
@@ -363,6 +384,7 @@ export default function LiftingPermitForm({ data, onChange, readOnly = false }) 
                                         name="unit_sign"
                                         value={data.unit_sign || ''}
                                         onChange={handleChange}
+                                        readOnly={readOnly}
                                     />
                                 </div>
                                 <div className="md:col-span-3">
@@ -371,6 +393,7 @@ export default function LiftingPermitForm({ data, onChange, readOnly = false }) 
                                         name="unit_sign_time"
                                         value={data.unit_sign_time || ''}
                                         onChange={handleChange}
+                                        readOnly={readOnly}
                                     />
                                 </div>
                             </div>
@@ -387,6 +410,7 @@ export default function LiftingPermitForm({ data, onChange, readOnly = false }) 
                                         name="audit_opinion"
                                         value={data.audit_opinion || '同意作业'}
                                         onChange={handleChange}
+                                        readOnly={readOnly}
                                     />
                                 </div>
                                 <div className="md:col-span-3">
@@ -396,6 +420,7 @@ export default function LiftingPermitForm({ data, onChange, readOnly = false }) 
                                         name="audit_sign"
                                         value={data.audit_sign || ''}
                                         onChange={handleChange}
+                                        readOnly={readOnly}
                                     />
                                 </div>
                                 <div className="md:col-span-3">
@@ -404,6 +429,7 @@ export default function LiftingPermitForm({ data, onChange, readOnly = false }) 
                                         name="audit_sign_time"
                                         value={data.audit_sign_time || ''}
                                         onChange={handleChange}
+                                        readOnly={readOnly}
                                     />
                                 </div>
                             </div>
@@ -420,6 +446,7 @@ export default function LiftingPermitForm({ data, onChange, readOnly = false }) 
                                         name="approval_opinion"
                                         value={data.approval_opinion || '同意作业'}
                                         onChange={handleChange}
+                                        readOnly={readOnly}
                                     />
                                 </div>
                                 <div className="md:col-span-3">
@@ -429,6 +456,7 @@ export default function LiftingPermitForm({ data, onChange, readOnly = false }) 
                                         name="approval_sign"
                                         value={data.approval_sign || ''}
                                         onChange={handleChange}
+                                        readOnly={readOnly}
                                     />
                                 </div>
                                 <div className="md:col-span-3">
@@ -437,6 +465,7 @@ export default function LiftingPermitForm({ data, onChange, readOnly = false }) 
                                         name="approval_sign_time"
                                         value={data.approval_sign_time || ''}
                                         onChange={handleChange}
+                                        readOnly={readOnly}
                                     />
                                 </div>
                             </div>
@@ -453,6 +482,7 @@ export default function LiftingPermitForm({ data, onChange, readOnly = false }) 
                                         name="completion_acceptance"
                                         value={data.completion_acceptance || '吊装作业完成，同意验收。'}
                                         onChange={handleChange}
+                                        readOnly={readOnly}
                                     />
                                 </div>
                                 <div className="md:col-span-3">
@@ -462,6 +492,7 @@ export default function LiftingPermitForm({ data, onChange, readOnly = false }) 
                                         name="completion_sign"
                                         value={data.completion_sign || ''}
                                         onChange={handleChange}
+                                        readOnly={readOnly}
                                     />
                                 </div>
                                 <div className="md:col-span-3">
@@ -470,6 +501,7 @@ export default function LiftingPermitForm({ data, onChange, readOnly = false }) 
                                         name="completion_sign_time"
                                         value={data.completion_sign_time || ''}
                                         onChange={handleChange}
+                                        readOnly={readOnly}
                                     />
                                 </div>
                             </div>

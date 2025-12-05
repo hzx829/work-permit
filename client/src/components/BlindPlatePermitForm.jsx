@@ -1,5 +1,23 @@
 import React from 'react';
 
+const FormField = ({ label, required = false, children, className = "" }) => (
+    <div className={`flex flex-col ${className}`}>
+        <label className="text-sm font-medium text-gray-500 mb-1.5">
+            {label} {required && <span className="text-red-500">*</span>}
+        </label>
+        {children}
+    </div>
+);
+
+const Input = ({ className = "", readOnly, ...props }) => (
+    <input 
+        {...props}
+        readOnly={readOnly}
+        disabled={readOnly}
+        className={`w-full bg-gray-50 border border-gray-200 rounded px-3 py-2.5 text-sm text-gray-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder-gray-400 disabled:cursor-not-allowed ${className}`}
+    />
+);
+
 export default function BlindPlatePermitForm({ data, onChange, readOnly = false }) {
     const handleChange = (e) => {
         if (readOnly) return;
@@ -35,24 +53,6 @@ export default function BlindPlatePermitForm({ data, onChange, readOnly = false 
         }
     }, []); // Run once on mount
 
-    const FormField = ({ label, required = false, children, className = "" }) => (
-        <div className={`flex flex-col ${className}`}>
-            <label className="text-sm font-medium text-gray-500 mb-1.5">
-                {label} {required && <span className="text-red-500">*</span>}
-            </label>
-            {children}
-        </div>
-    );
-
-    const Input = ({ className = "", ...props }) => (
-        <input 
-            {...props}
-            readOnly={readOnly}
-            disabled={readOnly}
-            className={`w-full bg-gray-50 border border-gray-200 rounded px-3 py-2.5 text-sm text-gray-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder-gray-400 disabled:cursor-not-allowed ${className}`}
-        />
-    );
-
     return (
         <div className="w-full max-w-7xl mx-auto bg-white p-8">
             {/* Header */}
@@ -77,6 +77,7 @@ export default function BlindPlatePermitForm({ data, onChange, readOnly = false 
                             value={data.applicant_unit || ''}
                             onChange={handleChange}
                             placeholder="请输入申请单位"
+                            readOnly={readOnly}
                         />
                     </FormField>
                     <FormField label="作业单位">
@@ -86,6 +87,7 @@ export default function BlindPlatePermitForm({ data, onChange, readOnly = false 
                             value={data.work_unit || ''}
                             onChange={handleChange}
                             placeholder="请输入作业单位"
+                            readOnly={readOnly}
                         />
                     </FormField>
                     <FormField label="作业类别">
@@ -123,6 +125,7 @@ export default function BlindPlatePermitForm({ data, onChange, readOnly = false 
                             value={data.equipment_pipeline_name || ''}
                             onChange={handleChange}
                             placeholder="请输入设备/管道名称"
+                            readOnly={readOnly}
                         />
                     </FormField>
                     
@@ -135,6 +138,7 @@ export default function BlindPlatePermitForm({ data, onChange, readOnly = false 
                                 name="pipeline_media"
                                 value={data.pipeline_media || ''}
                                 onChange={handleChange}
+                                readOnly={readOnly}
                             />
                         </FormField>
                         <FormField label="温度">
@@ -143,6 +147,7 @@ export default function BlindPlatePermitForm({ data, onChange, readOnly = false 
                                 name="pipeline_temp"
                                 value={data.pipeline_temp || ''}
                                 onChange={handleChange}
+                                readOnly={readOnly}
                             />
                         </FormField>
                         <FormField label="压力">
@@ -151,6 +156,7 @@ export default function BlindPlatePermitForm({ data, onChange, readOnly = false 
                                 name="pipeline_pressure"
                                 value={data.pipeline_pressure || ''}
                                 onChange={handleChange}
+                                readOnly={readOnly}
                             />
                         </FormField>
                     </div>
@@ -164,6 +170,7 @@ export default function BlindPlatePermitForm({ data, onChange, readOnly = false 
                                 name="blind_plate_material"
                                 value={data.blind_plate_material || ''}
                                 onChange={handleChange}
+                                readOnly={readOnly}
                             />
                         </FormField>
                         <FormField label="规格">
@@ -172,6 +179,7 @@ export default function BlindPlatePermitForm({ data, onChange, readOnly = false 
                                 name="blind_plate_spec"
                                 value={data.blind_plate_spec || ''}
                                 onChange={handleChange}
+                                readOnly={readOnly}
                             />
                         </FormField>
                         <FormField label="编号">
@@ -180,6 +188,7 @@ export default function BlindPlatePermitForm({ data, onChange, readOnly = false 
                                 name="blind_plate_number"
                                 value={data.blind_plate_number || ''}
                                 onChange={handleChange}
+                                readOnly={readOnly}
                             />
                         </FormField>
                     </div>
@@ -190,6 +199,7 @@ export default function BlindPlatePermitForm({ data, onChange, readOnly = false 
                             name="start_time"
                             value={data.start_time || ''}
                             onChange={handleChange}
+                            readOnly={readOnly}
                         />
                     </FormField>
                      <FormField label="盲板位置图及编号" className="md:col-span-2">

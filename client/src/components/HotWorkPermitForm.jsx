@@ -1,5 +1,24 @@
 import React from 'react';
 
+// Helper components for consistent styling
+const FormField = ({ label, required = false, children, className = "" }) => (
+    <div className={`flex flex-col ${className}`}>
+        <label className="text-sm font-medium text-gray-500 mb-1.5">
+            {label}
+        </label>
+        {children}
+    </div>
+);
+
+const Input = ({ className = "", readOnly, ...props }) => (
+    <input 
+        {...props}
+        readOnly={readOnly}
+        disabled={readOnly}
+        className={`w-full bg-gray-50 border border-gray-200 rounded px-3 py-2.5 text-sm text-gray-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder-gray-400 disabled:cursor-not-allowed ${className}`}
+    />
+);
+
 export default function HotWorkPermitForm({ data, onChange, readOnly = false }) {
     const handleChange = (e) => {
         if (readOnly) return;
@@ -48,25 +67,6 @@ export default function HotWorkPermitForm({ data, onChange, readOnly = false }) 
         }
     }, []); // Run once on mount
 
-    // Helper components for consistent styling
-    const FormField = ({ label, required = false, children, className = "" }) => (
-        <div className={`flex flex-col ${className}`}>
-            <label className="text-sm font-medium text-gray-500 mb-1.5">
-                {label}
-            </label>
-            {children}
-        </div>
-    );
-
-    const Input = ({ className = "", ...props }) => (
-        <input 
-            {...props}
-            readOnly={readOnly}
-            disabled={readOnly}
-            className={`w-full bg-gray-50 border border-gray-200 rounded px-3 py-2.5 text-sm text-gray-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder-gray-400 disabled:cursor-not-allowed ${className}`}
-        />
-    );
-
     return (
         <div className="w-full max-w-7xl mx-auto bg-white p-8">
             {/* Header */}
@@ -86,7 +86,7 @@ export default function HotWorkPermitForm({ data, onChange, readOnly = false }) 
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
                     <FormField label="作业票编号">
-                        <Input value={data.permit_code || 'YH-DH-2021-0006'} disabled />
+                        <Input value={data.permit_code || 'YH-DH-2021-0006'} disabled readOnly={readOnly} />
                     </FormField>
 
                     <FormField label="作业申请时间">
@@ -95,6 +95,7 @@ export default function HotWorkPermitForm({ data, onChange, readOnly = false }) 
                             name="apply_time"
                             value={data.apply_time || ''}
                             onChange={handleChange}
+                            readOnly={readOnly}
                         />
                     </FormField>
 
@@ -105,6 +106,7 @@ export default function HotWorkPermitForm({ data, onChange, readOnly = false }) 
                             value={data.supervisor || ''}
                             onChange={handleChange}
                             placeholder="张承包"
+                            readOnly={readOnly}
                         />
                     </FormField>
 
@@ -115,6 +117,7 @@ export default function HotWorkPermitForm({ data, onChange, readOnly = false }) 
                             value={data.applicant_unit || ''}
                             onChange={handleChange}
                             placeholder="请输入"
+                            readOnly={readOnly}
                         />
                     </FormField>
 
@@ -124,6 +127,7 @@ export default function HotWorkPermitForm({ data, onChange, readOnly = false }) 
                             name="work_unit"
                             value={data.work_unit || ''}
                             onChange={handleChange}
+                            readOnly={readOnly}
                         />
                     </FormField>
 
@@ -135,6 +139,7 @@ export default function HotWorkPermitForm({ data, onChange, readOnly = false }) 
                                 value={data.content || ''}
                                 onChange={handleChange}
                                 placeholder="请输入"
+                                readOnly={readOnly}
                             />
                         </FormField>
                     </div>
@@ -146,6 +151,7 @@ export default function HotWorkPermitForm({ data, onChange, readOnly = false }) 
                             value={data.work_location || ''}
                             onChange={handleChange}
                             placeholder="请输入"
+                            readOnly={readOnly}
                         />
                     </FormField>
 
@@ -171,6 +177,7 @@ export default function HotWorkPermitForm({ data, onChange, readOnly = false }) 
                             value={data.gas_analysis?.[0]?.location || ''}
                             onChange={(e) => handleGasAnalysisChange(0, 'location', e.target.value)}
                             placeholder="请输入"
+                            readOnly={readOnly}
                         />
                     </FormField>
 
@@ -180,6 +187,7 @@ export default function HotWorkPermitForm({ data, onChange, readOnly = false }) 
                             value={data.gas_analysis?.[0]?.gas || ''}
                             onChange={(e) => handleGasAnalysisChange(0, 'gas', e.target.value)}
                             placeholder="请输入"
+                            readOnly={readOnly}
                         />
                     </FormField>
 
@@ -189,6 +197,7 @@ export default function HotWorkPermitForm({ data, onChange, readOnly = false }) 
                             value={data.gas_analysis?.[0]?.standard || ''}
                             onChange={(e) => handleGasAnalysisChange(0, 'standard', e.target.value)}
                             placeholder="请输入"
+                            readOnly={readOnly}
                         />
                     </FormField>
                      
@@ -199,6 +208,7 @@ export default function HotWorkPermitForm({ data, onChange, readOnly = false }) 
                             value={data.related_permits || ''}
                             onChange={handleChange}
                             placeholder="请输入"
+                            readOnly={readOnly}
                         />
                     </FormField>
 
@@ -209,9 +219,10 @@ export default function HotWorkPermitForm({ data, onChange, readOnly = false }) 
                             value={data.related_permit_code || ''}
                             onChange={handleChange}
                             placeholder="请输入"
+                            readOnly={readOnly}
                         />
                     </FormField>
-
+                    
                     <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
                         <FormField label="动火级别">
                             <div className="flex gap-6 pt-2">
@@ -254,6 +265,7 @@ export default function HotWorkPermitForm({ data, onChange, readOnly = false }) 
                             value={data.start_time || ''}
                             onChange={handleChange}
                             placeholder="选择时间"
+                            readOnly={readOnly}
                         />
                     </FormField>
 
@@ -264,6 +276,7 @@ export default function HotWorkPermitForm({ data, onChange, readOnly = false }) 
                             value={data.end_time || ''}
                             onChange={handleChange}
                             placeholder="选择时间"
+                            readOnly={readOnly}
                         />
                     </FormField>
                 </div>

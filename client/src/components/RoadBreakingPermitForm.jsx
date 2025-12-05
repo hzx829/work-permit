@@ -1,5 +1,32 @@
 import React from 'react';
 
+const FormField = ({ label, required = false, children, className = "" }) => (
+    <div className={`flex flex-col ${className}`}>
+        <label className="text-sm font-medium text-gray-500 mb-1.5">
+            {label} {required && <span className="text-red-500">*</span>}
+        </label>
+        {children}
+    </div>
+);
+
+const Input = ({ className = "", readOnly, ...props }) => (
+    <input 
+        {...props}
+        readOnly={readOnly}
+        disabled={readOnly}
+        className={`w-full bg-gray-50 border border-gray-200 rounded px-3 py-2.5 text-sm text-gray-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder-gray-400 disabled:cursor-not-allowed ${className}`}
+    />
+);
+
+const TextArea = ({ className = "", readOnly, ...props }) => (
+    <textarea 
+        {...props}
+        readOnly={readOnly}
+        disabled={readOnly}
+        className={`w-full bg-gray-50 border border-gray-200 rounded px-3 py-2.5 text-sm text-gray-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder-gray-400 disabled:cursor-not-allowed resize-none ${className}`}
+    />
+);
+
 export default function RoadBreakingPermitForm({ data, onChange, readOnly = false }) {
     const handleChange = (e) => {
         if (readOnly) return;
@@ -28,33 +55,6 @@ export default function RoadBreakingPermitForm({ data, onChange, readOnly = fals
         }
     }, []);
 
-    const FormField = ({ label, required = false, children, className = "" }) => (
-        <div className={`flex flex-col ${className}`}>
-            <label className="text-sm font-medium text-gray-500 mb-1.5">
-                {label} {required && <span className="text-red-500">*</span>}
-            </label>
-            {children}
-        </div>
-    );
-
-    const Input = ({ className = "", ...props }) => (
-        <input 
-            {...props}
-            readOnly={readOnly}
-            disabled={readOnly}
-            className={`w-full bg-gray-50 border border-gray-200 rounded px-3 py-2.5 text-sm text-gray-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder-gray-400 disabled:cursor-not-allowed ${className}`}
-        />
-    );
-
-    const TextArea = ({ className = "", ...props }) => (
-        <textarea 
-            {...props}
-            readOnly={readOnly}
-            disabled={readOnly}
-            className={`w-full bg-gray-50 border border-gray-200 rounded px-3 py-2.5 text-sm text-gray-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder-gray-400 disabled:cursor-not-allowed resize-none ${className}`}
-        />
-    );
-
     return (
         <div className="w-full max-w-7xl mx-auto bg-white p-8">
             {/* Header */}
@@ -79,6 +79,7 @@ export default function RoadBreakingPermitForm({ data, onChange, readOnly = fals
                             value={data.applicant_unit || ''}
                             onChange={handleChange}
                             placeholder="请输入申请单位"
+                            readOnly={readOnly}
                         />
                     </FormField>
                     <FormField label="作业单位">
@@ -88,6 +89,7 @@ export default function RoadBreakingPermitForm({ data, onChange, readOnly = fals
                             value={data.work_unit || ''}
                             onChange={handleChange}
                             placeholder="请输入作业单位"
+                            readOnly={readOnly}
                         />
                     </FormField>
                     <FormField label="作业负责人">
@@ -97,6 +99,7 @@ export default function RoadBreakingPermitForm({ data, onChange, readOnly = fals
                             value={data.supervisor || ''}
                             onChange={handleChange}
                             placeholder="请输入负责人"
+                            readOnly={readOnly}
                         />
                     </FormField>
                     <FormField label="涉及相关单位（部位）">
@@ -106,6 +109,7 @@ export default function RoadBreakingPermitForm({ data, onChange, readOnly = fals
                             value={data.related_unit || ''}
                             onChange={handleChange}
                             placeholder="请输入涉及相关单位"
+                            readOnly={readOnly}
                         />
                     </FormField>
                     <FormField label="监护人">
@@ -115,6 +119,7 @@ export default function RoadBreakingPermitForm({ data, onChange, readOnly = fals
                             value={data.guardian || ''}
                             onChange={handleChange}
                             placeholder="请输入监护人"
+                            readOnly={readOnly}
                         />
                     </FormField>
                     <FormField label="断路原因" className="md:col-span-2">
@@ -124,6 +129,7 @@ export default function RoadBreakingPermitForm({ data, onChange, readOnly = fals
                             value={data.road_break_reason || ''}
                             onChange={handleChange}
                             placeholder="请输入断路原因"
+                            readOnly={readOnly}
                         />
                     </FormField>
                     <FormField label="关联的其他特殊作业及安全作业票编号" className="md:col-span-2">
@@ -133,6 +139,7 @@ export default function RoadBreakingPermitForm({ data, onChange, readOnly = fals
                             value={data.related_permits || ''}
                             onChange={handleChange}
                             placeholder="请输入关联作业票编号"
+                            readOnly={readOnly}
                         />
                     </FormField>
                     <FormField label="断路地段示意图（可另附图）及相关说明" className="md:col-span-2">
@@ -143,6 +150,7 @@ export default function RoadBreakingPermitForm({ data, onChange, readOnly = fals
                                 onChange={handleChange}
                                 rows={6}
                                 placeholder="请绘制示意图或填写说明..."
+                                readOnly={readOnly}
                             />
                             <div className="flex justify-end items-center gap-4">
                                 <div className="flex items-center gap-2">
@@ -153,6 +161,7 @@ export default function RoadBreakingPermitForm({ data, onChange, readOnly = fals
                                         value={data.sketch_sign || ''}
                                         onChange={handleChange}
                                         className="w-32"
+                                        readOnly={readOnly}
                                     />
                                 </div>
                                 <Input 
@@ -161,6 +170,7 @@ export default function RoadBreakingPermitForm({ data, onChange, readOnly = fals
                                     value={data.sketch_sign_time || ''}
                                     onChange={handleChange}
                                     className="w-auto"
+                                    readOnly={readOnly}
                                 />
                             </div>
                         </div>
@@ -172,6 +182,7 @@ export default function RoadBreakingPermitForm({ data, onChange, readOnly = fals
                             value={data.risk_identification || ''}
                             onChange={handleChange}
                             placeholder="机械伤害、车辆伤害..."
+                            readOnly={readOnly}
                         />
                     </FormField>
                 </div>
@@ -187,6 +198,7 @@ export default function RoadBreakingPermitForm({ data, onChange, readOnly = fals
                             name="start_time"
                             value={data.start_time || ''}
                             onChange={handleChange}
+                            readOnly={readOnly}
                         />
                     </FormField>
                     <FormField label="结束时间">
@@ -195,6 +207,7 @@ export default function RoadBreakingPermitForm({ data, onChange, readOnly = fals
                             name="end_time"
                             value={data.end_time || ''}
                             onChange={handleChange}
+                            readOnly={readOnly}
                         />
                     </FormField>
                 </div>
@@ -271,6 +284,7 @@ export default function RoadBreakingPermitForm({ data, onChange, readOnly = fals
                             value={data.safety_discloser || ''}
                             onChange={handleChange}
                             placeholder="安全交底人"
+                            readOnly={readOnly}
                         />
                     </FormField>
                     <FormField label="接受交底人">
@@ -280,6 +294,7 @@ export default function RoadBreakingPermitForm({ data, onChange, readOnly = fals
                             value={data.safety_disclosee || ''}
                             onChange={handleChange}
                             placeholder="接受交底人"
+                            readOnly={readOnly}
                         />
                     </FormField>
                 </div>
@@ -295,6 +310,7 @@ export default function RoadBreakingPermitForm({ data, onChange, readOnly = fals
                                         name="supervisor_opinion"
                                         value={data.supervisor_opinion || '同意作业'}
                                         onChange={handleChange}
+                                        readOnly={readOnly}
                                     />
                                 </div>
                                 <div className="md:col-span-3">
@@ -304,6 +320,7 @@ export default function RoadBreakingPermitForm({ data, onChange, readOnly = fals
                                         name="supervisor_sign"
                                         value={data.supervisor_sign || ''}
                                         onChange={handleChange}
+                                        readOnly={readOnly}
                                     />
                                 </div>
                                 <div className="md:col-span-3">
@@ -312,6 +329,7 @@ export default function RoadBreakingPermitForm({ data, onChange, readOnly = fals
                                         name="supervisor_sign_date"
                                         value={data.supervisor_sign_date || ''}
                                         onChange={handleChange}
+                                        readOnly={readOnly}
                                     />
                                 </div>
                             </div>
@@ -328,6 +346,7 @@ export default function RoadBreakingPermitForm({ data, onChange, readOnly = fals
                                         name="unit_opinion"
                                         value={data.unit_opinion || '同意作业'}
                                         onChange={handleChange}
+                                        readOnly={readOnly}
                                     />
                                 </div>
                                 <div className="md:col-span-3">
@@ -337,6 +356,7 @@ export default function RoadBreakingPermitForm({ data, onChange, readOnly = fals
                                         name="unit_sign"
                                         value={data.unit_sign || ''}
                                         onChange={handleChange}
+                                        readOnly={readOnly}
                                     />
                                 </div>
                                 <div className="md:col-span-3">
@@ -345,6 +365,7 @@ export default function RoadBreakingPermitForm({ data, onChange, readOnly = fals
                                         name="unit_sign_date"
                                         value={data.unit_sign_date || ''}
                                         onChange={handleChange}
+                                        readOnly={readOnly}
                                     />
                                 </div>
                             </div>
@@ -361,6 +382,7 @@ export default function RoadBreakingPermitForm({ data, onChange, readOnly = fals
                                         name="safety_dept_opinion"
                                         value={data.safety_dept_opinion || '同意作业'}
                                         onChange={handleChange}
+                                        readOnly={readOnly}
                                     />
                                 </div>
                                 <div className="md:col-span-3">
@@ -370,6 +392,7 @@ export default function RoadBreakingPermitForm({ data, onChange, readOnly = fals
                                         name="safety_dept_sign"
                                         value={data.safety_dept_sign || ''}
                                         onChange={handleChange}
+                                        readOnly={readOnly}
                                     />
                                 </div>
                                 <div className="md:col-span-3">
@@ -378,6 +401,7 @@ export default function RoadBreakingPermitForm({ data, onChange, readOnly = fals
                                         name="safety_dept_sign_date"
                                         value={data.safety_dept_sign_date || ''}
                                         onChange={handleChange}
+                                        readOnly={readOnly}
                                     />
                                 </div>
                             </div>
@@ -394,6 +418,7 @@ export default function RoadBreakingPermitForm({ data, onChange, readOnly = fals
                                         name="approval_dept_opinion"
                                         value={data.approval_dept_opinion || '同意作业'}
                                         onChange={handleChange}
+                                        readOnly={readOnly}
                                     />
                                 </div>
                                 <div className="md:col-span-3">
@@ -403,6 +428,7 @@ export default function RoadBreakingPermitForm({ data, onChange, readOnly = fals
                                         name="approval_dept_sign"
                                         value={data.approval_dept_sign || ''}
                                         onChange={handleChange}
+                                        readOnly={readOnly}
                                     />
                                 </div>
                                 <div className="md:col-span-3">
@@ -411,6 +437,7 @@ export default function RoadBreakingPermitForm({ data, onChange, readOnly = fals
                                         name="approval_dept_sign_date"
                                         value={data.approval_dept_sign_date || ''}
                                         onChange={handleChange}
+                                        readOnly={readOnly}
                                     />
                                 </div>
                             </div>
@@ -427,6 +454,7 @@ export default function RoadBreakingPermitForm({ data, onChange, readOnly = fals
                                         name="completion_acceptance"
                                         value={data.completion_acceptance || '断路作业完成。'}
                                         onChange={handleChange}
+                                        readOnly={readOnly}
                                     />
                                 </div>
                                 <div className="md:col-span-3">
@@ -436,6 +464,7 @@ export default function RoadBreakingPermitForm({ data, onChange, readOnly = fals
                                         name="completion_sign"
                                         value={data.completion_sign || ''}
                                         onChange={handleChange}
+                                        readOnly={readOnly}
                                     />
                                 </div>
                                 <div className="md:col-span-3">
@@ -444,6 +473,7 @@ export default function RoadBreakingPermitForm({ data, onChange, readOnly = fals
                                         name="completion_sign_date"
                                         value={data.completion_sign_date || ''}
                                         onChange={handleChange}
+                                        readOnly={readOnly}
                                     />
                                 </div>
                             </div>

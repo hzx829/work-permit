@@ -1,5 +1,23 @@
 import React from 'react';
 
+const FormField = ({ label, required = false, children, className = "" }) => (
+    <div className={`flex flex-col ${className}`}>
+        <label className="text-sm font-medium text-gray-500 mb-1.5">
+            {label} {required && <span className="text-red-500">*</span>}
+        </label>
+        {children}
+    </div>
+);
+
+const Input = ({ className = "", readOnly, ...props }) => (
+    <input 
+        {...props}
+        readOnly={readOnly}
+        disabled={readOnly}
+        className={`w-full bg-gray-50 border border-gray-200 rounded px-3 py-2.5 text-sm text-gray-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder-gray-400 disabled:cursor-not-allowed ${className}`}
+    />
+);
+
 export default function ConfinedSpacePermitForm({ data, onChange, readOnly = false }) {
     const handleChange = (e) => {
         if (readOnly) return;
@@ -44,24 +62,6 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
         }
     }, []);
 
-    const FormField = ({ label, required = false, children, className = "" }) => (
-        <div className={`flex flex-col ${className}`}>
-            <label className="text-sm font-medium text-gray-500 mb-1.5">
-                {label} {required && <span className="text-red-500">*</span>}
-            </label>
-            {children}
-        </div>
-    );
-
-    const Input = ({ className = "", ...props }) => (
-        <input 
-            {...props}
-            readOnly={readOnly}
-            disabled={readOnly}
-            className={`w-full bg-gray-50 border border-gray-200 rounded px-3 py-2.5 text-sm text-gray-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder-gray-400 disabled:cursor-not-allowed ${className}`}
-        />
-    );
-
     return (
         <div className="w-full max-w-7xl mx-auto bg-white p-8">
             {/* Header */}
@@ -86,6 +86,7 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                             value={data.applicant_unit || ''}
                             onChange={handleChange}
                             placeholder="请输入单位"
+                            readOnly={readOnly}
                         />
                     </FormField>
                     <FormField label="作业申请时间">
@@ -94,33 +95,37 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                             name="apply_time"
                             value={data.apply_time || ''}
                             onChange={handleChange}
+                            readOnly={readOnly}
                         />
                     </FormField>
                     <FormField label="受限空间名称">
                         <Input 
                             type="text" 
-                            name="work_location"
-                            value={data.work_location || ''}
+                            name="confined_space_name"
+                            value={data.confined_space_name || ''}
                             onChange={handleChange}
-                            placeholder="请输入受限空间名称"
+                            placeholder="请输入名称"
+                            readOnly={readOnly}
                         />
                     </FormField>
-                    <FormField label="受限空间内原有介质名称">
+                    <FormField label="受限空间原有介质名称">
                         <Input 
                             type="text" 
-                            name="original_media"
-                            value={data.original_media || ''}
+                            name="original_media_name"
+                            value={data.original_media_name || ''}
                             onChange={handleChange}
-                            placeholder="请输入原有介质"
+                            placeholder="请输入介质名称"
+                            readOnly={readOnly}
                         />
                     </FormField>
-                    <FormField label="作业内容" className="md:col-span-2">
+                    <FormField label="作业内容">
                         <Input 
                             type="text" 
-                            name="content"
-                            value={data.content || ''}
+                            name="work_content"
+                            value={data.work_content || ''}
                             onChange={handleChange}
                             placeholder="请输入作业内容"
+                            readOnly={readOnly}
                         />
                     </FormField>
                     <FormField label="作业单位">
@@ -130,6 +135,25 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                             value={data.work_unit || ''}
                             onChange={handleChange}
                             placeholder="请输入作业单位"
+                            readOnly={readOnly}
+                        />
+                    </FormField>
+                    <FormField label="作业开始时间">
+                        <Input 
+                            type="datetime-local" 
+                            name="work_start_time"
+                            value={data.work_start_time || ''}
+                            onChange={handleChange}
+                            readOnly={readOnly}
+                        />
+                    </FormField>
+                    <FormField label="作业结束时间">
+                        <Input 
+                            type="datetime-local" 
+                            name="work_end_time"
+                            value={data.work_end_time || ''}
+                            onChange={handleChange}
+                            readOnly={readOnly}
                         />
                     </FormField>
                     <FormField label="作业负责人">
@@ -139,6 +163,7 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                             value={data.supervisor || ''}
                             onChange={handleChange}
                             placeholder="请输入负责人姓名"
+                            readOnly={readOnly}
                         />
                     </FormField>
                     <FormField label="作业人">
@@ -148,6 +173,7 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                             value={data.workers || ''}
                             onChange={handleChange}
                             placeholder="请输入作业人姓名"
+                            readOnly={readOnly}
                         />
                     </FormField>
                     <FormField label="监护人">
@@ -157,6 +183,7 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                             value={data.guardian || ''}
                             onChange={handleChange}
                             placeholder="请输入监护人姓名"
+                            readOnly={readOnly}
                         />
                     </FormField>
                     <FormField label="关联的其他特殊作业及安全作业票编号" className="md:col-span-2">
@@ -165,6 +192,7 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                             name="related_permits"
                             value={data.related_permits || ''}
                             onChange={handleChange}
+                            readOnly={readOnly}
                         />
                     </FormField>
                     <FormField label="风险辨识结果" className="md:col-span-2">
@@ -173,6 +201,7 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                             name="risk_identification"
                             value={data.risk_identification || ''}
                             onChange={handleChange}
+                            readOnly={readOnly}
                         />
                     </FormField>
                 </div>

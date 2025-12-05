@@ -1,5 +1,23 @@
 import React from 'react';
 
+const FormField = ({ label, required = false, children, className = "" }) => (
+    <div className={`flex flex-col ${className}`}>
+        <label className="text-sm font-medium text-gray-500 mb-1.5">
+            {label} {required && <span className="text-red-500">*</span>}
+        </label>
+        {children}
+    </div>
+);
+
+const Input = ({ className = "", readOnly, ...props }) => (
+    <input 
+        {...props}
+        readOnly={readOnly}
+        disabled={readOnly}
+        className={`w-full bg-gray-50 border border-gray-200 rounded px-3 py-2.5 text-sm text-gray-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder-gray-400 disabled:cursor-not-allowed ${className}`}
+    />
+);
+
 export default function HeightWorkPermitForm({ data, onChange, readOnly = false }) {
     const handleChange = (e) => {
         if (readOnly) return;
@@ -39,24 +57,6 @@ export default function HeightWorkPermitForm({ data, onChange, readOnly = false 
         }
     }, []);
 
-    const FormField = ({ label, required = false, children, className = "" }) => (
-        <div className={`flex flex-col ${className}`}>
-            <label className="text-sm font-medium text-gray-500 mb-1.5">
-                {label} {required && <span className="text-red-500">*</span>}
-            </label>
-            {children}
-        </div>
-    );
-
-    const Input = ({ className = "", ...props }) => (
-        <input 
-            {...props}
-            readOnly={readOnly}
-            disabled={readOnly}
-            className={`w-full bg-gray-50 border border-gray-200 rounded px-3 py-2.5 text-sm text-gray-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder-gray-400 disabled:cursor-not-allowed ${className}`}
-        />
-    );
-
     return (
         <div className="w-full max-w-7xl mx-auto bg-white p-8">
             {/* Header */}
@@ -81,6 +81,7 @@ export default function HeightWorkPermitForm({ data, onChange, readOnly = false 
                             value={data.applicant_unit || ''}
                             onChange={handleChange}
                             placeholder="请输入单位"
+                            readOnly={readOnly}
                         />
                     </FormField>
                     <FormField label="作业申请时间">
@@ -89,6 +90,7 @@ export default function HeightWorkPermitForm({ data, onChange, readOnly = false 
                             name="apply_time"
                             value={data.apply_time || ''}
                             onChange={handleChange}
+                            readOnly={readOnly}
                         />
                     </FormField>
                     <FormField label="作业地点">
@@ -98,6 +100,7 @@ export default function HeightWorkPermitForm({ data, onChange, readOnly = false 
                             value={data.work_location || ''}
                             onChange={handleChange}
                             placeholder="请输入作业地点"
+                            readOnly={readOnly}
                         />
                     </FormField>
                      <FormField label="作业内容">
@@ -107,6 +110,7 @@ export default function HeightWorkPermitForm({ data, onChange, readOnly = false 
                             value={data.content || ''}
                             onChange={handleChange}
                             placeholder="请输入作业内容"
+                            readOnly={readOnly}
                         />
                     </FormField>
                     
@@ -118,6 +122,7 @@ export default function HeightWorkPermitForm({ data, onChange, readOnly = false 
                                 value={data.work_height || ''}
                                 onChange={handleChange}
                                 placeholder="请输入高度"
+                                readOnly={readOnly}
                             />
                         </FormField>
                         <FormField label="高处作业级别">
@@ -127,6 +132,7 @@ export default function HeightWorkPermitForm({ data, onChange, readOnly = false 
                                 value={data.work_level || ''}
                                 onChange={handleChange}
                                 placeholder="请输入级别"
+                                readOnly={readOnly}
                             />
                         </FormField>
                     </div>
@@ -138,6 +144,7 @@ export default function HeightWorkPermitForm({ data, onChange, readOnly = false 
                             value={data.work_unit || ''}
                             onChange={handleChange}
                             placeholder="请输入作业单位"
+                            readOnly={readOnly}
                         />
                     </FormField>
                      <FormField label="监护人">
@@ -147,6 +154,7 @@ export default function HeightWorkPermitForm({ data, onChange, readOnly = false 
                             value={data.guardian || ''}
                             onChange={handleChange}
                             placeholder="请输入监护人"
+                            readOnly={readOnly}
                         />
                     </FormField>
                      <FormField label="作业人">
@@ -156,6 +164,7 @@ export default function HeightWorkPermitForm({ data, onChange, readOnly = false 
                             value={data.workers || ''}
                             onChange={handleChange}
                             placeholder="请输入作业人"
+                            readOnly={readOnly}
                         />
                     </FormField>
                      <FormField label="作业负责人">
@@ -165,6 +174,7 @@ export default function HeightWorkPermitForm({ data, onChange, readOnly = false 
                             value={data.supervisor || ''}
                             onChange={handleChange}
                             placeholder="请输入作业负责人"
+                            readOnly={readOnly}
                         />
                     </FormField>
                     <FormField label="关联的其他特殊作业及安全作业票编号" className="md:col-span-2">
@@ -174,6 +184,7 @@ export default function HeightWorkPermitForm({ data, onChange, readOnly = false 
                             value={data.related_permits || ''}
                             onChange={handleChange}
                             placeholder="请输入关联作业票编号"
+                            readOnly={readOnly}
                         />
                     </FormField>
                     <FormField label="风险辨识结果" className="md:col-span-2">
@@ -183,6 +194,7 @@ export default function HeightWorkPermitForm({ data, onChange, readOnly = false 
                             value={data.risk_identification || ''}
                             onChange={handleChange}
                             placeholder="高处坠落、灼伤、火灾爆炸..."
+                            readOnly={readOnly}
                         />
                     </FormField>
                 </div>
@@ -198,6 +210,7 @@ export default function HeightWorkPermitForm({ data, onChange, readOnly = false 
                             name="start_time"
                             value={data.start_time || ''}
                             onChange={handleChange}
+                            readOnly={readOnly}
                         />
                     </FormField>
                     <FormField label="结束时间">
@@ -206,6 +219,7 @@ export default function HeightWorkPermitForm({ data, onChange, readOnly = false 
                             name="end_time"
                             value={data.end_time || ''}
                             onChange={handleChange}
+                            readOnly={readOnly}
                         />
                     </FormField>
                 </div>

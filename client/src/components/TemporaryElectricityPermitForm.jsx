@@ -1,5 +1,23 @@
 import React from 'react';
 
+const FormField = ({ label, required = false, children, className = "" }) => (
+    <div className={`flex flex-col ${className}`}>
+        <label className="text-sm font-medium text-gray-500 mb-1.5">
+            {label} {required && <span className="text-red-500">*</span>}
+        </label>
+        {children}
+    </div>
+);
+
+const Input = ({ className = "", readOnly, ...props }) => (
+    <input 
+        {...props}
+        readOnly={readOnly}
+        disabled={readOnly}
+        className={`w-full bg-gray-50 border border-gray-200 rounded px-3 py-2.5 text-sm text-gray-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder-gray-400 disabled:cursor-not-allowed ${className}`}
+    />
+);
+
 export default function TemporaryElectricityPermitForm({ data, onChange, readOnly = false }) {
     const handleChange = (e) => {
         if (readOnly) return;
@@ -38,24 +56,6 @@ export default function TemporaryElectricityPermitForm({ data, onChange, readOnl
         }
     }, []);
 
-    const FormField = ({ label, required = false, children, className = "" }) => (
-        <div className={`flex flex-col ${className}`}>
-            <label className="text-sm font-medium text-gray-500 mb-1.5">
-                {label} {required && <span className="text-red-500">*</span>}
-            </label>
-            {children}
-        </div>
-    );
-
-    const Input = ({ className = "", ...props }) => (
-        <input 
-            {...props}
-            readOnly={readOnly}
-            disabled={readOnly}
-            className={`w-full bg-gray-50 border border-gray-200 rounded px-3 py-2.5 text-sm text-gray-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder-gray-400 disabled:cursor-not-allowed ${className}`}
-        />
-    );
-
     return (
         <div className="w-full max-w-7xl mx-auto bg-white p-8">
             {/* Header */}
@@ -74,7 +74,7 @@ export default function TemporaryElectricityPermitForm({ data, onChange, readOnl
                 <h2 className="text-base font-bold text-blue-600 mb-6">申请基本信息</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
                     <FormField label="申请单位">
-                        <Input 
+                        <Input readOnly={readOnly} 
                             type="text" 
                             name="applicant_unit"
                             value={data.applicant_unit || ''}
@@ -83,7 +83,7 @@ export default function TemporaryElectricityPermitForm({ data, onChange, readOnl
                         />
                     </FormField>
                     <FormField label="作业申请时间">
-                        <Input 
+                        <Input readOnly={readOnly} 
                             type="datetime-local" 
                             name="apply_time"
                             value={data.apply_time || ''}
@@ -91,7 +91,7 @@ export default function TemporaryElectricityPermitForm({ data, onChange, readOnl
                         />
                     </FormField>
                     <FormField label="作业地点">
-                        <Input 
+                        <Input readOnly={readOnly} 
                             type="text" 
                             name="work_location"
                             value={data.work_location || ''}
@@ -100,7 +100,7 @@ export default function TemporaryElectricityPermitForm({ data, onChange, readOnl
                         />
                     </FormField>
                     <FormField label="作业内容">
-                        <Input 
+                        <Input readOnly={readOnly} 
                             type="text" 
                             name="content"
                             value={data.content || ''}
@@ -109,7 +109,7 @@ export default function TemporaryElectricityPermitForm({ data, onChange, readOnl
                         />
                     </FormField>
                     <FormField label="电源接入点及许可用电功率">
-                        <Input 
+                        <Input readOnly={readOnly} 
                             type="text" 
                             name="power_source"
                             value={data.power_source || ''}
@@ -118,7 +118,7 @@ export default function TemporaryElectricityPermitForm({ data, onChange, readOnl
                         />
                     </FormField>
                     <FormField label="工作电压">
-                        <Input 
+                        <Input readOnly={readOnly} 
                             type="text" 
                             name="work_voltage"
                             value={data.work_voltage || ''}
@@ -127,7 +127,7 @@ export default function TemporaryElectricityPermitForm({ data, onChange, readOnl
                         />
                     </FormField>
                     <FormField label="用电设备名称及额定功率">
-                        <Input 
+                        <Input readOnly={readOnly} 
                             type="text" 
                             name="equipment_power"
                             value={data.equipment_power || ''}
@@ -136,7 +136,7 @@ export default function TemporaryElectricityPermitForm({ data, onChange, readOnl
                         />
                     </FormField>
                     <FormField label="监护人">
-                        <Input 
+                        <Input readOnly={readOnly} 
                             type="text" 
                             name="guardian"
                             value={data.guardian || ''}
@@ -145,7 +145,7 @@ export default function TemporaryElectricityPermitForm({ data, onChange, readOnl
                         />
                     </FormField>
                     <FormField label="用电人">
-                        <Input 
+                        <Input readOnly={readOnly} 
                             type="text" 
                             name="electricity_user"
                             value={data.electricity_user || ''}
@@ -154,7 +154,7 @@ export default function TemporaryElectricityPermitForm({ data, onChange, readOnl
                         />
                     </FormField>
                     <FormField label="作业人">
-                        <Input 
+                        <Input readOnly={readOnly} 
                             type="text" 
                             name="workers"
                             value={data.workers || ''}
@@ -163,7 +163,7 @@ export default function TemporaryElectricityPermitForm({ data, onChange, readOnl
                         />
                     </FormField>
                     <FormField label="作业人电工证号">
-                        <Input 
+                        <Input readOnly={readOnly} 
                             type="text" 
                             name="worker_cert"
                             value={data.worker_cert || ''}
@@ -172,7 +172,7 @@ export default function TemporaryElectricityPermitForm({ data, onChange, readOnl
                         />
                     </FormField>
                     <FormField label="作业负责人">
-                        <Input 
+                        <Input readOnly={readOnly} 
                             type="text" 
                             name="supervisor"
                             value={data.supervisor || ''}
@@ -181,7 +181,7 @@ export default function TemporaryElectricityPermitForm({ data, onChange, readOnl
                         />
                     </FormField>
                     <FormField label="负责人电工证号">
-                        <Input 
+                        <Input readOnly={readOnly} 
                             type="text" 
                             name="supervisor_cert"
                             value={data.supervisor_cert || ''}
@@ -190,7 +190,7 @@ export default function TemporaryElectricityPermitForm({ data, onChange, readOnl
                         />
                     </FormField>
                     <FormField label="关联的其他特殊作业及安全作业票编号" className="md:col-span-2">
-                        <Input 
+                        <Input readOnly={readOnly} 
                             type="text" 
                             name="related_permits"
                             value={data.related_permits || ''}
@@ -199,7 +199,7 @@ export default function TemporaryElectricityPermitForm({ data, onChange, readOnl
                         />
                     </FormField>
                     <FormField label="风险辨识结果" className="md:col-span-2">
-                        <Input 
+                        <Input readOnly={readOnly} 
                             type="text" 
                             name="risk_identification"
                             value={data.risk_identification || ''}
@@ -215,7 +215,7 @@ export default function TemporaryElectricityPermitForm({ data, onChange, readOnl
                 <h2 className="text-base font-bold text-blue-600 mb-6">可燃气体分析（运行的生产装置、罐区和具有火灾爆炸危险场所）</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6 bg-gray-50 p-6 rounded-lg border border-gray-200">
                     <FormField label="分析时间">
-                        <Input 
+                        <Input readOnly={readOnly} 
                             type="text" 
                             name="gas_analysis_time" 
                             value={data.gas_analysis_time || ''} 
@@ -224,7 +224,7 @@ export default function TemporaryElectricityPermitForm({ data, onChange, readOnl
                         />
                     </FormField>
                     <FormField label="检测结果">
-                        <Input 
+                        <Input readOnly={readOnly} 
                             type="text" 
                             name="gas_analysis_result" 
                             value={data.gas_analysis_result || ''} 
@@ -233,7 +233,7 @@ export default function TemporaryElectricityPermitForm({ data, onChange, readOnl
                         />
                     </FormField>
                     <FormField label="分析点">
-                        <Input 
+                        <Input readOnly={readOnly} 
                             type="text" 
                             name="gas_analysis_point" 
                             value={data.gas_analysis_point || ''} 
@@ -242,7 +242,7 @@ export default function TemporaryElectricityPermitForm({ data, onChange, readOnl
                         />
                     </FormField>
                     <FormField label="分析人">
-                        <Input 
+                        <Input readOnly={readOnly} 
                             type="text" 
                             name="gas_analyst" 
                             value={data.gas_analyst || ''} 
@@ -258,7 +258,7 @@ export default function TemporaryElectricityPermitForm({ data, onChange, readOnl
                 <h2 className="text-base font-bold text-blue-600 mb-6">作业实施时间</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-gray-50 p-6 rounded-lg border border-gray-200">
                     <FormField label="开始时间">
-                        <Input 
+                        <Input readOnly={readOnly} 
                             type="datetime-local" 
                             name="start_time"
                             value={data.start_time || ''}
@@ -266,7 +266,7 @@ export default function TemporaryElectricityPermitForm({ data, onChange, readOnl
                         />
                     </FormField>
                     <FormField label="结束时间">
-                        <Input 
+                        <Input readOnly={readOnly} 
                             type="datetime-local" 
                             name="end_time"
                             value={data.end_time || ''}
@@ -341,7 +341,7 @@ export default function TemporaryElectricityPermitForm({ data, onChange, readOnl
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                      <FormField label="安全交底人（作业人、监护人）">
-                        <Input 
+                        <Input readOnly={readOnly} 
                             type="text" 
                             name="safety_discloser"
                             value={data.safety_discloser || ''}
@@ -350,7 +350,7 @@ export default function TemporaryElectricityPermitForm({ data, onChange, readOnl
                         />
                     </FormField>
                     <FormField label="接受交底人（用电人）">
-                        <Input 
+                        <Input readOnly={readOnly} 
                             type="text" 
                             name="safety_disclosee"
                             value={data.safety_disclosee || ''}
@@ -366,7 +366,7 @@ export default function TemporaryElectricityPermitForm({ data, onChange, readOnl
                         <FormField label="作业负责人意见">
                             <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                                 <div className="md:col-span-6">
-                                    <Input 
+                                    <Input readOnly={readOnly} 
                                         type="text" 
                                         name="supervisor_opinion"
                                         value={data.supervisor_opinion || '同意作业'}
@@ -374,7 +374,7 @@ export default function TemporaryElectricityPermitForm({ data, onChange, readOnl
                                     />
                                 </div>
                                 <div className="md:col-span-3">
-                                    <Input 
+                                    <Input readOnly={readOnly} 
                                         type="text" 
                                         placeholder="签字 (作业负责人)"
                                         name="supervisor_sign"
@@ -383,7 +383,7 @@ export default function TemporaryElectricityPermitForm({ data, onChange, readOnl
                                     />
                                 </div>
                                 <div className="md:col-span-3">
-                                    <Input 
+                                    <Input readOnly={readOnly} 
                                         type="datetime-local" 
                                         name="supervisor_sign_date"
                                         value={data.supervisor_sign_date || ''}
@@ -399,7 +399,7 @@ export default function TemporaryElectricityPermitForm({ data, onChange, readOnl
                         <FormField label="用电单位意见">
                             <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                                 <div className="md:col-span-6">
-                                    <Input 
+                                    <Input readOnly={readOnly} 
                                         type="text" 
                                         name="unit_opinion"
                                         value={data.unit_opinion || '同意作业'}
@@ -407,7 +407,7 @@ export default function TemporaryElectricityPermitForm({ data, onChange, readOnl
                                     />
                                 </div>
                                 <div className="md:col-span-3">
-                                    <Input 
+                                    <Input readOnly={readOnly} 
                                         type="text" 
                                         placeholder="签字 (用电单位有关人员)"
                                         name="unit_sign"
@@ -416,7 +416,7 @@ export default function TemporaryElectricityPermitForm({ data, onChange, readOnl
                                     />
                                 </div>
                                 <div className="md:col-span-3">
-                                    <Input 
+                                    <Input readOnly={readOnly} 
                                         type="datetime-local" 
                                         name="unit_sign_date"
                                         value={data.unit_sign_date || ''}
@@ -432,7 +432,7 @@ export default function TemporaryElectricityPermitForm({ data, onChange, readOnl
                         <FormField label="配送电单位意见">
                             <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                                 <div className="md:col-span-6">
-                                    <Input 
+                                    <Input readOnly={readOnly} 
                                         type="text" 
                                         name="power_dept_opinion"
                                         value={data.power_dept_opinion || '同意接线送电'}
@@ -440,7 +440,7 @@ export default function TemporaryElectricityPermitForm({ data, onChange, readOnl
                                     />
                                 </div>
                                 <div className="md:col-span-3">
-                                    <Input 
+                                    <Input readOnly={readOnly} 
                                         type="text" 
                                         placeholder="签字 (配送电单位人员)"
                                         name="power_dept_sign"
@@ -449,7 +449,7 @@ export default function TemporaryElectricityPermitForm({ data, onChange, readOnl
                                     />
                                 </div>
                                 <div className="md:col-span-3">
-                                    <Input 
+                                    <Input readOnly={readOnly} 
                                         type="datetime-local" 
                                         name="power_dept_sign_date"
                                         value={data.power_dept_sign_date || ''}
@@ -465,7 +465,7 @@ export default function TemporaryElectricityPermitForm({ data, onChange, readOnl
                         <FormField label="完工验收">
                             <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                                 <div className="md:col-span-6">
-                                    <Input 
+                                    <Input readOnly={readOnly} 
                                         type="text" 
                                         name="completion_acceptance"
                                         value={data.completion_acceptance || '临时用电作业完成，线路已拆除。'}
@@ -473,7 +473,7 @@ export default function TemporaryElectricityPermitForm({ data, onChange, readOnl
                                     />
                                 </div>
                                 <div className="md:col-span-3">
-                                    <Input 
+                                    <Input readOnly={readOnly} 
                                         type="text" 
                                         placeholder="签字 (作业人、用电人)"
                                         name="completion_sign"
@@ -482,7 +482,7 @@ export default function TemporaryElectricityPermitForm({ data, onChange, readOnl
                                     />
                                 </div>
                                 <div className="md:col-span-3">
-                                    <Input 
+                                    <Input readOnly={readOnly} 
                                         type="datetime-local" 
                                         name="completion_sign_date"
                                         value={data.completion_sign_date || ''}
