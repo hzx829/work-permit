@@ -1,16 +1,82 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { loadPermits } from '../utils/api';
 // import ThreeMap from '../components/ThreeMap';
 
 export default function DigitalCockpit() {
     const navigate = useNavigate();
     const [currentTime, setCurrentTime] = useState(new Date());
+    const [workPermitStats, setWorkPermitStats] = useState([]);
 
     useEffect(() => {
         const timer = setInterval(() => {
             setCurrentTime(new Date());
         }, 1000);
         return () => clearInterval(timer);
+    }, []);
+
+    // 加载作业票统计数据
+    useEffect(() => {
+        async function fetchWorkPermitStats() {
+            try {
+                const permits = await loadPermits('', '');
+                console.log('数字驾驶舱 - 加载的作业票数据:', permits);
+                
+                // API 直接返回数组，不是 {success, data} 格式
+                if (Array.isArray(permits) && permits.length > 0) {
+                    // 按作业类型统计
+                    const typeCount = {};
+                    permits.forEach(permit => {
+                        const type = permit.type || '其他';
+                        console.log('作业票类型:', type);
+                        typeCount[type] = (typeCount[type] || 0) + 1;
+                    });
+                    
+                    console.log('类型统计:', typeCount);
+                    
+                    // 转换为显示格式 - 注意这里要匹配数据库中的实际值
+                    const stats = [
+                        { label: '动火', value: typeCount['动火作业'] || typeCount['动火'] || 0 },
+                        { label: '临电', value: typeCount['临时用电作业'] || typeCount['临时用电'] || 0 },
+                        { label: '受限', value: typeCount['受限空间作业'] || typeCount['受限空间'] || 0 },
+                        { label: '高处', value: typeCount['高处作业'] || 0 },
+                        { label: '盲板', value: typeCount['盲板抽堵作业'] || typeCount['盲板抽堵'] || 0 },
+                        { label: '动土', value: typeCount['动土作业'] || typeCount['动土'] || 0 },
+                        { label: '吊装', value: typeCount['吊装作业'] || typeCount['吊装'] || 0 },
+                        { label: '断路', value: typeCount['断路作业'] || typeCount['断路'] || 0 },
+                    ];
+                    console.log('最终统计数据:', stats);
+                    setWorkPermitStats(stats);
+                } else {
+                    console.log('没有作业票数据或数据格式错误');
+                    // 如果加载失败，使用默认值
+                    setWorkPermitStats([
+                        { label: '动火', value: 0 },
+                        { label: '临电', value: 0 },
+                        { label: '受限', value: 0 },
+                        { label: '高处', value: 0 },
+                        { label: '盲板', value: 0 },
+                        { label: '动土', value: 0 },
+                        { label: '吊装', value: 0 },
+                        { label: '断路', value: 0 },
+                    ]);
+                }
+            } catch (error) {
+                console.error('Failed to load work permit stats:', error);
+                // 出错时使用默认值
+                setWorkPermitStats([
+                    { label: '动火', value: 0 },
+                    { label: '临电', value: 0 },
+                    { label: '受限', value: 0 },
+                    { label: '高处', value: 0 },
+                    { label: '盲板', value: 0 },
+                    { label: '动土', value: 0 },
+                    { label: '吊装', value: 0 },
+                    { label: '断路', value: 0 },
+                ]);
+            }
+        }
+        fetchWorkPermitStats();
     }, []);
 
     const formatDate = (date) => {
@@ -50,17 +116,6 @@ export default function DigitalCockpit() {
         { type: '培训公告', title: '新员工安全教育培训安排', dept: '安全部', time: '12-05 14:30' },
         { type: '检查通知', title: '消防设施维护检查计划', dept: '安全部', time: '12-04 10:15' },
         { type: '培训公告', title: '特种作业人员复训通知', dept: '技术部', time: '12-03 16:20' },
-    ];
-
-    const workPermitStats = [
-        { label: '动火', value: 90 },
-        { label: '临电', value: 120 },
-        { label: '受限', value: 70 },
-        { label: '高处', value: 40 },
-        { label: '盲板', value: 80 },
-        { label: '动土', value: 50 },
-        { label: '吊装', value: 95 },
-        { label: '断路', value: 60 },
     ];
 
     return (
@@ -251,12 +306,6 @@ export default function DigitalCockpit() {
                             </div>
                         </div>
 
-                        {/* Overlay UI Elements on Map */}
-                        <div className="absolute top-4 left-4 flex flex-col gap-2 pointer-events-none">
-                            <div className="bg-black/40 backdrop-blur-md border-l-2 border-orange-500 px-3 py-1 text-xs text-orange-300">
-                                <span className="font-bold">⚠ 警告:</span> 化工2#车间 温度异常
-                            </div>
-                        </div>
                     </div>
 
                 </div>
