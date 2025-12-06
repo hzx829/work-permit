@@ -15,6 +15,15 @@ import Equipment from './pages/Equipment';
 import Training from './pages/Training';
 import Regulation from './pages/Regulation';
 import Video from './pages/Video';
+import OccupationalHealth from './pages/OccupationalHealth';
+import DailyInspection from './pages/DailyInspection';
+import Emergency from './pages/Emergency';
+import AccidentInvestigation from './pages/AccidentInvestigation';
+import SpecialEquipment from './pages/SpecialEquipment';
+import SafetyAssessment from './pages/SafetyAssessment';
+import SafetyOfficer from './pages/SafetyOfficer';
+import SafetyReview from './pages/SafetyReview';
+import FireSafety from './pages/FireSafety';
 
 function App() {
   return (
@@ -42,12 +51,21 @@ function App() {
             <Route path="/work-permit/create" element={<Create />} />
             <Route path="/work-permit/detail/:id" element={<Detail />} />
             <Route path="/comprehensive" element={<Comprehensive />} />
+            <Route path="/occupational-health" element={<OccupationalHealth />} />
             <Route path="/risk" element={<Risk />} />
+            <Route path="/daily-inspection" element={<DailyInspection />} />
             <Route path="/hazard" element={<Hazard />} />
-            <Route path="/equipment" element={<Equipment />} />
-            <Route path="/training" element={<Training />} />
-            <Route path="/regulation" element={<Regulation />} />
+            <Route path="/emergency" element={<Emergency />} />
+            <Route path="/accident-investigation" element={<AccidentInvestigation />} />
             <Route path="/video" element={<Video />} />
+            <Route path="/special-equipment" element={<SpecialEquipment />} />
+            <Route path="/training" element={<Training />} />
+            <Route path="/safety-assessment" element={<SafetyAssessment />} />
+            <Route path="/regulation" element={<Regulation />} />
+            <Route path="/safety-officer" element={<SafetyOfficer />} />
+            <Route path="/safety-review" element={<SafetyReview />} />
+            <Route path="/fire-safety" element={<FireSafety />} />
+            <Route path="/equipment" element={<Equipment />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

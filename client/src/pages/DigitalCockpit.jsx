@@ -22,35 +22,34 @@ export default function DigitalCockpit() {
         return `${year}-${month}-${day} ${week}`;
     };
 
-    // Mock Data
-    const overallStats = [
-        { label: '在厂人数(人)', value: 1326, icon: 'fa-users', color: 'text-blue-400' },
-        { label: '设备运行总数(台)', value: 39223, icon: 'fa-cogs', color: 'text-cyan-400' },
-        { label: '危险化学品总量(吨)', value: 34.81, icon: 'fa-flask', color: 'text-purple-400' },
-        { label: '安全态势指数(%)', value: 92.13, icon: 'fa-shield-alt', color: 'text-green-400' },
+    // Mock Data - 数字驾驶舱6大模块数据
+    const weatherData = {
+        condition: '多云',
+        temp: 24,
+        windSpeed: '3级',
+        windDirection: '东北风',
+        humidity: 65
+    };
+
+    const safetyKnowledge = [
+        { title: '正确佩戴安全帽', content: '安全帽必须正确佩戴，系好下颚带，避免头部受伤' },
+        { title: '高处作业注意事项', content: '高处作业必须系好安全带，检查作业平台稳固性' },
+        { title: '动火作业安全规程', content: '动火作业前清理易燃物，配备灭火器，设置监护人' },
+        { title: '受限空间作业要求', content: '进入受限空间前必须检测气体，保持通风，设专人监护' },
     ];
 
-    const riskStats = [
-        { label: '重大风险', count: 15, color: 'bg-red-600', width: '30%' },
-        { label: '较大风险', count: 55, color: 'bg-orange-500', width: '60%' },
-        { label: '一般风险', count: 5, color: 'bg-yellow-400', width: '10%' },
-        { label: '低风险', count: 3, color: 'bg-blue-400', width: '5%' },
+    const safetyDynamics = [
+        { type: '安全员活动', officer: '张三', action: '化工1#车间安全检查', time: '14:30', status: '已完成' },
+        { type: '应急事件', event: '化工2#车间设备故障', level: '一般', time: '13:45', status: '已处置' },
+        { type: '安全员活动', officer: '李四', action: '消防设施专项检查', time: '12:20', status: '进行中' },
+        { type: '应急事件', event: '仓库区物料泄漏演练', level: '演练', time: '11:30', status: '已完成' },
     ];
 
-    const alarmData = [
-        { workshop: '化工2#车间', device: '压缩机', tag: 'C120038', type: '泄露', time: '15:00:23' },
-        { workshop: '化工2#车间', device: '压缩机', tag: 'C120038', type: '泄露', time: '15:00:23' },
-        { workshop: '化工2#车间', device: '压缩机', tag: 'C120038', type: '泄露', time: '15:00:23' },
-        { workshop: '化工2#车间', device: '压缩机', tag: 'C120038', type: '泄露', time: '15:00:23' },
-        { workshop: '化工2#车间', device: '压缩机', tag: 'C120038', type: '泄露', time: '15:00:23' },
-    ];
-
-    const aiAlarmData = [
-        { location: '化工2#车间', type: '违规作业', reason: '未带安全帽', time: '15:00:23' },
-        { location: '化工2#车间', type: '违规作业', reason: '未带安全帽', time: '15:00:23' },
-        { location: '化工2#车间', type: '违规作业', reason: '未带安全帽', time: '15:00:23' },
-        { location: '化工2#车间', type: '违规作业', reason: '未带安全帽', time: '15:00:23' },
-        { location: '化工2#车间', type: '违规作业', reason: '未带安全帽', time: '15:00:23' },
+    const announcements = [
+        { type: '检查通知', title: '关于开展本周安全大检查的通知', dept: '安全部', time: '12-06 09:00' },
+        { type: '培训公告', title: '新员工安全教育培训安排', dept: '安全部', time: '12-05 14:30' },
+        { type: '检查通知', title: '消防设施维护检查计划', dept: '安全部', time: '12-04 10:15' },
+        { type: '培训公告', title: '特种作业人员复训通知', dept: '技术部', time: '12-03 16:20' },
     ];
 
     const workPermitStats = [
@@ -84,9 +83,19 @@ export default function DigitalCockpit() {
                 </div>
 
                 <div className="flex items-center gap-6">
-                    <div className="flex items-center gap-2 text-blue-200">
-                        <i className="fas fa-cloud text-blue-400 animate-pulse"></i>
-                        <span>多云 24°C</span>
+                    <div 
+                        className="flex flex-col gap-1 text-blue-200 cursor-pointer hover:text-blue-100 transition-colors"
+                        onClick={() => navigate('/risk')}
+                        title="查看风险管控详情"
+                    >
+                        <div className="flex items-center gap-2">
+                            <i className="fas fa-cloud text-blue-400"></i>
+                            <span>{weatherData.condition} {weatherData.temp}°C</span>
+                        </div>
+                        <div className="text-xs flex items-center gap-2 pl-5">
+                            <span>{weatherData.windDirection} {weatherData.windSpeed}</span>
+                            <span>湿度{weatherData.humidity}%</span>
+                        </div>
                     </div>
                     <button 
                         onClick={() => navigate('/comprehensive')}
@@ -101,93 +110,96 @@ export default function DigitalCockpit() {
             {/* Main Content Grid */}
             <main className="flex-1 p-4 grid grid-cols-12 gap-4 min-h-0 relative z-10">
                 
-                {/* Left Column */}
+                {/* Left Column - 法律法规 + 安全动态 + 通知公告 */}
                 <div className="col-span-12 lg:col-span-3 flex flex-col gap-4 h-full overflow-y-auto lg:overflow-hidden pr-2 lg:pr-0">
-                    {/* Overall Analysis */}
+                    {/* 法律法规 */}
                     <TechPanel 
-                        title="总体分析" 
+                        title="法律法规" 
                         className="flex-none cursor-pointer hover:border-blue-400 transition-all hover:shadow-[0_0_30px_rgba(59,130,246,0.4)]"
-                        onClick={() => navigate('/comprehensive')}
+                        onClick={() => navigate('/regulation')}
                     >
-                        <div className="grid grid-cols-2 gap-3">
-                            {overallStats.map((stat, index) => (
-                                <div key={index} className="bg-blue-950/30 p-3 rounded border border-blue-800/30 flex flex-col items-center justify-center text-center group hover:bg-blue-900/40 transition-colors">
-                                    <i className={`fas ${stat.icon} text-2xl mb-2 ${stat.color} group-hover:scale-110 transition-transform`}></i>
-                                    <div className="text-xl font-bold text-white font-mono">{stat.value}</div>
-                                    <div className="text-xs text-blue-400/80">{stat.label}</div>
-                                </div>
-                            ))}
-                        </div>
-                    </TechPanel>
-
-                    {/* Risk Analysis */}
-                    <TechPanel 
-                        title="风险分析" 
-                        className="flex-none cursor-pointer hover:border-blue-400 transition-all hover:shadow-[0_0_30px_rgba(59,130,246,0.4)]"
-                        onClick={() => navigate('/risk')}
-                    >
-                        <div className="space-y-3 px-1">
-                            {riskStats.map((risk, index) => (
-                                <div key={index} className="flex items-center gap-3 text-sm">
-                                    <span className="w-16 text-blue-300 text-xs">{risk.label}</span>
-                                    <div className="flex-1 h-1.5 bg-gray-800 rounded-full overflow-hidden">
-                                        <div className={`h-full ${risk.color} relative shadow-[0_0_8px_currentColor]`} style={{ width: risk.width }}></div>
+                        <div className="grid grid-cols-3 gap-2 text-center">
+                            {['法律法规', '规章制度', '操作规程'].map((label, i) => (
+                                <div key={i} className="bg-blue-950/20 p-2 rounded border border-blue-900/20 hover:border-blue-700/40 transition-colors">
+                                    <div className="text-blue-400 text-[10px] mb-1">{label}</div>
+                                    <div className="text-lg font-bold text-white font-mono">
+                                        {[102, 246, 224][i]}
                                     </div>
-                                    <span className="w-8 text-right font-mono text-white text-xs">{risk.count}</span>
+                                    <div className="text-[10px] text-blue-500/60 mt-1">
+                                        现行: {[91, 223, 214][i]}
+                                    </div>
                                 </div>
                             ))}
                         </div>
                     </TechPanel>
 
-                    {/* Hidden Danger Analysis */}
+                    {/* 安全动态 */}
                     <TechPanel 
-                        title="隐患风险分析" 
-                        className="flex-none cursor-pointer hover:border-blue-400 transition-all hover:shadow-[0_0_30px_rgba(59,130,246,0.4)]"
-                        onClick={() => navigate('/hazard')}
+                        title="安全动态" 
+                        className="flex-1 min-h-[200px]"
                     >
-                        <div className="flex justify-around items-center py-2">
-                            <CircleProgress percentage={88.9} label="检查率" color="text-blue-500" />
-                            <CircleProgress percentage={89.0} label="整改率" color="text-green-500" />
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 text-center text-sm mt-2 border-t border-blue-900/30 pt-2">
-                            <div>
-                                <div className="text-red-400 font-bold font-mono text-lg">5558</div>
-                                <div className="text-blue-400/60 text-xs">风险检查总数</div>
-                            </div>
-                            <div>
-                                <div className="text-red-400 font-bold font-mono text-lg">2632</div>
-                                <div className="text-blue-400/60 text-xs">隐患总数</div>
+                        <div className="h-full overflow-y-auto overflow-x-hidden dark-scrollbar">
+                            <div className="space-y-2">
+                                {safetyDynamics.map((item, i) => (
+                                    <div key={i} className="bg-blue-950/20 p-2 rounded border border-blue-900/20 hover:bg-blue-900/30 transition-colors cursor-pointer"
+                                        onClick={() => navigate(item.type === '安全员活动' ? '/safety-officer' : '/emergency')}
+                                    >
+                                        <div className="flex items-start justify-between gap-2">
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <span className={`px-1.5 py-0.5 text-[10px] rounded ${
+                                                        item.type === '安全员活动' ? 'bg-blue-600/30 text-blue-300' : 'bg-orange-600/30 text-orange-300'
+                                                    }`}>
+                                                        {item.type}
+                                                    </span>
+                                                    <span className={`px-1.5 py-0.5 text-[10px] rounded ${
+                                                        item.status === '已完成' || item.status === '已处置' ? 'bg-green-600/30 text-green-300' : 'bg-yellow-600/30 text-yellow-300'
+                                                    }`}>
+                                                        {item.status}
+                                                    </span>
+                                                </div>
+                                                <div className="text-xs text-blue-100">
+                                                    {item.officer && <span className="text-blue-400">{item.officer}：</span>}
+                                                    {item.action || item.event}
+                                                    {item.level && <span className="text-orange-400 ml-1">【{item.level}】</span>}
+                                                </div>
+                                            </div>
+                                            <div className="text-[10px] text-blue-400/60 whitespace-nowrap">{item.time}</div>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         </div>
                     </TechPanel>
 
-                    {/* Production Alarm */}
+                    {/* 通知公告 */}
                     <TechPanel 
-                        title="生产报警信息" 
-                        className="flex-1 min-h-[200px] cursor-pointer hover:border-blue-400 transition-all hover:shadow-[0_0_30px_rgba(59,130,246,0.4)]"
-                        onClick={() => navigate('/equipment')}
+                        title="通知公告" 
+                        className="flex-1 min-h-[200px]"
                     >
-                        <div className="h-full overflow-y-auto overflow-x-hidden dark-scrollbar" style={{ maxHeight: 'calc(100% - 0px)' }}>
-                            <table className="w-full text-left text-xs">
-                                <thead className="text-blue-400 sticky top-0 bg-[#0f172a]/95 z-10 backdrop-blur-sm">
-                                    <tr>
-                                        <th className="py-2 pl-2">车间</th>
-                                        <th>设备</th>
-                                        <th>类型</th>
-                                        <th>时间</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="text-blue-100">
-                                    {alarmData.map((item, i) => (
-                                        <tr key={i} className="border-b border-blue-900/20 hover:bg-blue-900/40 transition-colors">
-                                            <td className="py-2 pl-2">{item.workshop}</td>
-                                            <td>{item.device}</td>
-                                            <td className="text-red-400 animate-pulse">{item.type}</td>
-                                            <td className="opacity-60 font-mono">{item.time}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                        <div className="h-full overflow-y-auto overflow-x-hidden dark-scrollbar">
+                            <div className="space-y-2">
+                                {announcements.map((item, i) => (
+                                    <div key={i} className="bg-blue-950/20 p-2 rounded border border-blue-900/20 hover:bg-blue-900/30 transition-colors cursor-pointer"
+                                        onClick={() => navigate(item.type === '检查通知' ? '/daily-inspection' : '/training')}
+                                    >
+                                        <div className="flex items-start gap-2">
+                                            <span className={`px-1.5 py-0.5 text-[10px] rounded whitespace-nowrap ${
+                                                item.type === '检查通知' ? 'bg-orange-600/30 text-orange-300' : 'bg-green-600/30 text-green-300'
+                                            }`}>
+                                                {item.type}
+                                            </span>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="text-xs text-blue-100 truncate">{item.title}</div>
+                                                <div className="text-[10px] text-blue-400/60 mt-1 flex items-center justify-between">
+                                                    <span>{item.dept}</span>
+                                                    <span>{item.time}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     </TechPanel>
                 </div>
@@ -249,101 +261,55 @@ export default function DigitalCockpit() {
 
                 </div>
 
-                {/* Right Column */}
+                {/* Right Column - 作业票分析 + 安全小知识 */}
                 <div className="col-span-12 lg:col-span-3 flex flex-col gap-4 h-full overflow-y-auto lg:overflow-hidden pl-2 lg:pl-0">
                     {/* Work Permit Analysis */}
                     <TechPanel 
                         title="作业票分析" 
-                        className="flex-none h-48 cursor-pointer hover:border-blue-400 transition-all hover:shadow-[0_0_30px_rgba(59,130,246,0.4)]"
+                        className="flex-none cursor-pointer hover:border-blue-400 transition-all hover:shadow-[0_0_30px_rgba(59,130,246,0.4)]"
                         onClick={() => navigate('/work-permit')}
                     >
-                        <div className="flex items-end justify-between h-full px-1 pb-2 gap-1">
+                        <div className="grid grid-cols-2 gap-3">
                             {workPermitStats.map((stat, index) => (
-                                <div key={index} className="flex flex-col items-center flex-1 group h-full justify-end">
-                                    <div className="w-full bg-blue-900/20 rounded-t relative overflow-hidden transition-all duration-500 hover:bg-blue-600/40" style={{ height: `${stat.value}%` }}>
-                                        <div className="absolute bottom-0 left-0 right-0 top-0 bg-gradient-to-t from-blue-600 to-transparent opacity-60 group-hover:opacity-90"></div>
-                                    </div>
-                                    <div className="text-[10px] text-blue-400/80 mt-1 transform -rotate-45 origin-top-left translate-y-4 whitespace-nowrap">{stat.label}</div>
+                                <div key={index} className="bg-blue-950/30 p-3 rounded border border-blue-800/30 flex flex-col items-center justify-center text-center group hover:bg-blue-900/40 transition-colors">
+                                    <i className={`fas ${stat.icon} text-2xl mb-2 ${stat.color} group-hover:scale-110 transition-transform`}></i>
+                                    <div className="text-xl font-bold text-white font-mono">{stat.value}</div>
+                                    <div className="text-xs text-blue-400/80">{stat.label}</div>
                                 </div>
                             ))}
                         </div>
                     </TechPanel>
 
-                    {/* Legal Analysis */}
+                    {/* Safety Knowledge */}
                     <TechPanel 
-                        title="法律法规分析" 
-                        className="flex-none cursor-pointer hover:border-blue-400 transition-all hover:shadow-[0_0_30px_rgba(59,130,246,0.4)]"
-                        onClick={() => navigate('/regulation')}
-                    >
-                        <div className="grid grid-cols-3 gap-2 text-center">
-                            {['法律法规', '规章制度', '操作规程'].map((label, i) => (
-                                <div key={i} className="bg-blue-950/20 p-2 rounded border border-blue-900/20">
-                                    <div className="text-blue-400 text-[10px] mb-1">{label}</div>
-                                    <div className="text-lg font-bold text-white font-mono">
-                                        {[102, 246, 224][i]}
-                                    </div>
-                                    <div className="text-[10px] text-blue-500/60 mt-1">
-                                        现行: {[91, 23, 14][i]}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </TechPanel>
-
-                    {/* Safety Education */}
-                    <TechPanel 
-                        title="安全教育培训" 
-                        className="flex-none cursor-pointer hover:border-blue-400 transition-all hover:shadow-[0_0_30px_rgba(59,130,246,0.4)]"
+                        title="安全小知识" 
+                        className="flex-1 min-h-[400px] cursor-pointer hover:border-blue-400 transition-all hover:shadow-[0_0_30px_rgba(59,130,246,0.4)]"
                         onClick={() => navigate('/training')}
                     >
-                        <div className="flex items-center gap-4 mb-2">
-                            <div className="relative w-16 h-16 flex-none">
-                                <svg className="w-full h-full transform -rotate-90">
-                                    <circle cx="32" cy="32" r="28" stroke="#1e293b" strokeWidth="6" fill="transparent" />
-                                    <circle cx="32" cy="32" r="28" stroke="#3b82f6" strokeWidth="6" fill="transparent" strokeDasharray={28 * 2 * Math.PI} strokeDashoffset={28 * 2 * Math.PI * (1 - 0.92)} strokeLinecap="round" />
-                                </svg>
-                                <div className="absolute inset-0 flex items-center justify-center text-xs font-bold">92%</div>
+                        <div className="h-full overflow-y-auto overflow-x-hidden dark-scrollbar">
+                            <div className="space-y-3">
+                                {safetyKnowledge.map((tip, i) => (
+                                    <div key={i} className="bg-gradient-to-br from-blue-950/40 to-blue-900/20 p-3 rounded-lg border border-blue-800/30 hover:border-blue-600/50 transition-all hover:shadow-[0_0_15px_rgba(59,130,246,0.3)]">
+                                        <div className="flex items-start gap-2 mb-2">
+                                            <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-600/30 flex items-center justify-center">
+                                                <i className="fas fa-lightbulb text-yellow-400 text-xs"></i>
+                                            </div>
+                                            <div className="text-sm font-semibold text-blue-200">{tip.title}</div>
+                                        </div>
+                                        <div className="text-xs text-blue-300/80 leading-relaxed pl-8">
+                                            {tip.content}
+                                        </div>
+                                        <div className="flex items-center gap-2 mt-2 pl-8">
+                                            <span className="px-2 py-0.5 text-[10px] rounded bg-blue-700/30 text-blue-300">
+                                                {tip.category}
+                                            </span>
+                                            <span className="text-[10px] text-blue-400/60">
+                                                阅读: {tip.views}
+                                            </span>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
-                            <div className="flex-1 grid grid-cols-2 gap-2 text-xs">
-                                <div className="bg-blue-900/20 px-2 py-1 rounded">
-                                    <div className="text-blue-400">线上</div>
-                                    <div className="text-green-400 font-mono">1722</div>
-                                </div>
-                                <div className="bg-blue-900/20 px-2 py-1 rounded">
-                                    <div className="text-blue-400">线下</div>
-                                    <div className="text-yellow-400 font-mono">997</div>
-                                </div>
-                            </div>
-                        </div>
-                    </TechPanel>
-
-                    {/* AI Alarm Info */}
-                    <TechPanel 
-                        title="AI报警信息" 
-                        className="flex-1 min-h-[200px] cursor-pointer hover:border-blue-400 transition-all hover:shadow-[0_0_30px_rgba(59,130,246,0.4)]"
-                        onClick={() => navigate('/video')}
-                    >
-                        <div className="h-full overflow-y-auto overflow-x-hidden dark-scrollbar" style={{ maxHeight: 'calc(100% - 0px)' }}>
-                            <table className="w-full text-left text-xs">
-                                <thead className="text-blue-400 sticky top-0 bg-[#0f172a]/95 z-10 backdrop-blur-sm">
-                                    <tr>
-                                        <th className="py-2 pl-2">位置</th>
-                                        <th>类型</th>
-                                        <th>原因</th>
-                                        <th>时间</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="text-blue-100">
-                                    {aiAlarmData.map((item, i) => (
-                                        <tr key={i} className="border-b border-blue-900/20 hover:bg-blue-900/40 transition-colors">
-                                            <td className="py-2 pl-2">{item.location}</td>
-                                            <td>{item.type}</td>
-                                            <td className="text-orange-400">{item.reason}</td>
-                                            <td className="opacity-60 font-mono">{item.time}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
                         </div>
                     </TechPanel>
                 </div>
