@@ -88,6 +88,13 @@ export default function DigitalCockpit() {
                         <i className="fas fa-cloud text-blue-400 animate-pulse"></i>
                         <span>多云 24°C</span>
                     </div>
+                    <button 
+                        onClick={() => navigate('/comprehensive')}
+                        className="px-4 py-1.5 bg-blue-600/20 hover:bg-blue-600/40 border border-blue-500/50 text-blue-200 rounded-full text-sm transition-all duration-300 flex items-center gap-2 backdrop-blur-sm group"
+                    >
+                        <span>管理中心</span>
+                        <i className="fas fa-arrow-right group-hover:translate-x-1 transition-transform"></i>
+                    </button>
                 </div>
             </header>
 
