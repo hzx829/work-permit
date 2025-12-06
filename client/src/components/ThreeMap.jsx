@@ -1,80 +1,168 @@
 import React, { useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, PerspectiveCamera, Environment, Stars, Grid } from '@react-three/drei';
+import { OrbitControls, PerspectiveCamera, Environment, Stars, Grid, Text, Billboard } from '@react-three/drei';
 import * as THREE from 'three';
 
-function Building({ position, size, color }) {
-  const mesh = useRef();
+// 储罐组件
+function Tank({ position, radius, height, color, label }) {
   const [hovered, setHover] = useState(false);
-
-  useFrame((state) => {
-    const t = state.clock.getElapsedTime();
-    mesh.current.position.y = position[1] + Math.sin(t + position[0]) * 0.1;
-  });
 
   return (
     <group position={position}>
-      {/* Main Block */}
-      <mesh ref={mesh} onPointerOver={() => setHover(true)} onPointerOut={() => setHover(false)}>
-        <boxGeometry args={size} />
+      <mesh 
+        position={[0, height/2, 0]}
+        onPointerOver={() => setHover(true)} 
+        onPointerOut={() => setHover(false)}
+      >
+        <cylinderGeometry args={[radius, radius, height, 32]} />
         <meshStandardMaterial 
-            color={hovered ? '#4f46e5' : color} 
-            metalness={0.8} 
+            color={hovered ? '#22d3ee' : color} 
+            metalness={0.6} 
             roughness={0.2} 
             transparent 
-            opacity={0.8} 
+            opacity={0.9}
         />
         <lineSegments>
-            <edgesGeometry args={[new THREE.BoxGeometry(...size)]} />
-            <lineBasicMaterial color={hovered ? '#818cf8' : '#3b82f6'} linewidth={2} />
+            <edgesGeometry args={[new THREE.CylinderGeometry(radius, radius, height, 32)]} />
+            <lineBasicMaterial color={hovered ? '#67e8f9' : '#1e40af'} linewidth={1} />
         </lineSegments>
       </mesh>
+      {/* 罐顶 */}
+      <mesh position={[0, height, 0]}>
+         <sphereGeometry args={[radius, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.5]} />
+         <meshStandardMaterial color={color} metalness={0.6} roughness={0.2} />
+      </mesh>
       
-      {/* Floor Glow */}
-      <mesh position={[0, -size[1]/2 - 0.1, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[0, size[0], 32]} />
-        <meshBasicMaterial color={color} transparent opacity={0.2} side={THREE.DoubleSide} />
+      {hovered && (
+        <Billboard position={[0, height + radius + 0.5, 0]}>
+          <Text fontSize={0.4} color="white" anchorX="center" anchorY="middle">
+            {label}
+          </Text>
+        </Billboard>
+      )}
+      
+      {/* 地面投影 */}
+      <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[radius, radius + 0.2, 32]} />
+        <meshBasicMaterial color={color} transparent opacity={0.3} side={THREE.DoubleSide} />
       </mesh>
     </group>
   );
+}
+
+// 厂房/建筑组件
+function FactoryBuilding({ position, size, color, label }) {
+  const [hovered, setHover] = useState(false);
+
+  return (
+    <group position={position}>
+      <mesh 
+        position={[0, size[1]/2, 0]}
+        onPointerOver={() => setHover(true)} 
+        onPointerOut={() => setHover(false)}
+      >
+        <boxGeometry args={size} />
+        <meshStandardMaterial 
+            color={hovered ? '#22d3ee' : color} 
+            metalness={0.5} 
+            roughness={0.1} 
+            transparent 
+            opacity={0.8}
+        />
+        <lineSegments>
+            <edgesGeometry args={[new THREE.BoxGeometry(...size)]} />
+            <lineBasicMaterial color={hovered ? '#67e8f9' : '#1e40af'} linewidth={1} />
+        </lineSegments>
+      </mesh>
+      {hovered && (
+        <Billboard position={[0, size[1] + 0.5, 0]}>
+          <Text fontSize={0.4} color="white" anchorX="center" anchorY="middle">
+            {label}
+          </Text>
+        </Billboard>
+      )}
+    </group>
+  );
+}
+
+// 管道组件
+function Pipe({ start, end, color = "#64748b" }) {
+    const startVec = new THREE.Vector3(...start);
+    const endVec = new THREE.Vector3(...end);
+    const distance = startVec.distanceTo(endVec);
+    const position = new THREE.Vector3().addVectors(startVec, endVec).multiplyScalar(0.5);
+    
+    // 计算旋转
+    const direction = new THREE.Vector3().subVectors(endVec, startVec).normalize();
+    const quaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction);
+
+    return (
+        <mesh position={position} quaternion={quaternion}>
+            <cylinderGeometry args={[0.1, 0.1, distance, 8]} />
+            <meshStandardMaterial color={color} metalness={0.8} roughness={0.2} />
+        </mesh>
+    );
 }
 
 function Scene() {
   return (
     <>
       <ambientLight intensity={0.5} />
-      <pointLight position={[10, 10, 10]} intensity={1} color="#3b82f6" />
-      <pointLight position={[-10, -10, -10]} intensity={0.5} color="#ec4899" />
+      <pointLight position={[10, 20, 10]} intensity={1} color="#ffffff" />
+      <pointLight position={[-10, 10, -10]} intensity={0.5} color="#3b82f6" />
       
       <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
       
       <Grid 
         renderOrder={-1} 
-        position={[0, -0.5, 0]} 
+        position={[0, 0, 0]} 
         infiniteGrid 
         cellSize={1} 
         sectionSize={3} 
         fadeDistance={30} 
         sectionColor="#1e40af" 
-        cellColor="#172554" 
+        cellColor="#0f172a" 
       />
 
-      {/* Central Factory Complex */}
-      <Building position={[0, 1, 0]} size={[2, 3, 2]} color="#1e3a8a" />
-      <Building position={[-2, 0.5, 1]} size={[1.5, 2, 1.5]} color="#1e40af" />
-      <Building position={[2, 0.5, -1]} size={[1.5, 2.5, 1.5]} color="#1d4ed8" />
-      <Building position={[0, 0.5, 2.5]} size={[3, 1, 1]} color="#2563eb" />
-      
-      {/* Surrounding Facilities */}
-      <Building position={[-4, 0.25, -3]} size={[1, 1.5, 1]} color="#3b82f6" />
-      <Building position={[4, 0.25, 3]} size={[1, 1.5, 1]} color="#3b82f6" />
-      <Building position={[-3, 0.25, 4]} size={[1, 1, 1]} color="#60a5fa" />
-      <Building position={[3, 0.25, -4]} size={[1, 1, 1]} color="#60a5fa" />
+      {/* === 罐区 (Tank Farm) === */}
+      <group position={[-4, 0, -2]}>
+        <Tank position={[0, 0, 0]} radius={1} height={2} color="#475569" label="原料罐 A" />
+        <Tank position={[2.5, 0, 0]} radius={1} height={2} color="#475569" label="原料罐 B" />
+        <Tank position={[0, 0, 2.5]} radius={1} height={2} color="#475569" label="原料罐 C" />
+        <Tank position={[2.5, 0, 2.5]} radius={1} height={2} color="#475569" label="原料罐 D" />
+      </group>
 
-      {/* Floating Data Points */}
-      <mesh position={[0, 4, 0]}>
-        <sphereGeometry args={[0.1, 16, 16]} />
+      {/* === 核心工艺区 (Process Unit) === */}
+      <group position={[3, 0, 0]}>
+        {/* 主反应车间 */}
+        <FactoryBuilding position={[0, 0, 0]} size={[4, 2, 3]} color="#1e3a8a" label="反应车间 #1" />
+        
+        {/* 精馏塔群 */}
+        <Tank position={[2.5, 0, -1]} radius={0.4} height={5} color="#64748b" label="T-101 精馏塔" />
+        <Tank position={[3.5, 0, -1]} radius={0.3} height={4} color="#64748b" label="T-102 吸收塔" />
+        
+        {/* 换热器/辅助设备 */}
+        <FactoryBuilding position={[3, 0, 1]} size={[1.5, 1, 1]} color="#334155" label="换热机组" />
+      </group>
+
+      {/* === 仓库/中控 === */}
+      <FactoryBuilding position={[-2, 0, 4]} size={[3, 1, 2]} color="#0f172a" label="成品仓库" />
+      <FactoryBuilding position={[4, 0, 4]} size={[2, 1, 2]} color="#1e40af" label="中央控制室" />
+
+      {/* === 管道连接示意 === */}
+      {/* 罐区到车间 */}
+      <Pipe start={[-1.5, 0.5, -2]} end={[1, 0.5, -2]} />
+      <Pipe start={[1, 0.5, -2]} end={[1, 0.5, 0]} />
+      
+      {/* 车间到塔 */}
+      <Pipe start={[3, 1.5, 0]} end={[3, 1.5, -1]} />
+      <Pipe start={[3, 1.5, -1]} end={[5.5, 3, -1]} />
+
+      {/* 危险源标记 (模拟报警) */}
+      <mesh position={[3, 3, 0]}>
+        <sphereGeometry args={[0.2]} />
         <meshBasicMaterial color="#ef4444" />
+        <pointLight distance={3} intensity={2} color="#ef4444" />
       </mesh>
     </>
   );
@@ -82,18 +170,18 @@ function Scene() {
 
 export default function ThreeMap() {
   return (
-    <div className="w-full h-full">
+    <div className="w-full h-full bg-slate-900">
       <Canvas>
-        <PerspectiveCamera makeDefault position={[8, 6, 8]} fov={45} />
+        <PerspectiveCamera makeDefault position={[10, 8, 10]} fov={45} />
         <OrbitControls 
-            enablePan={false} 
-            minPolarAngle={Math.PI / 4} 
+            enablePan={true} 
+            minPolarAngle={Math.PI / 6} 
             maxPolarAngle={Math.PI / 2.2}
             autoRotate
             autoRotateSpeed={0.5}
         />
         <Scene />
-        <fog attach="fog" args={['#050b14', 5, 30]} />
+        <fog attach="fog" args={['#020617', 5, 40]} />
       </Canvas>
     </div>
   );
