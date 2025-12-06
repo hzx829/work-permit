@@ -1,1 +1,24 @@
 /* App specific styles */
+
+/* 定义浮动动画 */
+@keyframes sciFiFloat {
+  0% {
+    transform: translateY(0px);
+    filter: drop-shadow(0 0 10px rgba(0, 255, 255, 0.4)); /* 初始微光 */
+  }
+  50% {
+    transform: translateY(-20px); /* 向上浮动 */
+    filter: drop-shadow(0 0 25px rgba(0, 255, 255, 0.8)); /* 发光增强，营造全息感 */
+  }
+  100% {
+    transform: translateY(0px);
+    filter: drop-shadow(0 0 10px rgba(0, 255, 255, 0.4));
+  }
+}
+
+/* 应用到安全帽图片 */
+.helmet-img {
+  width: 300px;
+  /* 引用动画：时长4秒，无限循环，缓动效果 */
+  animation: sciFiFloat 4s ease-in-out infinite;
+}

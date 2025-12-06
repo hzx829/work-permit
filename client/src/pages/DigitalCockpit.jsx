@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import ThreeMap from '../components/ThreeMap';
+// import ThreeMap from '../components/ThreeMap';
 
 export default function DigitalCockpit() {
     const navigate = useNavigate();
@@ -196,7 +196,21 @@ export default function DigitalCockpit() {
                 <div className="col-span-12 lg:col-span-6 flex flex-col gap-4 h-full relative">
                     {/* 3D Map Area */}
                     <div className="flex-1 relative rounded-xl overflow-hidden border border-blue-500/30 bg-[#020617]/80 shadow-[0_0_50px_rgba(30,58,138,0.2)_inset]">
-                        <ThreeMap />
+                        <div className="w-full h-full relative flex items-center justify-center overflow-hidden">
+                            {/* Background Image */}
+                            <img 
+                                src="/work-permit-background.png" 
+                                alt="Background" 
+                                className="absolute inset-0 w-full h-full object-cover opacity-50"
+                            />
+                            
+                            {/* Floating Helmet */}
+                            <img 
+                                src="/work-permit-safety-helmet.png" 
+                                alt="Safety Helmet" 
+                                className="helmet-img relative z-10"
+                            />
+                        </div>
                         
                         {/* Safe Days Counter */}
                         <div className="absolute top-8 left-1/2 transform -translate-x-1/2 flex flex-col items-center justify-center z-20 pointer-events-none">
