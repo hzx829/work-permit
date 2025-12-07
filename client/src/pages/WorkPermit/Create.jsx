@@ -1,15 +1,15 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { createPermit } from '../utils/api';
-import HotWorkPermitForm from '../components/HotWorkPermitForm';
-import ConfinedSpacePermitForm from '../components/ConfinedSpacePermitForm';
-import BlindPlatePermitForm from '../components/BlindPlatePermitForm';
-import HeightWorkPermitForm from '../components/HeightWorkPermitForm';
-import LiftingPermitForm from '../components/LiftingPermitForm';
-import TemporaryElectricityPermitForm from '../components/TemporaryElectricityPermitForm';
-import GroundBreakingPermitForm from '../components/GroundBreakingPermitForm';
-import RoadBreakingPermitForm from '../components/RoadBreakingPermitForm';
+import { useAuth } from '../../contexts/AuthContext';
+import { createPermit } from '../../utils/api';
+import HotWorkPermitForm from '../../components/HotWorkPermitForm';
+import ConfinedSpacePermitForm from '../../components/ConfinedSpacePermitForm';
+import BlindPlatePermitForm from '../../components/BlindPlatePermitForm';
+import HeightWorkPermitForm from '../../components/HeightWorkPermitForm';
+import LiftingPermitForm from '../../components/LiftingPermitForm';
+import TemporaryElectricityPermitForm from '../../components/TemporaryElectricityPermitForm';
+import GroundBreakingPermitForm from '../../components/GroundBreakingPermitForm';
+import RoadBreakingPermitForm from '../../components/RoadBreakingPermitForm';
 
 const SAFETY_MEASURES_DB = {
     '动火作业': ['清理作业现场易燃物', '配备合格的消防器材', '动火点周围30米内无排放可燃气体', '作业人员持有特种作业证'],
@@ -144,7 +144,7 @@ export default function Create() {
             const result = await createPermit(data);
             if (result.success) {
                 alert('作业票申请提交成功！');
-                navigate('/list');
+                navigate('/work-permit/list');
             } else {
                 alert('提交失败: ' + (result.error || '未知错误'));
             }
@@ -184,7 +184,7 @@ export default function Create() {
             {/* Header */}
             <header className="bg-white shadow-sm border-b border-gray-200 h-16 flex items-center justify-between px-4 md:px-8 sticky top-0 z-10">
                 <div className="flex items-center gap-4">
-                    <Link to="/" className="text-gray-500 hover:text-blue-600 transition-colors">
+                    <Link to="/work-permit" className="text-gray-500 hover:text-blue-600 transition-colors">
                         <i className="fas fa-arrow-left text-xl"></i>
                     </Link>
                     <h1 className="text-xl font-bold text-gray-800">新建作业票</h1>
