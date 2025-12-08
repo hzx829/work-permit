@@ -49,12 +49,10 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
 
     // 模拟盲板作业信息关联
     React.useEffect(() => {
-        if (!readOnly && data.supervisor && data.workers && !blindPlateData) {
-            setLoadingBlindPlate(true);
-            const timer = setTimeout(() => {
+        if (!blindPlateData) {
+            if (readOnly) {
                 const randomId = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
                 const permitNumber = `MB-${new Date().getFullYear()}${new Date().getMonth() + 1}${new Date().getDate()}-${randomId}`;
-                
                 setBlindPlateData({
                     progress: "堵盲板作业已完成",
                     completionTime: new Date().toLocaleString(),
@@ -62,12 +60,26 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                     reviewers: "王五",
                     permitNumber: permitNumber
                 });
-                setLoadingBlindPlate(false);
-            }, 5000);
-            return () => {
-                clearTimeout(timer);
-                setLoadingBlindPlate(false);
-            };
+            } else if (data.supervisor && data.workers) {
+                setLoadingBlindPlate(true);
+                const timer = setTimeout(() => {
+                    const randomId = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+                    const permitNumber = `MB-${new Date().getFullYear()}${new Date().getMonth() + 1}${new Date().getDate()}-${randomId}`;
+                    
+                    setBlindPlateData({
+                        progress: "堵盲板作业已完成",
+                        completionTime: new Date().toLocaleString(),
+                        workers: "赵六",
+                        reviewers: "王五",
+                        permitNumber: permitNumber
+                    });
+                    setLoadingBlindPlate(false);
+                }, 5000);
+                return () => {
+                    clearTimeout(timer);
+                    setLoadingBlindPlate(false);
+                };
+            }
         }
     }, [data.supervisor, data.workers, readOnly, blindPlateData]);
 
@@ -90,6 +102,12 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
         const newMeasures = [...(data.safety_measures_list || [])];
         if (!newMeasures[index]) newMeasures[index] = {};
         newMeasures[index][field] = value;
+        
+        // 当选择“是”时，自动勾选前面的复选框
+        if (field === 'applicable' && value === 'yes') {
+            newMeasures[index].checked = true;
+        }
+        
         onChange('safety_measures_list', newMeasures);
     };
 
@@ -515,18 +533,23 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                     <div className="bg-gray-50 px-6 py-3 grid grid-cols-12 gap-4 border-b border-gray-200">
                         <div className="col-span-1 flex justify-center"><input type="checkbox" disabled className="rounded border-gray-300" /></div>
                         <div className="col-span-1 text-sm font-medium text-gray-500">序号</div>
-                        <div className="col-span-6 text-sm font-medium text-gray-500">措施内容</div>
+                        <div className="col-span-8 text-sm font-medium text-gray-500">措施内容</div>
                         <div className="col-span-2 text-center text-sm font-medium text-gray-500">是否涉及</div>
-                        <div className="col-span-2 text-center text-sm font-medium text-gray-500">确认人</div>
                     </div>
                     <div className="divide-y divide-gray-100">
                         {(data.safety_measures_list || []).map((measure, idx) => (
                             <div key={measure.id} className="px-6 py-4 grid grid-cols-12 gap-4 items-center hover:bg-blue-50/30 transition-colors group">
                                 <div className="col-span-1 flex justify-center">
-                                    <input type="checkbox" className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500" disabled={readOnly} />
+                                    <input 
+                                        type="checkbox" 
+                                        className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500" 
+                                        disabled={readOnly} 
+                                        checked={measure.checked || false}
+                                        onChange={(e) => handleMeasureChange(idx, 'checked', e.target.checked)}
+                                    />
                                 </div>
                                 <div className="col-span-1 text-sm text-gray-500">{measure.id}</div>
-                                <div className="col-span-6 text-sm text-gray-700 leading-relaxed">
+                                <div className="col-span-8 text-sm text-gray-700 leading-relaxed">
                                     {measure.content}
                                     {measure.id === 15 && (
                                         <input 
@@ -556,11 +579,7 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                                         <span className="text-xs text-gray-600">否</span>
                                     </label>
                                 </div>
-                                <div className="col-span-2 flex justify-center">
-                                    <div className="px-4 py-1.5 bg-gray-100 text-gray-500 rounded-full text-xs font-medium cursor-pointer hover:bg-gray-200 transition-colors">
-                                        {measure.confirmer || '待确认'}
-                                    </div>
-                                </div>
+
                             </div>
                         ))}
                     </div>
