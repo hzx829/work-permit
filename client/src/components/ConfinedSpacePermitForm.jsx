@@ -18,8 +18,58 @@ const Input = ({ className = "", readOnly, ...props }) => (
     />
 );
 
+const PersonSelect = ({ value, onChange, name, options, readOnly, placeholder }) => (
+    <div className="relative">
+        <select
+            name={name}
+            value={value || ''}
+            onChange={onChange}
+            disabled={readOnly}
+            className={`w-full bg-gray-50 border border-gray-200 rounded px-3 py-2.5 text-sm text-gray-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all appearance-none ${readOnly ? 'cursor-not-allowed' : 'cursor-pointer'} ${!value ? 'text-gray-400' : ''}`}
+        >
+            <option value="" disabled hidden>{placeholder || "请选择"}</option>
+            <optgroup label="合格人员" className="text-blue-600 font-bold">
+                {options.map((opt) => (
+                    <option key={opt} value={opt} className="text-gray-800 font-normal">{opt}</option>
+                ))}
+            </optgroup>
+        </select>
+        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+        </div>
+    </div>
+);
+
 export default function ConfinedSpacePermitForm({ data, onChange, readOnly = false }) {
     const [isDetecting, setIsDetecting] = React.useState(true);
+    const [blindPlateData, setBlindPlateData] = React.useState(null);
+    const [loadingBlindPlate, setLoadingBlindPlate] = React.useState(false);
+
+    // 模拟盲板作业信息关联
+    React.useEffect(() => {
+        if (!readOnly && data.supervisor && data.workers && !blindPlateData) {
+            setLoadingBlindPlate(true);
+            const timer = setTimeout(() => {
+                const randomId = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+                const permitNumber = `MB-${new Date().getFullYear()}${new Date().getMonth() + 1}${new Date().getDate()}-${randomId}`;
+                
+                setBlindPlateData({
+                    progress: "堵盲板作业已完成",
+                    completionTime: new Date().toLocaleString(),
+                    workers: "赵六",
+                    reviewers: "王五",
+                    permitNumber: permitNumber
+                });
+                setLoadingBlindPlate(false);
+            }, 5000);
+            return () => {
+                clearTimeout(timer);
+                setLoadingBlindPlate(false);
+            };
+        }
+    }, [data.supervisor, data.workers, readOnly, blindPlateData]);
 
     // 模拟后台检测加载过程
     React.useEffect(() => {
@@ -198,7 +248,7 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                                             </div>
                                             <div>
                                                 <div className="text-sm font-medium text-gray-700">现场隔离措施</div>
-                                                <div className="text-xs text-gray-500">检测状态：盲板已安装、警戒区已设立</div>
+                                                <div className="text-xs text-gray-500">检测状态：警戒区已设立</div>
                                             </div>
                                         </div>
                                         <div className="px-3 py-1.5 rounded-full text-xs font-medium bg-green-100 text-green-700 border border-green-300 flex items-center gap-1">
@@ -241,43 +291,86 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                         />
                     </FormField>
                     <FormField label="作业负责人">
-                        <Input 
-                            type="text" 
+                        <PersonSelect 
                             name="supervisor"
-                            value={data.supervisor || ''}
+                            value={data.supervisor}
                             onChange={handleChange}
-                            placeholder="请输入负责人姓名"
+                            options={['张三', '李四', '王五']}
+                            placeholder="请选择负责人"
                             readOnly={readOnly}
                         />
                     </FormField>
                     <FormField label="作业人">
-                        <Input 
-                            type="text" 
+                        <PersonSelect 
                             name="workers"
-                            value={data.workers || ''}
+                            value={data.workers}
                             onChange={handleChange}
-                            placeholder="请输入作业人姓名"
+                            options={['赵六', '孙七', '周八']}
+                            placeholder="请选择作业人"
                             readOnly={readOnly}
                         />
                     </FormField>
                     <FormField label="监护人">
-                        <Input 
-                            type="text" 
+                        <PersonSelect 
                             name="guardian"
-                            value={data.guardian || ''}
+                            value={data.guardian}
                             onChange={handleChange}
-                            placeholder="请输入监护人姓名"
+                            options={['吴九', '郑十', '陈十一']}
+                            placeholder="请选择监护人"
                             readOnly={readOnly}
                         />
                     </FormField>
                     <FormField label="关联的其他特殊作业及安全作业票编号" className="md:col-span-2">
-                        <Input 
-                            type="text" 
-                            name="related_permits"
-                            value={data.related_permits || ''}
-                            onChange={handleChange}
-                            readOnly={readOnly}
-                        />
+                        {/* 盲板抽堵作业关联信息展示 */}
+                        {(loadingBlindPlate || blindPlateData) ? (
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 animate-fadeIn">
+                                {loadingBlindPlate ? (
+                                    <div className="flex items-center gap-2 text-blue-600">
+                                        <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                                        <span className="text-sm">正在关联盲板抽堵作业信息...</span>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-2">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                            <span className="font-bold text-blue-800 text-sm">关联作业信息自动获取成功</span>
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 text-sm">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-gray-500 w-24">作业类型：</span>
+                                                <span className="font-medium text-gray-800">盲板抽堵作业</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-gray-500 w-24">作业进度：</span>
+                                                <span className="font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded">{blindPlateData.progress}</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-gray-500 w-24">完成时间：</span>
+                                                <span className="font-medium text-gray-800">{blindPlateData.completionTime}</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-gray-500 w-24">作业人员：</span>
+                                                <span className="font-medium text-gray-800">{blindPlateData.workers}</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-gray-500 w-24">票证编号：</span>
+                                                <span className="font-medium text-gray-800">{blindPlateData.permitNumber}</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-gray-500 w-24">审核人员：</span>
+                                                <span className="font-medium text-gray-800">{blindPlateData.reviewers}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="text-sm text-gray-400 italic py-2">
+                                待系统自动关联相关作业信息...
+                            </div>
+                        )}
                     </FormField>
                     <FormField label="风险辨识结果" className="md:col-span-2">
                         <Input 
@@ -517,8 +610,9 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                                     <Input 
                                         type="text" 
                                         name="supervisor_opinion"
-                                        value={data.supervisor_opinion || '同意作业'}
+                                        value={data.supervisor_opinion || ''}
                                         onChange={handleChange}
+                                        placeholder="同意作业"
                                     />
                                 </div>
                                 <div className="md:col-span-3">
@@ -550,8 +644,9 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                                     <Input 
                                         type="text" 
                                         name="unit_opinion"
-                                        value={data.unit_opinion || '同意作业'}
+                                        value={data.unit_opinion || ''}
                                         onChange={handleChange}
+                                        placeholder="同意作业"
                                     />
                                 </div>
                                 <div className="md:col-span-3">
@@ -583,8 +678,9 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                                     <Input 
                                         type="text" 
                                         name="safety_dept_opinion"
-                                        value={data.safety_dept_opinion || '同意作业'}
+                                        value={data.safety_dept_opinion || ''}
                                         onChange={handleChange}
+                                        placeholder="同意作业"
                                     />
                                 </div>
                                 <div className="md:col-span-3">
@@ -616,8 +712,9 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                                     <Input 
                                         type="text" 
                                         name="approver_opinion"
-                                        value={data.approver_opinion || '同意作业'}
+                                        value={data.approver_opinion || ''}
                                         onChange={handleChange}
+                                        placeholder="同意作业"
                                     />
                                 </div>
                                 <div className="md:col-span-3">
@@ -649,8 +746,9 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                                     <Input 
                                         type="text" 
                                         name="completion_acceptance"
-                                        value={data.completion_acceptance || '作业已完成，人员已撤离，现场已清理'}
+                                        value={data.completion_acceptance || ''}
                                         onChange={handleChange}
+                                        placeholder="作业已完成，人员已撤离，现场已清理"
                                     />
                                 </div>
                                 <div className="md:col-span-3">
