@@ -18,25 +18,30 @@ const Input = ({ className = "", readOnly, ...props }) => (
     />
 );
 
-const PersonSelect = ({ value, onChange, name, options, readOnly, placeholder }) => (
+const PersonSelect = ({ value, onChange, name, options, unqualifiedOptions = [], readOnly, placeholder }) => (
     <div className="relative">
         <select
             name={name}
             value={value || ''}
             onChange={onChange}
             disabled={readOnly}
-            className={`w-full bg-gray-50 border border-gray-200 rounded px-3 py-2.5 text-sm text-gray-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all appearance-none ${readOnly ? 'cursor-not-allowed' : 'cursor-pointer'} ${!value ? 'text-gray-400' : ''}`}
+            className={`w-full bg-gray-50 border border-gray-200 rounded px-3 py-3 text-base font-medium text-gray-900 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all appearance-none ${readOnly ? 'cursor-not-allowed' : 'cursor-pointer'} ${!value ? 'text-gray-400 font-normal' : ''}`}
         >
             <option value="" disabled hidden>{placeholder || "请选择"}</option>
-            <optgroup label="合格人员" className="text-blue-600 font-bold">
+            <optgroup label="合格人员" className="text-blue-600 font-bold text-sm">
                 {options.map((opt) => (
-                    <option key={opt} value={opt} className="text-gray-800 font-normal">{opt}</option>
+                    <option key={opt} value={opt} className="text-gray-900 font-medium text-base">{opt}</option>
+                ))}
+            </optgroup>
+            <optgroup label="不合格人员" className="text-red-500 font-bold text-sm">
+                {unqualifiedOptions.map((opt, idx) => (
+                    <option key={idx} value={`unqualified_${name}_${idx}`} disabled className="text-gray-400 font-normal text-base">{opt}</option>
                 ))}
             </optgroup>
         </select>
-        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
             </svg>
         </div>
     </div>
@@ -87,7 +92,7 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
     React.useEffect(() => {
         const timer = setTimeout(() => {
             setIsDetecting(false);
-        }, 2000); // 2秒后显示检测结果
+        }, 10000); // 10秒后显示检测结果
         return () => clearTimeout(timer);
     }, []);
 
@@ -197,6 +202,18 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                         />
                     </FormField>
                     <FormField label="作业内容" className="md:col-span-2">
+                        <Input 
+                            type="text" 
+                            name="content"
+                            value={data.content || ''}
+                            onChange={handleChange}
+                            placeholder="请输入作业内容"
+                            readOnly={readOnly}
+                        />
+                    </FormField>
+
+                    <div className="md:col-span-2 mt-2 mb-4">
+                        <h3 className="text-base font-bold text-blue-600 mb-3">现场安全条件确认</h3>
                         <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3">
                             {isDetecting ? (
                                 /* Loading 状态 */
@@ -241,8 +258,8 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                                                 </svg>
                                             </div>
                                             <div>
-                                                <div className="text-sm font-medium text-gray-700">通风时长检测</div>
-                                                <div className="text-xs text-gray-500">实时监测：已通风 <span className="font-semibold text-blue-600">30</span> 分钟</div>
+                                                <div className="text-base font-bold text-gray-800">通风时长检测</div>
+                                                <div className="text-sm text-gray-600">实时监测：已通风 <span className="font-bold text-blue-600">35</span> 分钟</div>
                                             </div>
                                         </div>
                                         <div className="px-3 py-1.5 rounded-full text-xs font-medium bg-green-100 text-green-700 border border-green-300 flex items-center gap-1">
@@ -265,8 +282,8 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                                                 </svg>
                                             </div>
                                             <div>
-                                                <div className="text-sm font-medium text-gray-700">现场隔离措施</div>
-                                                <div className="text-xs text-gray-500">检测状态：警戒区已设立</div>
+                                                <div className="text-base font-bold text-gray-800">现场隔离措施</div>
+                                                <div className="text-sm text-gray-600">检测状态：警戒区已设立</div>
                                             </div>
                                         </div>
                                         <div className="px-3 py-1.5 rounded-full text-xs font-medium bg-green-100 text-green-700 border border-green-300 flex items-center gap-1">
@@ -279,7 +296,7 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                                 </>
                             )}
                         </div>
-                    </FormField>
+                    </div>
                     <FormField label="作业单位">
                         <Input 
                             type="text" 
@@ -314,6 +331,7 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                             value={data.supervisor}
                             onChange={handleChange}
                             options={['张三', '李四', '王五']}
+                            unqualifiedOptions={['陈子涵 (未授权)', '刘浩宇 (证书过期)', '王梓萱 (培训不合格)']}
                             placeholder="请选择负责人"
                             readOnly={readOnly}
                         />
@@ -324,6 +342,7 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                             value={data.workers}
                             onChange={handleChange}
                             options={['赵六', '孙七', '周八']}
+                            unqualifiedOptions={['张一鸣 (未授权)', '李思琪 (证书过期)', '赵雨桐 (体检不合格)']}
                             placeholder="请选择作业人"
                             readOnly={readOnly}
                         />
@@ -334,6 +353,7 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                             value={data.guardian}
                             onChange={handleChange}
                             options={['吴九', '郑十', '陈十一']}
+                            unqualifiedOptions={['孙嘉怡 (未授权)', '周宇轩 (证书过期)', '吴欣怡 (培训不合格)']}
                             placeholder="请选择监护人"
                             readOnly={readOnly}
                         />
