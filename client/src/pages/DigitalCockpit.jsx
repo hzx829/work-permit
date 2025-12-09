@@ -118,6 +118,17 @@ export default function DigitalCockpit() {
         { type: '培训公告', title: '特种作业人员复训通知', dept: '技术部', time: '12-03 16:20' },
     ];
 
+    // Center Floating Modules Data
+    const centerModules = [
+        { title: '实时监测', value: '运行中', style: { top: '15%', left: '15%' }, path: '/video', delay: '0s' },
+        { title: '行为识别', value: '开启', style: { top: '15%', right: '15%' }, path: '/safety-review', delay: '1s' },
+        { title: '许可审批', value: '5', style: { top: '50%', left: '5%', transform: 'translateY(-50%)' }, path: '/work-permit', delay: '2s' },
+        { title: '数据追溯', value: '100%', style: { top: '50%', right: '5%', transform: 'translateY(-50%)' }, path: '/comprehensive', delay: '3s' },
+        { title: '违章预警', value: '12', style: { bottom: '20%', left: '15%' }, path: '/hazard', delay: '4s' },
+        { title: '状态研判', value: '优', style: { bottom: '20%', right: '15%' }, path: '/risk', delay: '5s' },
+        { title: '智能抓拍', value: '运行中', style: { bottom: '10%', left: '50%', transform: 'translateX(-50%)' }, path: '/video', delay: '6s' },
+    ];
+
     return (
         <div className="h-screen w-screen bg-[#020617] text-white font-sans overflow-hidden relative flex flex-col">
             {/* Full Screen Background Map */}
@@ -277,7 +288,7 @@ export default function DigitalCockpit() {
 
                                 {/* Numbers */}
                                 <div className="relative z-10 text-6xl font-bold text-white tracking-[0.5em] font-mono drop-shadow-[0_0_20px_rgba(255,255,255,0.8)] pl-[0.5em]">
-                                    1024
+                                    124
                                 </div>
 
                                 {/* Right Decoration */}
@@ -288,6 +299,38 @@ export default function DigitalCockpit() {
                                 <div className="absolute bottom-0 w-20 h-[3px] bg-yellow-500 shadow-[0_0_10px_rgba(234,179,8,1)]"></div>
                             </div>
                         </div>
+
+                        {/* Floating Modules around Helmet */}
+                        {centerModules.map((mod, i) => (
+                            <div 
+                                key={i}
+                                className="absolute z-20 pointer-events-auto cursor-pointer hover:scale-110 transition-transform duration-300 animate-float"
+                                style={{...mod.style, animationDelay: mod.delay}}
+                                onClick={() => navigate(mod.path || '/')}
+                            >
+                                <div className="relative group">
+                                    {/* Card Content */}
+                                    <div className="bg-[#0f172a]/80 border border-blue-400/50 p-3 rounded-lg shadow-[0_0_20px_rgba(59,130,246,0.4)] backdrop-blur-md flex flex-col items-center min-w-[100px] relative z-10 group-hover:border-blue-300 transition-colors">
+                                        <div className="text-blue-300 text-sm font-bold mb-1">{mod.title}</div>
+                                        <div className="text-2xl font-bold text-white font-mono drop-shadow-[0_0_5px_rgba(255,255,255,0.5)]">{mod.value}</div>
+                                        
+                                        {/* Corner Accents */}
+                                        <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-blue-300 rounded-tl"></div>
+                                        <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-blue-300 rounded-tr"></div>
+                                        <div className="absolute bottom-0 left-0 w-2 h-2 border-b border-l border-blue-300 rounded-bl"></div>
+                                        <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-blue-300 rounded-br"></div>
+                                    </div>
+                                    
+                                    {/* Glow Effect */}
+                                    <div className="absolute -inset-2 bg-blue-500/20 rounded-xl blur-md -z-0 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                    
+                                    {/* Connecting Line (Visual only, pointing towards center) */}
+                                    <div className={`absolute w-12 h-[1px] bg-gradient-to-r from-blue-500/50 to-transparent -z-10 ${
+                                        mod.style.left ? 'right-0 translate-x-full top-1/2' : 'left-0 -translate-x-full top-1/2 rotate-180'
+                                    }`}></div>
+                                </div>
+                            </div>
+                        ))}
 
                     </div>
 
