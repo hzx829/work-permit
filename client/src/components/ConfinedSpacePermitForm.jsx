@@ -18,7 +18,7 @@ const Input = ({ className = "", readOnly, ...props }) => (
     />
 );
 
-const PersonSelect = ({ value, onChange, name, options, readOnly, placeholder }) => (
+const PersonSelect = ({ value, onChange, name, options, unqualifiedOptions = [], readOnly, placeholder }) => (
     <div className="relative">
         <select
             name={name}
@@ -31,6 +31,11 @@ const PersonSelect = ({ value, onChange, name, options, readOnly, placeholder })
             <optgroup label="合格人员" className="text-blue-600 font-bold">
                 {options.map((opt) => (
                     <option key={opt} value={opt} className="text-gray-800 font-normal">{opt}</option>
+                ))}
+            </optgroup>
+            <optgroup label="不合格人员" className="text-red-500 font-bold">
+                {unqualifiedOptions.map((opt, idx) => (
+                    <option key={idx} value={`unqualified_${name}_${idx}`} disabled className="text-gray-400 font-normal">{opt}</option>
                 ))}
             </optgroup>
         </select>
@@ -197,6 +202,18 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                         />
                     </FormField>
                     <FormField label="作业内容" className="md:col-span-2">
+                        <Input 
+                            type="text" 
+                            name="content"
+                            value={data.content || ''}
+                            onChange={handleChange}
+                            placeholder="请输入作业内容"
+                            readOnly={readOnly}
+                        />
+                    </FormField>
+
+                    <div className="md:col-span-2 mt-2 mb-4">
+                        <h3 className="text-base font-bold text-blue-600 mb-3">事前防范</h3>
                         <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3">
                             {isDetecting ? (
                                 /* Loading 状态 */
@@ -279,7 +296,7 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                                 </>
                             )}
                         </div>
-                    </FormField>
+                    </div>
                     <FormField label="作业单位">
                         <Input 
                             type="text" 
@@ -314,6 +331,7 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                             value={data.supervisor}
                             onChange={handleChange}
                             options={['张三', '李四', '王五']}
+                            unqualifiedOptions={['陈子涵 (未授权)', '刘浩宇 (证书过期)', '王梓萱 (培训不合格)']}
                             placeholder="请选择负责人"
                             readOnly={readOnly}
                         />
@@ -324,6 +342,7 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                             value={data.workers}
                             onChange={handleChange}
                             options={['赵六', '孙七', '周八']}
+                            unqualifiedOptions={['张一鸣 (未授权)', '李思琪 (证书过期)', '赵雨桐 (体检不合格)']}
                             placeholder="请选择作业人"
                             readOnly={readOnly}
                         />
@@ -334,6 +353,7 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                             value={data.guardian}
                             onChange={handleChange}
                             options={['吴九', '郑十', '陈十一']}
+                            unqualifiedOptions={['孙嘉怡 (未授权)', '周宇轩 (证书过期)', '吴欣怡 (培训不合格)']}
                             placeholder="请选择监护人"
                             readOnly={readOnly}
                         />
