@@ -120,9 +120,18 @@ export default function DigitalCockpit() {
 
     return (
         <div className="h-screen w-screen bg-[#020617] text-white font-sans overflow-hidden relative flex flex-col">
+            {/* Full Screen Background Map */}
+            <div className="absolute inset-0 z-0">
+                <img 
+                    src="/work-permit-background.png" 
+                    alt="Background" 
+                    className="w-full h-full object-cover opacity-80"
+                />
+            </div>
+
             {/* Background Effects */}
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900/20 via-[#020617] to-[#020617] pointer-events-none"></div>
-            <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none"></div>
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900/40 via-[#020617]/60 to-[#020617]/80 pointer-events-none z-0"></div>
+            <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none z-0"></div>
 
             {/* Header */}
             <header className="relative h-16 flex-none flex items-center justify-between px-6 bg-gradient-to-b from-[#0f172a]/90 to-transparent border-b border-blue-500/20 z-50 backdrop-blur-sm">
@@ -138,20 +147,6 @@ export default function DigitalCockpit() {
                 </div>
 
                 <div className="flex items-center gap-6">
-                    <div 
-                        className="flex flex-col gap-1 text-blue-200 cursor-pointer hover:text-blue-100 transition-colors"
-                        onClick={() => navigate('/risk')}
-                        title="查看风险管控详情"
-                    >
-                        <div className="flex items-center gap-2">
-                            <i className="fas fa-cloud text-blue-400"></i>
-                            <span>{weatherData.condition} {weatherData.temp}°C</span>
-                        </div>
-                        <div className="text-xs flex items-center gap-2 pl-5">
-                            <span>{weatherData.windDirection} {weatherData.windSpeed}</span>
-                            <span>湿度{weatherData.humidity}%</span>
-                        </div>
-                    </div>
                     <button 
                         onClick={() => navigate('/comprehensive')}
                         className="px-4 py-1.5 bg-blue-600/20 hover:bg-blue-600/40 border border-blue-500/50 text-blue-200 rounded-full text-sm transition-all duration-300 flex items-center gap-2 backdrop-blur-sm group"
@@ -260,24 +255,16 @@ export default function DigitalCockpit() {
                 </div>
 
                 {/* Center Column */}
-                <div className="col-span-12 lg:col-span-6 flex flex-col gap-4 h-full relative">
+                <div className="col-span-12 lg:col-span-6 flex flex-col gap-4 h-full relative pointer-events-none">
                     {/* 3D Map Area */}
-                    <div className="flex-1 relative rounded-xl overflow-hidden border border-blue-500/30 bg-[#020617]/80 shadow-[0_0_50px_rgba(30,58,138,0.2)_inset]">
-                        <div className="w-full h-full relative flex items-center justify-center overflow-hidden">
-                            {/* Background Image */}
-                            <img 
-                                src="/work-permit-background.png" 
-                                alt="Background" 
-                                className="absolute inset-0 w-full h-full object-cover opacity-50"
-                            />
-                            
-                            {/* Floating Helmet */}
-                            <img 
-                                src="/work-permit-safety-helmet.png" 
-                                alt="Safety Helmet" 
-                                className="helmet-img relative z-10"
-                            />
-                        </div>
+                    <div className="flex-1 relative flex items-center justify-center">
+                        
+                        {/* Floating Helmet */}
+                        <img 
+                            src="/work-permit-safety-helmet.png" 
+                            alt="Safety Helmet" 
+                            className="helmet-img relative z-10 drop-shadow-[0_0_50px_rgba(59,130,246,0.6)]"
+                        />
                         
                         {/* Safe Days Counter */}
                         <div className="absolute top-8 left-1/2 transform -translate-x-1/2 flex flex-col items-center justify-center z-20 pointer-events-none">
@@ -312,18 +299,45 @@ export default function DigitalCockpit() {
 
                 {/* Right Column - 作业票分析 + 安全小知识 */}
                 <div className="col-span-12 lg:col-span-3 flex flex-col gap-4 h-full overflow-y-auto lg:overflow-hidden pl-2 lg:pl-0">
+                    {/* Weather Module */}
+                    <TechPanel 
+                        title="气象监测" 
+                        className="flex-none cursor-pointer hover:border-blue-400 transition-all hover:shadow-[0_0_30px_rgba(59,130,246,0.4)]"
+                        onClick={() => navigate('/risk')}
+                    >
+                        <div className="flex items-center justify-between px-4 py-2">
+                            <div className="flex flex-col items-center">
+                                <i className="fas fa-cloud text-4xl text-blue-400 mb-2"></i>
+                                <span className="text-2xl font-bold text-white">{weatherData.temp}°C</span>
+                            </div>
+                            <div className="flex flex-col gap-2 text-sm text-blue-200">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-blue-400 w-10">天气</span>
+                                    <span>{weatherData.condition}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-blue-400 w-10">风向</span>
+                                    <span>{weatherData.windDirection} {weatherData.windSpeed}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-blue-400 w-10">湿度</span>
+                                    <span>{weatherData.humidity}%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </TechPanel>
+
                     {/* Work Permit Analysis */}
                     <TechPanel 
                         title="作业票分析" 
                         className="flex-none cursor-pointer hover:border-blue-400 transition-all hover:shadow-[0_0_30px_rgba(59,130,246,0.4)]"
                         onClick={() => navigate('/work-permit')}
                     >
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-4 gap-2">
                             {workPermitStats.map((stat, index) => (
-                                <div key={index} className="bg-blue-950/30 p-3 rounded border border-blue-800/30 flex flex-col items-center justify-center text-center group hover:bg-blue-900/40 transition-colors">
-                                    <i className={`fas ${stat.icon} text-2xl mb-2 ${stat.color} group-hover:scale-110 transition-transform`}></i>
-                                    <div className="text-xl font-bold text-white font-mono">{stat.value}</div>
-                                    <div className="text-xs text-blue-400/80">{stat.label}</div>
+                                <div key={index} className="bg-blue-950/30 p-2 rounded border border-blue-800/30 flex flex-col items-center justify-center text-center group hover:bg-blue-900/40 transition-colors">
+                                    <div className="text-lg font-bold text-white font-mono mb-1">{stat.value}</div>
+                                    <div className="text-[10px] text-blue-400/80">{stat.label}</div>
                                 </div>
                             ))}
                         </div>
