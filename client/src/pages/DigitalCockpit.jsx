@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { loadPermits } from '../utils/api';
 // import ThreeMap from '../components/ThreeMap';
@@ -188,38 +188,36 @@ export default function DigitalCockpit() {
                         title="安全动态" 
                         className="flex-1 min-h-[200px]"
                     >
-                        <div className="h-full overflow-y-auto overflow-x-hidden dark-scrollbar">
-                            <div className="space-y-3">
-                                {safetyDynamics.map((item, i) => (
-                                    <div key={i} className="bg-blue-950/40 p-3 rounded-lg border border-blue-900/40 hover:bg-blue-900/50 transition-colors cursor-pointer"
-                                        onClick={() => navigate(item.type === '安全员活动' ? '/safety-officer' : '/emergency')}
-                                    >
-                                        <div className="flex items-start justify-between gap-3">
-                                            <div className="flex-1">
-                                                <div className="flex items-center gap-2 mb-2">
-                                                    <span className={`px-2 py-1 text-xs font-bold rounded ${
-                                                        item.type === '安全员活动' ? 'bg-blue-600/40 text-blue-200' : 'bg-orange-600/40 text-orange-200'
-                                                    }`}>
-                                                        {item.type}
-                                                    </span>
-                                                    <span className={`px-2 py-1 text-xs font-bold rounded ${
-                                                        item.status === '已完成' || item.status === '已处置' ? 'bg-green-600/40 text-green-200' : 'bg-yellow-600/40 text-yellow-200'
-                                                    }`}>
-                                                        {item.status}
-                                                    </span>
-                                                </div>
-                                                <div className="text-base text-white font-medium leading-snug">
-                                                    {item.officer && <span className="text-blue-300">{item.officer}：</span>}
-                                                    {item.action || item.event}
-                                                    {item.level && <span className="text-orange-300 ml-1">【{item.level}】</span>}
-                                                </div>
+                        <AutoScrollList>
+                            {safetyDynamics.map((item, i) => (
+                                <div key={i} className="bg-blue-950/40 p-3 rounded-lg border border-blue-900/40 hover:bg-blue-900/50 transition-colors cursor-pointer"
+                                    onClick={() => navigate(item.type === '安全员活动' ? '/safety-officer' : '/emergency')}
+                                >
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <span className={`px-2 py-1 text-xs font-bold rounded ${
+                                                    item.type === '安全员活动' ? 'bg-blue-600/40 text-blue-200' : 'bg-orange-600/40 text-orange-200'
+                                                }`}>
+                                                    {item.type}
+                                                </span>
+                                                <span className={`px-2 py-1 text-xs font-bold rounded ${
+                                                    item.status === '已完成' || item.status === '已处置' ? 'bg-green-600/40 text-green-200' : 'bg-yellow-600/40 text-yellow-200'
+                                                }`}>
+                                                    {item.status}
+                                                </span>
                                             </div>
-                                            <div className="text-sm text-blue-300 font-mono whitespace-nowrap">{item.time}</div>
+                                            <div className="text-base text-white font-medium leading-snug">
+                                                {item.officer && <span className="text-blue-300">{item.officer}：</span>}
+                                                {item.action || item.event}
+                                                {item.level && <span className="text-orange-300 ml-1">【{item.level}】</span>}
+                                            </div>
                                         </div>
+                                        <div className="text-sm text-blue-300 font-mono whitespace-nowrap">{item.time}</div>
                                     </div>
-                                ))}
-                            </div>
-                        </div>
+                                </div>
+                            ))}
+                        </AutoScrollList>
                     </TechPanel>
 
                     {/* 通知公告 */}
@@ -227,30 +225,28 @@ export default function DigitalCockpit() {
                         title="通知公告" 
                         className="flex-1 min-h-[200px]"
                     >
-                        <div className="h-full overflow-y-auto overflow-x-hidden dark-scrollbar">
-                            <div className="space-y-3">
-                                {announcements.map((item, i) => (
-                                    <div key={i} className="bg-blue-950/40 p-3 rounded-lg border border-blue-900/40 hover:bg-blue-900/50 transition-colors cursor-pointer"
-                                        onClick={() => navigate(item.type === '检查通知' ? '/daily-inspection' : '/training')}
-                                    >
-                                        <div className="flex items-start gap-3">
-                                            <span className={`px-2 py-1 text-xs font-bold rounded whitespace-nowrap ${
-                                                item.type === '检查通知' ? 'bg-orange-600/40 text-orange-200' : 'bg-green-600/40 text-green-200'
-                                            }`}>
-                                                {item.type}
-                                            </span>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="text-base text-white font-medium truncate">{item.title}</div>
-                                                <div className="text-sm text-blue-300 mt-1 flex items-center justify-between">
-                                                    <span>{item.dept}</span>
-                                                    <span className="font-mono">{item.time}</span>
-                                                </div>
+                        <AutoScrollList>
+                            {announcements.map((item, i) => (
+                                <div key={i} className="bg-blue-950/40 p-3 rounded-lg border border-blue-900/40 hover:bg-blue-900/50 transition-colors cursor-pointer"
+                                    onClick={() => navigate(item.type === '检查通知' ? '/daily-inspection' : '/training')}
+                                >
+                                    <div className="flex items-start gap-3">
+                                        <span className={`px-2 py-1 text-xs font-bold rounded whitespace-nowrap ${
+                                            item.type === '检查通知' ? 'bg-orange-600/40 text-orange-200' : 'bg-green-600/40 text-green-200'
+                                        }`}>
+                                            {item.type}
+                                        </span>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="text-base text-white font-medium truncate">{item.title}</div>
+                                            <div className="text-sm text-blue-300 mt-1 flex items-center justify-between">
+                                                <span>{item.dept}</span>
+                                                <span className="font-mono">{item.time}</span>
                                             </div>
                                         </div>
                                     </div>
-                                ))}
-                            </div>
-                        </div>
+                                </div>
+                            ))}
+                        </AutoScrollList>
                     </TechPanel>
                 </div>
 
@@ -349,34 +345,85 @@ export default function DigitalCockpit() {
                         className="flex-1 min-h-[400px] cursor-pointer hover:border-blue-400 transition-all hover:shadow-[0_0_30px_rgba(59,130,246,0.4)]"
                         onClick={() => navigate('/training')}
                     >
-                        <div className="h-full overflow-y-auto overflow-x-hidden dark-scrollbar">
-                            <div className="space-y-4">
-                                {safetyKnowledge.map((tip, i) => (
-                                    <div key={i} className="bg-gradient-to-br from-blue-950/50 to-blue-900/30 p-4 rounded-lg border border-blue-800/40 hover:border-blue-600/60 transition-all hover:shadow-[0_0_15px_rgba(59,130,246,0.3)]">
-                                        <div className="flex items-start gap-3 mb-2">
-                                            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-600/40 flex items-center justify-center">
-                                                <i className="fas fa-lightbulb text-yellow-400 text-sm"></i>
-                                            </div>
-                                            <div className="text-base font-bold text-blue-100 pt-1">{tip.title}</div>
+                        <AutoScrollList>
+                            {safetyKnowledge.map((tip, i) => (
+                                <div key={i} className="bg-gradient-to-br from-blue-950/50 to-blue-900/30 p-4 rounded-lg border border-blue-800/40 hover:border-blue-600/60 transition-all hover:shadow-[0_0_15px_rgba(59,130,246,0.3)]">
+                                    <div className="flex items-start gap-3 mb-2">
+                                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-600/40 flex items-center justify-center">
+                                            <i className="fas fa-lightbulb text-yellow-400 text-sm"></i>
                                         </div>
-                                        <div className="text-sm text-blue-200 leading-relaxed pl-11 font-medium">
-                                            {tip.content}
-                                        </div>
-                                        <div className="flex items-center gap-3 mt-3 pl-11">
-                                            <span className="px-2 py-1 text-xs font-bold rounded bg-blue-700/40 text-blue-200">
-                                                {tip.category || '安全常识'}
-                                            </span>
-                                            <span className="text-xs text-blue-400 font-medium">
-                                                阅读: {tip.views || '99+'}
-                                            </span>
-                                        </div>
+                                        <div className="text-base font-bold text-blue-100 pt-1">{tip.title}</div>
                                     </div>
-                                ))}
-                            </div>
-                        </div>
+                                    <div className="text-sm text-blue-200 leading-relaxed pl-11 font-medium">
+                                        {tip.content}
+                                    </div>
+                                    <div className="flex items-center gap-3 mt-3 pl-11">
+                                        <span className="px-2 py-1 text-xs font-bold rounded bg-blue-700/40 text-blue-200">
+                                            {tip.category || '安全常识'}
+                                        </span>
+                                        <span className="text-xs text-blue-400 font-medium">
+                                            阅读: {tip.views || '99+'}
+                                        </span>
+                                    </div>
+                                </div>
+                            ))}
+                        </AutoScrollList>
                     </TechPanel>
                 </div>
             </main>
+        </div>
+    );
+}
+
+// Auto Scroll List Component
+function AutoScrollList({ children, className = '', speed = 0.2 }) {
+    const scrollRef = useRef(null);
+    const scrollTopRef = useRef(0);
+    const [isHovered, setIsHovered] = useState(false);
+
+    useEffect(() => {
+        const scrollContainer = scrollRef.current;
+        if (!scrollContainer) return;
+        
+        // Sync ref with actual scroll position on mount/update
+        scrollTopRef.current = scrollContainer.scrollTop;
+
+        let animationFrameId;
+        
+        const scroll = () => {
+            if (!isHovered && scrollContainer) {
+                scrollTopRef.current += speed;
+                
+                // When scrolled halfway (end of first set), reset to 0
+                if (scrollTopRef.current >= scrollContainer.scrollHeight / 2) {
+                    scrollTopRef.current = 0;
+                }
+                
+                scrollContainer.scrollTop = scrollTopRef.current;
+            }
+            animationFrameId = requestAnimationFrame(scroll);
+        };
+
+        animationFrameId = requestAnimationFrame(scroll);
+
+        return () => {
+            cancelAnimationFrame(animationFrameId);
+        };
+    }, [isHovered, speed]);
+
+    return (
+        <div 
+            ref={scrollRef}
+            className={`h-full overflow-hidden ${className}`}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+        >
+            <div className="space-y-3 pb-3">
+                {children}
+            </div>
+            <div className="space-y-3">
+                {children}
+            </div>
         </div>
     );
 }
