@@ -49,7 +49,7 @@ export default function Dashboard() {
         { type: '吊装作业', icon: 'fa-truck-pickup', color: 'orange' },
         { type: '临时用电作业', icon: 'fa-bolt', color: 'yellow' },
         { type: '盲板抽堵作业', icon: 'fa-ban', color: 'gray' },
-        { type: '动土作业', icon: 'fa-trowel', color: 'amber' },
+        { type: '动土作业', icon: 'fa-person-digging', color: 'amber' },
         { type: '断路作业', icon: 'fa-road-barrier', color: 'emerald' }
     ];
 
