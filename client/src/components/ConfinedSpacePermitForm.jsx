@@ -239,11 +239,11 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                                         </div>
                                         <div className="px-3 py-1.5 rounded-full bg-gray-200 w-20 h-7"></div>
                                     </div>
-                                    <div className="flex items-center justify-center gap-2 pt-2">
-                                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
-                                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>
-                                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
-                                        <span className="text-xs text-gray-500 ml-2">正在检测现场条件...</span>
+                                    <div className="flex items-center justify-center gap-3 pt-4 pb-2">
+                                        <div className="w-4 h-4 bg-blue-600 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
+                                        <div className="w-4 h-4 bg-blue-600 rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>
+                                        <div className="w-4 h-4 bg-blue-600 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
+                                        <span className="text-lg font-bold text-blue-600 ml-2">正在检测现场条件...</span>
                                     </div>
                                 </>
                             ) : (

@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import ConfinedSpaceEmergency from '../components/ConfinedSpaceEmergency';
 
 export default function Emergency() {
     const navigate = useNavigate();
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('plans');
+    const [planSubTab, setPlanSubTab] = useState('list'); // list or confined-space
 
     useEffect(() => {
         fetchData();
@@ -106,38 +108,73 @@ export default function Emergency() {
 
                     {/* Emergency Plans */}
                     {activeTab === 'plans' && (
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
-                                    <tr>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">预案名称</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">预案类型</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">编制日期</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">责任人</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
-                                    {data?.plans?.map((plan, idx) => (
-                                        <tr key={idx} className="hover:bg-gray-50 transition-colors">
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{plan.name}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{plan.type}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{plan.createDate}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{plan.responsible}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                                    plan.status === '有效' ? 'bg-green-100 text-green-800' :
-                                                    'bg-yellow-100 text-yellow-800'
-                                                }`}>
-                                                    {plan.status}
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                        <div>
+                            <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex gap-2">
+                                <button
+                                    onClick={() => setPlanSubTab('list')}
+                                    className={`px-3 py-1.5 rounded-md text-sm transition-colors ${
+                                        planSubTab === 'list'
+                                            ? 'bg-white text-blue-600 shadow-sm font-medium ring-1 ring-black/5'
+                                            : 'text-gray-600 hover:bg-gray-200'
+                                    }`}
+                                >
+                                    <i className="fas fa-list mr-2"></i>
+                                    预案列表
+                                </button>
+                                <button
+                                    onClick={() => setPlanSubTab('confined-space')}
+                                    className={`px-3 py-1.5 rounded-md text-sm transition-colors ${
+                                        planSubTab === 'confined-space'
+                                            ? 'bg-white text-blue-600 shadow-sm font-medium ring-1 ring-black/5'
+                                            : 'text-gray-600 hover:bg-gray-200'
+                                    }`}
+                                >
+                                    <i className="fas fa-project-diagram mr-2"></i>
+                                    有限空间专项预案
+                                </button>
+                            </div>
+
+                            {planSubTab === 'list' ? (
+                                <div className="overflow-x-auto">
+                                    <table className="min-w-full divide-y divide-gray-200">
+                                        <thead className="bg-gray-50">
+                                            <tr>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">预案名称</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">预案类型</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">编制日期</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">责任人</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="bg-white divide-y divide-gray-200">
+                                            {data?.plans?.map((plan, idx) => (
+                                                <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{plan.name}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{plan.type}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{plan.createDate}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{plan.responsible}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                                            plan.status === '有效' ? 'bg-green-100 text-green-800' :
+                                                            'bg-yellow-100 text-yellow-800'
+                                                        }`}>
+                                                            {plan.status}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ) : (
+                                <div className="p-6">
+                                    <ConfinedSpaceEmergency />
+                                </div>
+                            )}
                         </div>
                     )}
+
+
 
                     {/* Drill Records */}
                     {activeTab === 'drills' && (
