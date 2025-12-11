@@ -1,4 +1,5 @@
 import React from 'react';
+import SignaturePad from './SignaturePad';
 
 const FormField = ({ label, required = false, children, className = "" }) => (
     <div className={`flex flex-col ${className}`}>
@@ -644,7 +645,7 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                     {/* Supervisor Opinion */}
                     <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                         <FormField label="作业负责人意见">
-                            <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
                                 <div className="md:col-span-6">
                                     <Input 
                                         type="text" 
@@ -655,13 +656,14 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                                     />
                                 </div>
                                 <div className="md:col-span-3">
-                                    <Input 
-                                        type="text" 
-                                        placeholder="签字"
-                                        name="supervisor_sign"
-                                        value={data.supervisor_sign || ''}
-                                        onChange={handleChange}
-                                    />
+                                    <div className="h-24">
+                                        <SignaturePad 
+                                            value={data.supervisor_sign}
+                                            onChange={(val) => onChange('supervisor_sign', val)}
+                                            disabled={readOnly}
+                                            className="w-full h-full"
+                                        />
+                                    </div>
                                 </div>
                                 <div className="md:col-span-3">
                                     <Input 
@@ -678,7 +680,7 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                     {/* Unit Opinion */}
                     <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                         <FormField label="所在单位意见">
-                            <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
                                 <div className="md:col-span-6">
                                     <Input 
                                         type="text" 
@@ -689,13 +691,14 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                                     />
                                 </div>
                                 <div className="md:col-span-3">
-                                    <Input 
-                                        type="text" 
-                                        placeholder="签字"
-                                        name="unit_sign"
-                                        value={data.unit_sign || ''}
-                                        onChange={handleChange}
-                                    />
+                                    <div className="h-24">
+                                        <SignaturePad 
+                                            value={data.unit_sign}
+                                            onChange={(val) => onChange('unit_sign', val)}
+                                            disabled={readOnly}
+                                            className="w-full h-full"
+                                        />
+                                    </div>
                                 </div>
                                 <div className="md:col-span-3">
                                     <Input 
@@ -709,44 +712,12 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                         </FormField>
                     </div>
 
-                    {/* Safety Dept Opinion */}
-                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                        <FormField label="安全管理部门意见">
-                            <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-                                <div className="md:col-span-6">
-                                    <Input 
-                                        type="text" 
-                                        name="safety_dept_opinion"
-                                        value={data.safety_dept_opinion || ''}
-                                        onChange={handleChange}
-                                        placeholder="同意作业"
-                                    />
-                                </div>
-                                <div className="md:col-span-3">
-                                    <Input 
-                                        type="text" 
-                                        placeholder="签字"
-                                        name="safety_dept_sign"
-                                        value={data.safety_dept_sign || ''}
-                                        onChange={handleChange}
-                                    />
-                                </div>
-                                <div className="md:col-span-3">
-                                    <Input 
-                                        type="datetime-local" 
-                                        name="safety_dept_sign_time"
-                                        value={data.safety_dept_sign_time || ''}
-                                        onChange={handleChange}
-                                    />
-                                </div>
-                            </div>
-                        </FormField>
-                    </div>
+
 
                     {/* Approver Opinion */}
                     <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                         <FormField label="审批人意见">
-                            <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
                                 <div className="md:col-span-6">
                                     <Input 
                                         type="text" 
@@ -757,13 +728,14 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                                     />
                                 </div>
                                 <div className="md:col-span-3">
-                                    <Input 
-                                        type="text" 
-                                        placeholder="签字"
-                                        name="approver_sign"
-                                        value={data.approver_sign || ''}
-                                        onChange={handleChange}
-                                    />
+                                    <div className="h-24">
+                                        <SignaturePad 
+                                            value={data.approver_sign}
+                                            onChange={(val) => onChange('approver_sign', val)}
+                                            disabled={readOnly}
+                                            className="w-full h-full"
+                                        />
+                                    </div>
                                 </div>
                                 <div className="md:col-span-3">
                                     <Input 
@@ -780,7 +752,7 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                     {/* Completion Acceptance */}
                     <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                         <FormField label="完工验收">
-                            <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
                                 <div className="md:col-span-6">
                                     <Input 
                                         type="text" 
@@ -791,13 +763,14 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                                     />
                                 </div>
                                 <div className="md:col-span-3">
-                                    <Input 
-                                        type="text" 
-                                        placeholder="签字"
-                                        name="completion_sign"
-                                        value={data.completion_sign || ''}
-                                        onChange={handleChange}
-                                    />
+                                    <div className="h-24">
+                                        <SignaturePad 
+                                            value={data.completion_sign}
+                                            onChange={(val) => onChange('completion_sign', val)}
+                                            disabled={readOnly}
+                                            className="w-full h-full"
+                                        />
+                                    </div>
                                 </div>
                                 <div className="md:col-span-3">
                                     <Input 
