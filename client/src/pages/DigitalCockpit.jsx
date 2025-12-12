@@ -36,14 +36,14 @@ export default function DigitalCockpit() {
                     
                     // 转换为显示格式 - 注意这里要匹配数据库中的实际值
                     const stats = [
-                        { label: '动火', value: typeCount['动火作业'] || typeCount['动火'] || 0 },
-                        { label: '临电', value: typeCount['临时用电作业'] || typeCount['临时用电'] || 0 },
-                        { label: '受限', value: typeCount['受限空间作业'] || typeCount['受限空间'] || 0 },
-                        { label: '高处', value: typeCount['高处作业'] || 0 },
-                        { label: '盲板', value: typeCount['盲板抽堵作业'] || typeCount['盲板抽堵'] || 0 },
-                        { label: '动土', value: typeCount['动土作业'] || typeCount['动土'] || 0 },
-                        { label: '吊装', value: typeCount['吊装作业'] || typeCount['吊装'] || 0 },
-                        { label: '断路', value: typeCount['断路作业'] || typeCount['断路'] || 0 },
+                        { label: '动火作业', value: typeCount['动火作业'] || typeCount['动火'] || 0 },
+                        { label: '临时用电作业', value: typeCount['临时用电作业'] || typeCount['临时用电'] || 0 },
+                        { label: '受限空间作业', value: typeCount['受限空间作业'] || typeCount['受限空间'] || 0 },
+                        { label: '高处作业', value: typeCount['高处作业'] || 0 },
+                        { label: '盲板抽堵作业', value: typeCount['盲板抽堵作业'] || typeCount['盲板抽堵'] || 0 },
+                        { label: '动土作业', value: typeCount['动土作业'] || typeCount['动土'] || 0 },
+                        { label: '吊装作业', value: typeCount['吊装作业'] || typeCount['吊装'] || 0 },
+                        { label: '断路作业', value: typeCount['断路作业'] || typeCount['断路'] || 0 },
                     ];
                     console.log('最终统计数据:', stats);
                     setWorkPermitStats(stats);
@@ -51,28 +51,28 @@ export default function DigitalCockpit() {
                     console.log('没有作业票数据或数据格式错误');
                     // 如果加载失败，使用默认值
                     setWorkPermitStats([
-                        { label: '动火', value: 0 },
-                        { label: '临电', value: 0 },
-                        { label: '受限', value: 0 },
-                        { label: '高处', value: 0 },
-                        { label: '盲板', value: 0 },
-                        { label: '动土', value: 0 },
-                        { label: '吊装', value: 0 },
-                        { label: '断路', value: 0 },
+                        { label: '动火作业', value: 0 },
+                        { label: '临时用电作业', value: 0 },
+                        { label: '受限空间作业', value: 0 },
+                        { label: '高处作业', value: 0 },
+                        { label: '盲板抽堵作业', value: 0 },
+                        { label: '动土作业', value: 0 },
+                        { label: '吊装作业', value: 0 },
+                        { label: '断路作业', value: 0 },
                     ]);
                 }
             } catch (error) {
                 console.error('Failed to load work permit stats:', error);
                 // 出错时使用默认值
                 setWorkPermitStats([
-                    { label: '动火', value: 0 },
-                    { label: '临电', value: 0 },
-                    { label: '受限', value: 0 },
-                    { label: '高处', value: 0 },
-                    { label: '盲板', value: 0 },
-                    { label: '动土', value: 0 },
-                    { label: '吊装', value: 0 },
-                    { label: '断路', value: 0 },
+                    { label: '动火作业', value: 0 },
+                    { label: '临时用电作业', value: 0 },
+                    { label: '受限空间作业', value: 0 },
+                    { label: '高处作业', value: 0 },
+                    { label: '盲板抽堵作业', value: 0 },
+                    { label: '动土作业', value: 0 },
+                    { label: '吊装作业', value: 0 },
+                    { label: '断路作业', value: 0 },
                 ]);
             }
         }
@@ -120,13 +120,13 @@ export default function DigitalCockpit() {
 
     // Center Floating Modules Data
     const centerModules = [
-        { title: '实时监测', value: '运行中', style: { top: '15%', left: '15%' }, path: '/video', delay: '0s' },
-        { title: '行为识别', value: '开启', style: { top: '15%', right: '15%' }, path: '/safety-review', delay: '1s' },
-        { title: '许可审批', value: '5', style: { top: '50%', left: '5%', transform: 'translateY(-50%)' }, path: '/work-permit', delay: '2s' },
-        { title: '数据追溯', value: '100%', style: { top: '50%', right: '5%', transform: 'translateY(-50%)' }, path: '/comprehensive', delay: '3s' },
-        { title: '违章预警', value: '12', style: { bottom: '20%', left: '15%' }, path: '/hazard', delay: '4s' },
-        { title: '状态研判', value: '优', style: { bottom: '20%', right: '15%' }, path: '/risk', delay: '5s' },
-        { title: '智能抓拍', value: '运行中', style: { bottom: '10%', left: '50%', transform: 'translateX(-50%)' }, path: '/video', delay: '6s' },
+        { title: '实时监测', style: { top: '25%', left: '18%' }, path: '/video', delay: '0s' },
+        { title: '行为识别', style: { top: '25%', right: '18%' }, path: '/safety-review', delay: '1s' },
+        { title: '许可审批', style: { top: '50%', left: '10%', transform: 'translateY(-50%)' }, path: '/work-permit', delay: '2s' },
+        { title: '数据追溯', style: { top: '50%', right: '10%', transform: 'translateY(-50%)' }, path: '/comprehensive', delay: '3s' },
+        { title: '违章预警', style: { bottom: '20%', left: '18%' }, path: '/hazard', delay: '4s' },
+        { title: '状态研判', style: { bottom: '20%', right: '18%' }, path: '/risk', delay: '5s' },
+        { title: '智能抓拍', style: { bottom: '10%', left: '50%', transform: 'translateX(-50%)' }, path: '/video', delay: '6s' },
     ];
 
     return (
@@ -172,14 +172,14 @@ export default function DigitalCockpit() {
             <main className="flex-1 p-4 grid grid-cols-12 gap-4 min-h-0 relative z-10">
                 
                 {/* Left Column - 法律法规 + 安全动态 + 通知公告 */}
-                <div className="col-span-12 lg:col-span-3 flex flex-col gap-6 h-full overflow-y-auto lg:overflow-hidden pr-2 lg:pr-0">
+                <div className="col-span-12 lg:col-span-3 flex flex-col gap-4 h-full overflow-y-auto lg:overflow-hidden pr-2 lg:pr-0">
                     {/* 法律法规 */}
                     <TechPanel 
                         title="法律法规" 
-                        className="flex-none cursor-pointer hover:border-blue-400 transition-all hover:shadow-[0_0_30px_rgba(59,130,246,0.4)]"
+                        className="flex-none h-[220px] cursor-pointer hover:border-blue-400 transition-all hover:shadow-[0_0_30px_rgba(59,130,246,0.4)]"
                         onClick={() => navigate('/regulation')}
                     >
-                        <div className="grid grid-cols-3 gap-4 text-center">
+                        <div className="grid grid-cols-3 gap-4 text-center h-full items-center">
                             {['法律法规', '规章制度', '操作规程'].map((label, i) => (
                                 <div key={i} className="bg-blue-950/40 p-4 rounded-lg border border-blue-900/40 hover:border-blue-700/60 transition-colors">
                                     <div className="text-blue-300 text-sm font-bold mb-2">{label}</div>
@@ -197,7 +197,7 @@ export default function DigitalCockpit() {
                     {/* 安全动态 */}
                     <TechPanel 
                         title="安全动态" 
-                        className="flex-1 min-h-[200px]"
+                        className="flex-none h-[320px]"
                     >
                         <AutoScrollList>
                             {safetyDynamics.map((item, i) => (
@@ -234,7 +234,7 @@ export default function DigitalCockpit() {
                     {/* 通知公告 */}
                     <TechPanel 
                         title="通知公告" 
-                        className="flex-1 min-h-[200px]"
+                        className="flex-1 min-h-0"
                     >
                         <AutoScrollList>
                             {announcements.map((item, i) => (
@@ -308,26 +308,16 @@ export default function DigitalCockpit() {
                                 style={{...mod.style, animationDelay: mod.delay}}
                                 onClick={() => navigate(mod.path || '/')}
                             >
-                                <div className="relative group">
-                                    {/* Card Content */}
-                                    <div className="bg-[#0f172a]/80 border border-blue-400/50 p-3 rounded-lg shadow-[0_0_20px_rgba(59,130,246,0.4)] backdrop-blur-md flex flex-col items-center min-w-[100px] relative z-10 group-hover:border-blue-300 transition-colors">
-                                        <div className="text-blue-300 text-sm font-bold mb-1">{mod.title}</div>
-                                        <div className="text-2xl font-bold text-white font-mono drop-shadow-[0_0_5px_rgba(255,255,255,0.5)]">{mod.value}</div>
-                                        
-                                        {/* Corner Accents */}
-                                        <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-blue-300 rounded-tl"></div>
-                                        <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-blue-300 rounded-tr"></div>
-                                        <div className="absolute bottom-0 left-0 w-2 h-2 border-b border-l border-blue-300 rounded-bl"></div>
-                                        <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-blue-300 rounded-br"></div>
+                                <div className="relative group flex flex-col items-center">
+                                    {/* Tech Label Content - No Box */}
+                                    <div className="relative z-10 flex flex-col items-center group-hover:scale-110 transition-transform duration-300">
+                                        <div className="text-transparent bg-clip-text bg-gradient-to-r from-blue-200 via-white to-blue-200 text-3xl font-bold tracking-widest drop-shadow-[0_0_15px_rgba(59,130,246,0.8)]">
+                                            {mod.title}
+                                        </div>
+                                        {/* Tech Underline Decoration */}
+                                        <div className="w-full h-[2px] mt-1 bg-gradient-to-r from-transparent via-blue-400 to-transparent shadow-[0_0_10px_#3b82f6] opacity-80 group-hover:opacity-100 transition-opacity"></div>
+                                        <div className="absolute -bottom-1 w-1 h-1 bg-blue-200 rounded-full shadow-[0_0_5px_white]"></div>
                                     </div>
-                                    
-                                    {/* Glow Effect */}
-                                    <div className="absolute -inset-2 bg-blue-500/20 rounded-xl blur-md -z-0 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                                    
-                                    {/* Connecting Line (Visual only, pointing towards center) */}
-                                    <div className={`absolute w-12 h-[1px] bg-gradient-to-r from-blue-500/50 to-transparent -z-10 ${
-                                        mod.style.left ? 'right-0 translate-x-full top-1/2' : 'left-0 -translate-x-full top-1/2 rotate-180'
-                                    }`}></div>
                                 </div>
                             </div>
                         ))}
@@ -337,30 +327,31 @@ export default function DigitalCockpit() {
                 </div>
 
                 {/* Right Column - 作业票分析 + 安全小知识 */}
-                <div className="col-span-12 lg:col-span-3 flex flex-col gap-6 h-full overflow-y-auto lg:overflow-hidden pl-2 lg:pl-0">
+                <div className="col-span-12 lg:col-span-3 flex flex-col gap-4 h-full overflow-y-auto lg:overflow-hidden pl-2 lg:pl-0">
                     {/* Weather Module */}
                     <TechPanel 
                         title="气象监测" 
-                        className="flex-none cursor-pointer hover:border-blue-400 transition-all hover:shadow-[0_0_30px_rgba(59,130,246,0.4)]"
+                        className="flex-none h-[110px] cursor-pointer hover:border-blue-400 transition-all hover:shadow-[0_0_30px_rgba(59,130,246,0.4)]"
                         onClick={() => navigate('/risk')}
+                        compact={true}
                     >
-                        <div className="flex items-center justify-between px-6 py-4">
-                            <div className="flex flex-col items-center">
-                                <i className="fas fa-cloud text-5xl text-blue-400 mb-3"></i>
-                                <span className="text-4xl font-bold text-white">{weatherData.temp}°C</span>
+                        <div className="flex items-center justify-between px-2 h-full">
+                            <div className="flex items-center gap-2">
+                                <i className="fas fa-cloud text-3xl text-blue-400"></i>
+                                <span className="text-2xl font-bold text-white">{weatherData.temp}°C</span>
                             </div>
-                            <div className="flex flex-col gap-3 text-base text-blue-200 font-medium">
-                                <div className="flex items-center gap-3">
-                                    <span className="text-blue-400 w-12 font-bold">天气</span>
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-blue-200 font-medium">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-blue-400 font-bold">天气</span>
                                     <span>{weatherData.condition}</span>
                                 </div>
-                                <div className="flex items-center gap-3">
-                                    <span className="text-blue-400 w-12 font-bold">风向</span>
-                                    <span>{weatherData.windDirection} {weatherData.windSpeed}</span>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <span className="text-blue-400 w-12 font-bold">湿度</span>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-blue-400 font-bold">湿度</span>
                                     <span>{weatherData.humidity}%</span>
+                                </div>
+                                <div className="flex items-center gap-2 col-span-2">
+                                    <span className="text-blue-400 font-bold">风向</span>
+                                    <span>{weatherData.windDirection} {weatherData.windSpeed}</span>
                                 </div>
                             </div>
                         </div>
@@ -369,14 +360,15 @@ export default function DigitalCockpit() {
                     {/* Work Permit Analysis */}
                     <TechPanel 
                         title="作业票分析" 
-                        className="flex-none cursor-pointer hover:border-blue-400 transition-all hover:shadow-[0_0_30px_rgba(59,130,246,0.4)]"
+                        className="flex-none h-[430px] cursor-pointer hover:border-blue-400 transition-all hover:shadow-[0_0_30px_rgba(59,130,246,0.4)]"
                         onClick={() => navigate('/work-permit')}
+                        compact={true}
                     >
-                        <div className="grid grid-cols-4 gap-3">
+                        <div className="flex flex-col h-full justify-between py-1 px-1 overflow-hidden">
                             {workPermitStats.map((stat, index) => (
-                                <div key={index} className="bg-blue-950/40 p-3 rounded-lg border border-blue-800/40 flex flex-col items-center justify-center text-center group hover:bg-blue-900/50 transition-colors">
-                                    <div className="text-2xl font-bold text-white font-mono mb-1">{stat.value}</div>
-                                    <div className="text-xs text-blue-300 font-bold">{stat.label}</div>
+                                <div key={index} className="relative flex items-center justify-between px-4 py-1 rounded bg-gradient-to-r from-blue-900/30 to-transparent border-l-4 border-blue-600 hover:border-yellow-400 hover:from-blue-800/40 transition-all group">
+                                    <div className="text-lg text-cyan-100 font-bold tracking-wider group-hover:text-white transition-colors">{stat.label}</div>
+                                    <div className="text-3xl font-bold text-yellow-400 font-mono drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] group-hover:scale-110 transition-transform">{stat.value}</div>
                                 </div>
                             ))}
                         </div>
@@ -385,7 +377,7 @@ export default function DigitalCockpit() {
                     {/* Safety Knowledge */}
                     <TechPanel 
                         title="安全小知识" 
-                        className="flex-1 min-h-[400px] cursor-pointer hover:border-blue-400 transition-all hover:shadow-[0_0_30px_rgba(59,130,246,0.4)]"
+                        className="flex-1 min-h-0 cursor-pointer hover:border-blue-400 transition-all hover:shadow-[0_0_30px_rgba(59,130,246,0.4)]"
                         onClick={() => navigate('/training')}
                     >
                         <AutoScrollList>
@@ -472,10 +464,10 @@ function AutoScrollList({ children, className = '', speed = 0.2 }) {
 }
 
 // Enhanced Tech Panel Component
-function TechPanel({ title, children, className = '', onClick }) {
+function TechPanel({ title, children, className = '', onClick, compact = false }) {
     return (
         <div 
-            className={`bg-[#0f172a]/60 border border-blue-500/30 rounded-xl p-6 flex flex-col relative overflow-hidden backdrop-blur-md shadow-lg ${className}`}
+            className={`bg-[#0f172a]/60 border border-blue-500/30 rounded-xl ${compact ? 'p-3' : 'p-6'} flex flex-col relative overflow-hidden backdrop-blur-md shadow-lg ${className}`}
             onClick={onClick}
         >
             {/* Glowing Corner Accents */}
@@ -485,8 +477,8 @@ function TechPanel({ title, children, className = '', onClick }) {
             <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-blue-400 rounded-br-lg shadow-[0_0_10px_rgba(96,165,250,0.8)]"></div>
             
             {/* Title Bar */}
-            <div className="flex items-center justify-between mb-6 border-b border-blue-500/20 pb-3 relative">
-                <h3 className="text-blue-100 font-bold text-xl flex items-center gap-3 tracking-wide">
+            <div className={`flex items-center justify-between ${compact ? 'mb-2 pb-1' : 'mb-6 pb-3'} border-b border-blue-500/20 relative`}>
+                <h3 className={`text-blue-100 font-bold ${compact ? 'text-lg' : 'text-xl'} flex items-center gap-3 tracking-wide`}>
                     <i className="fas fa-caret-right text-blue-500 text-lg"></i>
                     {title}
                 </h3>
