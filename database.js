@@ -48,6 +48,23 @@ function initDb() {
             // Ignore error if column already exists
         });
 
+        // Create Camera URLs table for AI monitoring jump links
+        db.run(`CREATE TABLE IF NOT EXISTS camera_urls (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            camera_id INTEGER UNIQUE,
+            camera_name TEXT,
+            location TEXT,
+            jump_url TEXT,
+            description TEXT,
+            status TEXT DEFAULT '在线',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`);
+
+        // Migration: add location and status columns if not exist
+        db.run("ALTER TABLE camera_urls ADD COLUMN location TEXT", (err) => {});
+        db.run("ALTER TABLE camera_urls ADD COLUMN status TEXT DEFAULT '在线'", (err) => {});
+
         // Seed Users if empty
         db.get("SELECT count(*) as count FROM users", (err, row) => {
             if (row.count === 0) {
