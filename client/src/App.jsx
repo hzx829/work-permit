@@ -24,6 +24,7 @@ import SafetyAssessment from './pages/SafetyAssessment';
 import SafetyOfficer from './pages/SafetyOfficer';
 import SafetyReview from './pages/SafetyReview';
 import FireSafety from './pages/FireSafety';
+import ConfinedSpaceEmergency from './components/ConfinedSpaceEmergency';
 
 function App() {
   return (
@@ -66,6 +67,7 @@ function App() {
             <Route path="/safety-review" element={<SafetyReview />} />
             <Route path="/fire-safety" element={<FireSafety />} />
             <Route path="/equipment" element={<Equipment />} />
+            <Route path="/confined-space-emergency" element={<ConfinedSpaceEmergency />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
