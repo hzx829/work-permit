@@ -3,7 +3,8 @@ const path = require('path');
 const db = require('./database');
 
 const app = express();
-const PORT = process.env.PORT || 80;
+// 开发环境使用3000端口（配合vite proxy），生产环境使用80端口
+const PORT = process.env.PORT || (process.env.NODE_ENV === 'production' ? 80 : 3000);
 
 app.use(express.json({ limit: '10mb' })); // Increased limit for base64 images
 
@@ -198,14 +199,36 @@ app.get('/api/regulation', (req, res) => {
 
 // Video Monitoring Mock API (Updated with AI alarm info)
 app.get('/api/video', (req, res) => {
-    const mockData = {
-        stats: {
-            total: 156,
-            online: 152,
-            offline: 4,
-            alerts: 23
-        },
-        cameras: [
+    // Get camera URLs from database
+    db.all('SELECT * FROM camera_urls', [], (err, urlRows) => {
+        const urlMap = {};
+        const customCameras = [];
+        const defaultCameraIds = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+        
+        if (!err && urlRows) {
+            urlRows.forEach(row => {
+                urlMap[row.camera_id] = {
+                    jump_url: row.jump_url,
+                    camera_name: row.camera_name,
+                    location: row.location,
+                    status: row.status
+                };
+                // 如果是自定义添加的摄像头（不在默认列表中），添加到customCameras
+                if (!defaultCameraIds.includes(row.camera_id)) {
+                    customCameras.push({
+                        id: row.camera_id,
+                        name: row.camera_name || `摄像头-${row.camera_id}`,
+                        location: row.location || '未设置',
+                        status: row.status || '在线',
+                        lastOnline: new Date().toISOString().replace('T', ' ').substring(0, 19),
+                        jumpUrl: row.jump_url,
+                        isCustom: true
+                    });
+                }
+            });
+        }
+        
+        const defaultCameras = [
             { id: 1, name: '化工1#车间-入口', location: '化工1#车间', status: '在线', lastOnline: '2024-12-04 10:30:00' },
             { id: 2, name: '化工1#车间-操作区', location: '化工1#车间', status: '在线', lastOnline: '2024-12-04 10:30:00' },
             { id: 3, name: '化工2#车间-入口', location: '化工2#车间', status: '在线', lastOnline: '2024-12-04 10:30:00' },
@@ -215,17 +238,41 @@ app.get('/api/video', (req, res) => {
             { id: 7, name: '动力站-锅炉房', location: '动力站', status: '在线', lastOnline: '2024-12-04 10:30:00' },
             { id: 8, name: '仓库-危化品区', location: '仓库', status: '在线', lastOnline: '2024-12-04 10:30:00' },
             { id: 9, name: '大门-进出口', location: '厂区大门', status: '在线', lastOnline: '2024-12-04 10:30:00' },
-        ],
-        aiAlarms: [
-            { id: 1, location: '化工2#车间', type: '违规作业', reason: '未带安全帽', time: '2024-12-04 15:00:23', status: '处理中' },
-            { id: 2, location: '化工1#车间', type: '人员闯入', reason: '无授权进入禁区', time: '2024-12-04 14:35:12', status: '已处理' },
-            { id: 3, location: '化工3#车间', type: '违规作业', reason: '未穿防护服', time: '2024-12-04 14:22:45', status: '处理中' },
-            { id: 4, location: '仓库区', type: '烟雾检测', reason: '疑似吸烟', time: '2024-12-04 13:58:33', status: '已处理' },
-            { id: 5, location: '化工2#车间', type: '违规作业', reason: '未带防护面罩', time: '2024-12-04 13:42:18', status: '处理中' },
-            { id: 6, location: '动力站', type: '人员倒地', reason: '疑似摔倒或晕倒', time: '2024-12-04 13:25:07', status: '已处理' },
-        ]
-    };
-    res.json(mockData);
+        ].map(camera => {
+            const config = urlMap[camera.id];
+            return {
+                ...camera,
+                // 如果有配置，可以覆盖默认的name和location
+                name: config?.camera_name || camera.name,
+                location: config?.location || camera.location,
+                status: config?.status || camera.status,
+                jumpUrl: config?.jump_url || null,
+                isCustom: false
+            };
+        });
+        
+        // 合并自定义摄像头和默认摄像头，新添加的排在前面
+        const cameras = [...customCameras, ...defaultCameras];
+
+        const mockData = {
+            stats: {
+                total: 156,
+                online: 152,
+                offline: 4,
+                alerts: 23
+            },
+            cameras,
+            aiAlarms: [
+                { id: 1, location: '化工2#车间', type: '违规作业', reason: '未带安全帽', time: '2024-12-04 15:00:23', status: '处理中' },
+                { id: 2, location: '化工1#车间', type: '人员闯入', reason: '无授权进入禁区', time: '2024-12-04 14:35:12', status: '已处理' },
+                { id: 3, location: '化工3#车间', type: '违规作业', reason: '未穿防护服', time: '2024-12-04 14:22:45', status: '处理中' },
+                { id: 4, location: '仓库区', type: '烟雾检测', reason: '疑似吸烟', time: '2024-12-04 13:58:33', status: '已处理' },
+                { id: 5, location: '化工2#车间', type: '违规作业', reason: '未带防护面罩', time: '2024-12-04 13:42:18', status: '处理中' },
+                { id: 6, location: '动力站', type: '人员倒地', reason: '疑似摔倒或晕倒', time: '2024-12-04 13:25:07', status: '已处理' },
+            ]
+        };
+        res.json(mockData);
+    });
 });
 
 // Occupational Health Mock API
@@ -576,6 +623,90 @@ app.put('/api/work-permits/:id/status', (req, res) => {
             return;
         }
         res.json({ success: true });
+    });
+});
+
+// ========== Camera URL Configuration APIs ==========
+
+// Get all camera URL configs
+app.get('/api/camera-urls', (req, res) => {
+    db.all('SELECT * FROM camera_urls ORDER BY camera_id', [], (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        res.json(rows || []);
+    });
+});
+
+// Get single camera URL config
+app.get('/api/camera-urls/:cameraId', (req, res) => {
+    const { cameraId } = req.params;
+    db.get('SELECT * FROM camera_urls WHERE camera_id = ?', [cameraId], (err, row) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        res.json(row || null);
+    });
+});
+
+// Create or update camera URL config
+app.post('/api/camera-urls', (req, res) => {
+    const { camera_id, camera_name, location, jump_url, description, status } = req.body;
+    
+    if (!jump_url) {
+        res.status(400).json({ error: 'jump_url is required' });
+        return;
+    }
+
+    // 如果提供了camera_id，则更新；否则自动生成新ID
+    if (camera_id) {
+        const sql = `INSERT INTO camera_urls (camera_id, camera_name, location, jump_url, description, status, updated_at)
+                     VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+                     ON CONFLICT(camera_id) DO UPDATE SET
+                     camera_name = excluded.camera_name,
+                     location = excluded.location,
+                     jump_url = excluded.jump_url,
+                     description = excluded.description,
+                     status = excluded.status,
+                     updated_at = datetime('now')`;
+        
+        db.run(sql, [camera_id, camera_name, location || '', jump_url, description, status || '在线'], function(err) {
+            if (err) {
+                res.status(500).json({ error: err.message });
+                return;
+            }
+            res.json({ success: true, camera_id: camera_id });
+        });
+    } else {
+        // 自动生成ID：获取当前最大ID，从100开始（避免与默认摄像头1-9冲突）
+        db.get('SELECT MAX(camera_id) as maxId FROM camera_urls', [], (err, row) => {
+            const newId = Math.max((row?.maxId || 0) + 1, 100);
+            
+            const sql = `INSERT INTO camera_urls (camera_id, camera_name, location, jump_url, description, status, updated_at)
+                         VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`;
+            
+            db.run(sql, [newId, camera_name, location || '', jump_url, description, status || '在线'], function(err) {
+                if (err) {
+                    res.status(500).json({ error: err.message });
+                    return;
+                }
+                res.json({ success: true, camera_id: newId });
+            });
+        });
+    }
+});
+
+// Delete camera URL config
+app.delete('/api/camera-urls/:cameraId', (req, res) => {
+    const { cameraId } = req.params;
+    db.run('DELETE FROM camera_urls WHERE camera_id = ?', [cameraId], function(err) {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        res.json({ success: true, deleted: this.changes > 0 });
     });
 });
 
