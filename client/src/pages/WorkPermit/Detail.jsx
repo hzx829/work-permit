@@ -180,7 +180,13 @@ export default function Detail() {
                     <div className="lg:col-span-2 space-y-6">
                         {SpecificForm ? (
                             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                                <SpecificForm data={permit} readOnly={true} onChange={() => {}} />
+                                <SpecificForm 
+                                    data={permit} 
+                                    readOnly={true} 
+                                    onChange={(field, value) => setPermit(prev => ({ ...prev, [field]: value }))} 
+                                    userRole={user?.role} 
+                                    status={permit.status} 
+                                />
                             </div>
                         ) : (
                             <>
@@ -318,9 +324,15 @@ export default function Detail() {
                             {/* 安全员审批按钮 - 仅安全员且状态为待审批时显示 */}
                             {user?.role === 'safety' && permit.status === '待审批' && (
                                 <>
+                                    {!permit.approver_sign && (
+                                        <p className="text-xs text-orange-600 bg-orange-50 px-3 py-2 rounded mb-3">
+                                            <i className="fas fa-info-circle mr-1"></i>
+                                            请先在下方完成审批人签字后再点击批准
+                                        </p>
+                                    )}
                                     <button
                                         onClick={handleApprove}
-                                        disabled={approving}
+                                        disabled={approving || !permit.approver_sign}
                                         className="w-full py-3 px-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors mb-3 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
                                     >
                                         <i className="fas fa-check mr-2"></i>
@@ -339,26 +351,42 @@ export default function Detail() {
                             
                             {/* 作业人员开始作业按钮 - 仅作业人员本人且状态为已批准时显示 */}
                             {user?.role === 'worker' && user?.id === permit.applicant_id && permit.status === '已批准' && (
-                                <button
-                                    onClick={handleStartWork}
-                                    disabled={approving}
-                                    className="w-full py-3 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-                                >
-                                    <i className="fas fa-play mr-2"></i>
-                                    {approving ? '处理中...' : '开始作业'}
-                                </button>
+                                <>
+                                    {!permit.safety_briefing_sign && (
+                                        <p className="text-xs text-orange-600 bg-orange-50 px-3 py-2 rounded mb-3">
+                                            <i className="fas fa-info-circle mr-1"></i>
+                                            请先在下方完成安全交底签字后再开始作业
+                                        </p>
+                                    )}
+                                    <button
+                                        onClick={handleStartWork}
+                                        disabled={approving || !permit.safety_briefing_sign}
+                                        className="w-full py-3 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                                    >
+                                        <i className="fas fa-play mr-2"></i>
+                                        {approving ? '处理中...' : '开始作业'}
+                                    </button>
+                                </>
                             )}
                             
                             {/* 作业人员结束作业按钮 - 仅作业人员本人且状态为作业中时显示 */}
                             {user?.role === 'worker' && user?.id === permit.applicant_id && permit.status === '作业中' && (
-                                <button
-                                    onClick={handleCompleteWork}
-                                    disabled={approving}
-                                    className="w-full py-3 px-4 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-                                >
-                                    <i className="fas fa-flag-checkered mr-2"></i>
-                                    {approving ? '处理中...' : '结束作业'}
-                                </button>
+                                <>
+                                    {!permit.completion_sign && (
+                                        <p className="text-xs text-orange-600 bg-orange-50 px-3 py-2 rounded mb-3">
+                                            <i className="fas fa-info-circle mr-1"></i>
+                                            请先在下方完成完工验收签字后再结束作业
+                                        </p>
+                                    )}
+                                    <button
+                                        onClick={handleCompleteWork}
+                                        disabled={approving || !permit.completion_sign}
+                                        className="w-full py-3 px-4 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                                    >
+                                        <i className="fas fa-flag-checkered mr-2"></i>
+                                        {approving ? '处理中...' : '结束作业'}
+                                    </button>
+                                </>
                             )}
                             
                             {/* 无可操作时显示提示 */}

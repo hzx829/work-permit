@@ -48,11 +48,18 @@ const PersonSelect = ({ value, onChange, name, options, unqualifiedOptions = [],
     </div>
 );
 
-export default function ConfinedSpacePermitForm({ data, onChange, readOnly = false }) {
+export default function ConfinedSpacePermitForm({ data, onChange, readOnly = false, userRole = '', status = '' }) {
     const [isDetecting, setIsDetecting] = React.useState(false);
     const [hasStartedDetection, setHasStartedDetection] = React.useState(false);
     const [blindPlateData, setBlindPlateData] = React.useState(null);
     const [loadingBlindPlate, setLoadingBlindPlate] = React.useState(false);
+    
+    // 判断当前用户是否可以签审批人的字（只有safety角色且状态为待审批）
+    const canApprove = userRole === 'safety' && status === '待审批';
+    // 判断是否可以签安全交底（已批准状态，作业人可签）
+    const canSafetyBriefing = userRole === 'worker' && status === '已批准';
+    // 判断是否可以签完工（作业中状态，作业人可签）
+    const canComplete = userRole === 'worker' && status === '作业中';
 
     // 模拟盲板作业信息关联
     React.useEffect(() => {
@@ -635,57 +642,34 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
 
             {/* Signatures and Approvals Section */}
             <div className="mt-8">
-                <h2 className="text-base font-bold text-blue-600 mb-6">签字与验收</h2>
+                <h2 className="text-base font-bold text-blue-600 mb-6">
+                    {!readOnly ? '作业人员签字' : '签字流程'}
+                </h2>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                     <FormField label="安全交底人">
-                        <Input 
-                            type="text" 
-                            name="safety_discloser"
-                            value={data.safety_discloser || ''}
-                            onChange={handleChange}
-                            placeholder="请输入"
-                        />
-                    </FormField>
-                    <FormField label="接受交底人">
-                        <Input 
-                            type="text" 
-                            name="safety_receiver"
-                            value={data.safety_receiver || ''}
-                            onChange={handleChange}
-                            placeholder="请输入"
-                        />
-                    </FormField>
-                    <FormField label="监护人">
-                        <Input 
-                            type="text" 
-                            name="guardian"
-                            value={data.guardian || ''}
-                            onChange={handleChange}
-                            placeholder="请输入"
-                        />
-                    </FormField>
-                </div>
-
                 <div className="space-y-6">
-                    {/* Supervisor Opinion */}
+                    {/* 作业人员签字确认 - 新建时可编辑 */}
                     <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                        <FormField label="作业负责人意见">
+                        <div className="flex items-center gap-2 mb-3">
+                            <span className="text-sm font-medium text-gray-700">作业人员签字确认</span>
+                            {data.worker_sign && <span className="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded">已签字</span>}
+                        </div>
+                        <FormField label="">
                             <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
                                 <div className="md:col-span-6">
                                     <Input 
                                         type="text" 
-                                        name="supervisor_opinion"
-                                        value={data.supervisor_opinion || ''}
+                                        name="worker_confirm"
+                                        value={data.worker_confirm || ''}
                                         onChange={handleChange}
-                                        placeholder="同意作业"
+                                        placeholder="本人已了解作业风险及安全措施"
+                                        readOnly={readOnly}
                                     />
                                 </div>
                                 <div className="md:col-span-3">
                                     <div className="h-24">
                                         <SignaturePad 
-                                            value={data.supervisor_sign}
-                                            onChange={(val) => onChange('supervisor_sign', val)}
+                                            value={data.worker_sign}
+                                            onChange={(val) => onChange('worker_sign', val)}
                                             disabled={readOnly}
                                             className="w-full h-full"
                                         />
@@ -694,55 +678,26 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                                 <div className="md:col-span-3">
                                     <Input 
                                         type="datetime-local" 
-                                        name="supervisor_sign_time"
-                                        value={data.supervisor_sign_time || ''}
+                                        name="worker_sign_time"
+                                        value={data.worker_sign_time || ''}
                                         onChange={handleChange}
+                                        readOnly={readOnly}
                                     />
                                 </div>
                             </div>
                         </FormField>
                     </div>
 
-                    {/* Unit Opinion */}
-                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                        <FormField label="所在单位意见">
-                            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
-                                <div className="md:col-span-6">
-                                    <Input 
-                                        type="text" 
-                                        name="unit_opinion"
-                                        value={data.unit_opinion || ''}
-                                        onChange={handleChange}
-                                        placeholder="同意作业"
-                                    />
-                                </div>
-                                <div className="md:col-span-3">
-                                    <div className="h-24">
-                                        <SignaturePad 
-                                            value={data.unit_sign}
-                                            onChange={(val) => onChange('unit_sign', val)}
-                                            disabled={readOnly}
-                                            className="w-full h-full"
-                                        />
-                                    </div>
-                                </div>
-                                <div className="md:col-span-3">
-                                    <Input 
-                                        type="datetime-local" 
-                                        name="unit_sign_time"
-                                        value={data.unit_sign_time || ''}
-                                        onChange={handleChange}
-                                    />
-                                </div>
-                            </div>
-                        </FormField>
-                    </div>
-
-
-
-                    {/* Approver Opinion */}
-                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                        <FormField label="审批人意见">
+                    {/* 审批人签字 - 只要是readOnly就显示，待审批状态时safety角色可编辑 */}
+                    {readOnly && (
+                    <div className={`p-4 rounded-lg border ${canApprove ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'}`}>
+                        <div className="flex items-center gap-2 mb-3">
+                            <span className="text-sm font-medium text-gray-700">审批人签字</span>
+                            {data.approver_sign && <span className="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded">已签字</span>}
+                            {canApprove && !data.approver_sign && <span className="text-xs text-orange-600 bg-orange-50 px-2 py-0.5 rounded">待签字</span>}
+                            {!canApprove && !data.approver_sign && <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">未签字</span>}
+                        </div>
+                        <FormField label="">
                             <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
                                 <div className="md:col-span-6">
                                     <Input 
@@ -751,6 +706,7 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                                         value={data.approver_opinion || ''}
                                         onChange={handleChange}
                                         placeholder="同意作业"
+                                        readOnly={!canApprove}
                                     />
                                 </div>
                                 <div className="md:col-span-3">
@@ -758,7 +714,7 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                                         <SignaturePad 
                                             value={data.approver_sign}
                                             onChange={(val) => onChange('approver_sign', val)}
-                                            disabled={readOnly}
+                                            disabled={!canApprove}
                                             className="w-full h-full"
                                         />
                                     </div>
@@ -769,31 +725,41 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                                         name="approver_sign_time"
                                         value={data.approver_sign_time || ''}
                                         onChange={handleChange}
+                                        readOnly={!canApprove}
                                     />
                                 </div>
                             </div>
                         </FormField>
                     </div>
+                    )}
 
-                    {/* Completion Acceptance */}
-                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                        <FormField label="完工验收">
+                    {/* 安全交底签字 - 审批通过后显示，已批准状态时作业人可编辑 */}
+                    {readOnly && status !== '待审批' && status !== '已驳回' && (
+                    <div className={`p-4 rounded-lg border ${canSafetyBriefing ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}`}>
+                        <div className="flex items-center gap-2 mb-3">
+                            <span className="text-sm font-medium text-gray-700">安全交底签字</span>
+                            {data.safety_briefing_sign && <span className="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded">已签字</span>}
+                            {canSafetyBriefing && !data.safety_briefing_sign && <span className="text-xs text-orange-600 bg-orange-50 px-2 py-0.5 rounded">待签字</span>}
+                            {!canSafetyBriefing && !data.safety_briefing_sign && <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">未签字</span>}
+                        </div>
+                        <FormField label="">
                             <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
                                 <div className="md:col-span-6">
                                     <Input 
                                         type="text" 
-                                        name="completion_acceptance"
-                                        value={data.completion_acceptance || ''}
+                                        name="safety_briefing_confirm"
+                                        value={data.safety_briefing_confirm || ''}
                                         onChange={handleChange}
-                                        placeholder="作业已完成，人员已撤离，现场已清理"
+                                        placeholder="已接受安全交底，了解作业风险和安全措施"
+                                        readOnly={!canSafetyBriefing}
                                     />
                                 </div>
                                 <div className="md:col-span-3">
                                     <div className="h-24">
                                         <SignaturePad 
-                                            value={data.completion_sign}
-                                            onChange={(val) => onChange('completion_sign', val)}
-                                            disabled={readOnly}
+                                            value={data.safety_briefing_sign}
+                                            onChange={(val) => onChange('safety_briefing_sign', val)}
+                                            disabled={!canSafetyBriefing}
                                             className="w-full h-full"
                                         />
                                     </div>
@@ -801,14 +767,61 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                                 <div className="md:col-span-3">
                                     <Input 
                                         type="datetime-local" 
-                                        name="completion_sign_time"
-                                        value={data.completion_sign_time || ''}
+                                        name="safety_briefing_time"
+                                        value={data.safety_briefing_time || ''}
                                         onChange={handleChange}
+                                        readOnly={!canSafetyBriefing}
                                     />
                                 </div>
                             </div>
                         </FormField>
                     </div>
+                    )}
+
+                    {/* 完工验收签字 - 作业中或已完工时显示，作业中状态时作业人可编辑 */}
+                    {readOnly && (status === '作业中' || status === '已完工') && (
+                    <div className={`p-4 rounded-lg border ${canComplete ? 'bg-orange-50 border-orange-200' : 'bg-gray-50 border-gray-200'}`}>
+                        <div className="flex items-center gap-2 mb-3">
+                            <span className="text-sm font-medium text-gray-700">完工验收签字</span>
+                            {data.completion_sign && <span className="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded">已签字</span>}
+                            {canComplete && !data.completion_sign && <span className="text-xs text-orange-600 bg-orange-50 px-2 py-0.5 rounded">待签字</span>}
+                            {!canComplete && !data.completion_sign && <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">未签字</span>}
+                        </div>
+                        <FormField label="">
+                            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+                                <div className="md:col-span-6">
+                                    <Input 
+                                        type="text" 
+                                        name="completion_confirm"
+                                        value={data.completion_confirm || ''}
+                                        onChange={handleChange}
+                                        placeholder="作业已完成，人员已撤离，现场已清理"
+                                        readOnly={!canComplete}
+                                    />
+                                </div>
+                                <div className="md:col-span-3">
+                                    <div className="h-24">
+                                        <SignaturePad 
+                                            value={data.completion_sign}
+                                            onChange={(val) => onChange('completion_sign', val)}
+                                            disabled={!canComplete}
+                                            className="w-full h-full"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="md:col-span-3">
+                                    <Input 
+                                        type="datetime-local" 
+                                        name="completion_time"
+                                        value={data.completion_time || ''}
+                                        onChange={handleChange}
+                                        readOnly={!canComplete}
+                                    />
+                                </div>
+                            </div>
+                        </FormField>
+                    </div>
+                    )}
                 </div>
             </div>
         </div>
