@@ -48,10 +48,91 @@ const PersonSelect = ({ value, onChange, name, options, unqualifiedOptions = [],
     </div>
 );
 
-export default function ConfinedSpacePermitForm({ data, onChange, readOnly = false }) {
-    const [isDetecting, setIsDetecting] = React.useState(true);
+// 图片查看模态框组件
+const ImageViewerModal = ({ images, isOpen, onClose, initialIndex = 0 }) => {
+    const [currentIndex, setCurrentIndex] = React.useState(initialIndex);
+
+    React.useEffect(() => {
+        setCurrentIndex(initialIndex);
+    }, [initialIndex, isOpen]);
+
+    if (!isOpen || !images || images.length === 0) return null;
+
+    const handlePrev = () => {
+        setCurrentIndex((prev) => (prev > 0 ? prev - 1 : images.length - 1));
+    };
+
+    const handleNext = () => {
+        setCurrentIndex((prev) => (prev < images.length - 1 ? prev + 1 : 0));
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50" onClick={onClose}>
+            <div className="relative max-w-4xl max-h-[90vh] w-full mx-4" onClick={(e) => e.stopPropagation()}>
+                {/* 关闭按钮 */}
+                <button 
+                    onClick={onClose}
+                    className="absolute -top-10 right-0 text-white hover:text-gray-300 transition-colors"
+                >
+                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+                
+                {/* 图片显示 */}
+                <div className="bg-white rounded-lg overflow-hidden">
+                    <img 
+                        src={images[currentIndex]} 
+                        alt={`安全交底图片 ${currentIndex + 1}`}
+                        className="w-full h-auto max-h-[80vh] object-contain"
+                    />
+                </div>
+                
+                {/* 导航按钮 */}
+                {images.length > 1 && (
+                    <>
+                        <button 
+                            onClick={handlePrev}
+                            className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full transition-colors"
+                        >
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                            </svg>
+                        </button>
+                        <button 
+                            onClick={handleNext}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full transition-colors"
+                        >
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                        </button>
+                        
+                        {/* 图片计数 */}
+                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 text-white px-3 py-1 rounded-full text-sm">
+                            {currentIndex + 1} / {images.length}
+                        </div>
+                    </>
+                )}
+            </div>
+        </div>
+    );
+};
+
+export default function ConfinedSpacePermitForm({ data, onChange, readOnly = false, userRole = '', status = '' }) {
+    const [isDetecting, setIsDetecting] = React.useState(false);
+    const [hasStartedDetection, setHasStartedDetection] = React.useState(false);
     const [blindPlateData, setBlindPlateData] = React.useState(null);
     const [loadingBlindPlate, setLoadingBlindPlate] = React.useState(false);
+    const [imageViewerOpen, setImageViewerOpen] = React.useState(false);
+    const [imageViewerIndex, setImageViewerIndex] = React.useState(0);
+    
+    // 判断当前用户是否可以签审批人的字（只有safety角色且状态为待审批）
+    const canApprove = userRole === 'safety' && status === '待审批';
+    // 判断是否可以签安全交底（已批准状态，作业人可签）
+    const canSafetyBriefing = userRole === 'worker' && status === '已批准';
+    // 判断是否可以签完工（作业中状态，作业人可签）
+    const canComplete = userRole === 'worker' && status === '作业中';
 
     // 模拟盲板作业信息关联
     React.useEffect(() => {
@@ -89,13 +170,25 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
         }
     }, [data.supervisor, data.workers, readOnly, blindPlateData]);
 
-    // 模拟后台检测加载过程
+    // 模拟后台检测加载过程 - 仅在作业内容填写后才开始检测
     React.useEffect(() => {
-        const timer = setTimeout(() => {
+        // 如果是只读模式（审批/查看），直接显示结果
+        if (readOnly) {
             setIsDetecting(false);
-        }, 10000); // 10秒后显示检测结果
-        return () => clearTimeout(timer);
-    }, []);
+            setHasStartedDetection(true);
+            return;
+        }
+        
+        // 如果作业内容已填写且尚未开始检测，则开始检测
+        if (data.content && data.content.trim() && !hasStartedDetection) {
+            setIsDetecting(true);
+            setHasStartedDetection(true);
+            const timer = setTimeout(() => {
+                setIsDetecting(false);
+            }, 10000); // 10秒后显示检测结果
+            return () => clearTimeout(timer);
+        }
+    }, [data.content, hasStartedDetection, readOnly]);
 
     const handleChange = (e) => {
         if (readOnly) return;
@@ -147,6 +240,7 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
     }, []);
 
     return (
+    <>
         <div className="w-full max-w-7xl mx-auto bg-white p-8">
             {/* Header */}
             <div className="flex items-center justify-between mb-8">
@@ -216,7 +310,15 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                     <div className="md:col-span-2 mt-2 mb-4">
                         <h3 className="text-base font-bold text-blue-600 mb-3">现场安全条件确认</h3>
                         <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3">
-                            {isDetecting ? (
+                            {!hasStartedDetection && !readOnly ? (
+                                /* 等待填写作业内容 */
+                                <div className="flex items-center justify-center gap-3 py-4">
+                                    <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <span className="text-gray-500">请先填写「作业内容」后，系统将自动检测现场安全条件</span>
+                                </div>
+                            ) : isDetecting ? (
                                 /* Loading 状态 */
                                 <>
                                     <div className="flex items-center justify-between animate-pulse">
@@ -359,6 +461,8 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                             readOnly={readOnly}
                         />
                     </FormField>
+                    {/* 关联的其他特殊作业及安全作业票编号 - 仅在审批时显示 */}
+                    {readOnly && (
                     <FormField label="关联的其他特殊作业及安全作业票编号" className="md:col-span-2">
                         {/* 盲板抽堵作业关联信息展示 */}
                         {(loadingBlindPlate || blindPlateData) ? (
@@ -411,6 +515,7 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                             </div>
                         )}
                     </FormField>
+                    )}
                     <FormField label="风险辨识结果" className="md:col-span-2">
                         <Input 
                             type="text" 
@@ -423,7 +528,8 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                 </div>
             </div>
 
-            {/* Gas Analysis */}
+            {/* Gas Analysis - 仅在审批时显示 */}
+            {readOnly && (
             <div className="mb-8">
                 <h2 className="text-base font-bold text-blue-600 mb-6">气体分析</h2>
                 <div className="bg-gray-50 rounded-lg border border-gray-200 p-6">
@@ -523,6 +629,7 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                     </div>
                 </div>
             </div>
+            )}
 
              {/* Time Range */}
              <div className="mb-8">
@@ -609,57 +716,34 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
 
             {/* Signatures and Approvals Section */}
             <div className="mt-8">
-                <h2 className="text-base font-bold text-blue-600 mb-6">签字与验收</h2>
+                <h2 className="text-base font-bold text-blue-600 mb-6">
+                    {!readOnly ? '作业人员签字' : '签字流程'}
+                </h2>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                     <FormField label="安全交底人">
-                        <Input 
-                            type="text" 
-                            name="safety_discloser"
-                            value={data.safety_discloser || ''}
-                            onChange={handleChange}
-                            placeholder="请输入"
-                        />
-                    </FormField>
-                    <FormField label="接受交底人">
-                        <Input 
-                            type="text" 
-                            name="safety_receiver"
-                            value={data.safety_receiver || ''}
-                            onChange={handleChange}
-                            placeholder="请输入"
-                        />
-                    </FormField>
-                    <FormField label="监护人">
-                        <Input 
-                            type="text" 
-                            name="guardian"
-                            value={data.guardian || ''}
-                            onChange={handleChange}
-                            placeholder="请输入"
-                        />
-                    </FormField>
-                </div>
-
                 <div className="space-y-6">
-                    {/* Supervisor Opinion */}
+                    {/* 作业人员签字确认 - 新建时可编辑 */}
                     <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                        <FormField label="作业负责人意见">
+                        <div className="flex items-center gap-2 mb-3">
+                            <span className="text-sm font-medium text-gray-700">作业人员签字确认</span>
+                            {data.worker_sign && <span className="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded">已签字</span>}
+                        </div>
+                        <FormField label="">
                             <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
                                 <div className="md:col-span-6">
                                     <Input 
                                         type="text" 
-                                        name="supervisor_opinion"
-                                        value={data.supervisor_opinion || ''}
+                                        name="worker_confirm"
+                                        value={data.worker_confirm || ''}
                                         onChange={handleChange}
-                                        placeholder="同意作业"
+                                        placeholder="本人已了解作业风险及安全措施"
+                                        readOnly={readOnly}
                                     />
                                 </div>
                                 <div className="md:col-span-3">
                                     <div className="h-24">
                                         <SignaturePad 
-                                            value={data.supervisor_sign}
-                                            onChange={(val) => onChange('supervisor_sign', val)}
+                                            value={data.worker_sign}
+                                            onChange={(val) => onChange('worker_sign', val)}
                                             disabled={readOnly}
                                             className="w-full h-full"
                                         />
@@ -668,55 +752,26 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                                 <div className="md:col-span-3">
                                     <Input 
                                         type="datetime-local" 
-                                        name="supervisor_sign_time"
-                                        value={data.supervisor_sign_time || ''}
+                                        name="worker_sign_time"
+                                        value={data.worker_sign_time || ''}
                                         onChange={handleChange}
+                                        readOnly={readOnly}
                                     />
                                 </div>
                             </div>
                         </FormField>
                     </div>
 
-                    {/* Unit Opinion */}
-                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                        <FormField label="所在单位意见">
-                            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
-                                <div className="md:col-span-6">
-                                    <Input 
-                                        type="text" 
-                                        name="unit_opinion"
-                                        value={data.unit_opinion || ''}
-                                        onChange={handleChange}
-                                        placeholder="同意作业"
-                                    />
-                                </div>
-                                <div className="md:col-span-3">
-                                    <div className="h-24">
-                                        <SignaturePad 
-                                            value={data.unit_sign}
-                                            onChange={(val) => onChange('unit_sign', val)}
-                                            disabled={readOnly}
-                                            className="w-full h-full"
-                                        />
-                                    </div>
-                                </div>
-                                <div className="md:col-span-3">
-                                    <Input 
-                                        type="datetime-local" 
-                                        name="unit_sign_time"
-                                        value={data.unit_sign_time || ''}
-                                        onChange={handleChange}
-                                    />
-                                </div>
-                            </div>
-                        </FormField>
-                    </div>
-
-
-
-                    {/* Approver Opinion */}
-                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                        <FormField label="审批人意见">
+                    {/* 审批人签字 - 只要是readOnly就显示，待审批状态时safety角色可编辑 */}
+                    {readOnly && (
+                    <div className={`p-4 rounded-lg border ${canApprove ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'}`}>
+                        <div className="flex items-center gap-2 mb-3">
+                            <span className="text-sm font-medium text-gray-700">审批人签字</span>
+                            {data.approver_sign && <span className="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded">已签字</span>}
+                            {canApprove && !data.approver_sign && <span className="text-xs text-orange-600 bg-orange-50 px-2 py-0.5 rounded">待签字</span>}
+                            {!canApprove && !data.approver_sign && <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">未签字</span>}
+                        </div>
+                        <FormField label="">
                             <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
                                 <div className="md:col-span-6">
                                     <Input 
@@ -725,6 +780,7 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                                         value={data.approver_opinion || ''}
                                         onChange={handleChange}
                                         placeholder="同意作业"
+                                        readOnly={!canApprove}
                                     />
                                 </div>
                                 <div className="md:col-span-3">
@@ -732,7 +788,7 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                                         <SignaturePad 
                                             value={data.approver_sign}
                                             onChange={(val) => onChange('approver_sign', val)}
-                                            disabled={readOnly}
+                                            disabled={!canApprove}
                                             className="w-full h-full"
                                         />
                                     </div>
@@ -743,31 +799,41 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                                         name="approver_sign_time"
                                         value={data.approver_sign_time || ''}
                                         onChange={handleChange}
+                                        readOnly={!canApprove}
                                     />
                                 </div>
                             </div>
                         </FormField>
                     </div>
+                    )}
 
-                    {/* Completion Acceptance */}
-                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                        <FormField label="完工验收">
+                    {/* 安全交底签字 - 审批通过后显示，已批准状态时作业人可编辑 */}
+                    {readOnly && status !== '待审批' && status !== '已驳回' && (
+                    <div className={`p-4 rounded-lg border ${canSafetyBriefing ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}`}>
+                        <div className="flex items-center gap-2 mb-3">
+                            <span className="text-sm font-medium text-gray-700">安全交底签字</span>
+                            {data.safety_briefing_sign && <span className="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded">已签字</span>}
+                            {canSafetyBriefing && !data.safety_briefing_sign && <span className="text-xs text-orange-600 bg-orange-50 px-2 py-0.5 rounded">待签字</span>}
+                            {!canSafetyBriefing && !data.safety_briefing_sign && <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">未签字</span>}
+                        </div>
+                        <FormField label="">
                             <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
                                 <div className="md:col-span-6">
                                     <Input 
                                         type="text" 
-                                        name="completion_acceptance"
-                                        value={data.completion_acceptance || ''}
+                                        name="safety_briefing_confirm"
+                                        value={data.safety_briefing_confirm || ''}
                                         onChange={handleChange}
-                                        placeholder="作业已完成，人员已撤离，现场已清理"
+                                        placeholder="已接受安全交底，了解作业风险和安全措施"
+                                        readOnly={!canSafetyBriefing}
                                     />
                                 </div>
                                 <div className="md:col-span-3">
                                     <div className="h-24">
                                         <SignaturePad 
-                                            value={data.completion_sign}
-                                            onChange={(val) => onChange('completion_sign', val)}
-                                            disabled={readOnly}
+                                            value={data.safety_briefing_sign}
+                                            onChange={(val) => onChange('safety_briefing_sign', val)}
+                                            disabled={!canSafetyBriefing}
                                             className="w-full h-full"
                                         />
                                     </div>
@@ -775,16 +841,167 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                                 <div className="md:col-span-3">
                                     <Input 
                                         type="datetime-local" 
-                                        name="completion_sign_time"
-                                        value={data.completion_sign_time || ''}
+                                        name="safety_briefing_time"
+                                        value={data.safety_briefing_time || ''}
                                         onChange={handleChange}
+                                        readOnly={!canSafetyBriefing}
+                                    />
+                                </div>
+                            </div>
+                        </FormField>
+                        
+                        {/* 安全交底图片上传/查看 */}
+                        <div className="mt-4 pt-4 border-t border-gray-200">
+                            <div className="flex items-center gap-2 mb-3">
+                                <span className="text-sm font-medium text-gray-700">现场照片</span>
+                                {data.safety_briefing_images && data.safety_briefing_images.length > 0 && (
+                                    <span className="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
+                                        {data.safety_briefing_images.length} 张
+                                    </span>
+                                )}
+                            </div>
+                            
+                            {/* 图片预览区域 */}
+                            {data.safety_briefing_images && data.safety_briefing_images.length > 0 && (
+                                <div className="flex flex-wrap gap-2 mb-3">
+                                    {data.safety_briefing_images.map((img, idx) => (
+                                        <div 
+                                            key={idx} 
+                                            className="relative group cursor-pointer"
+                                            onClick={() => {
+                                                setImageViewerIndex(idx);
+                                                setImageViewerOpen(true);
+                                            }}
+                                        >
+                                            <img 
+                                                src={img} 
+                                                alt={`安全交底图片 ${idx + 1}`}
+                                                className="w-20 h-20 object-cover rounded border border-gray-200 hover:border-blue-400 transition-colors"
+                                            />
+                                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors rounded flex items-center justify-center">
+                                                <svg className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                                                </svg>
+                                            </div>
+                                            {/* 删除按钮 - 仅在可编辑时显示 */}
+                                            {canSafetyBriefing && (
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        const newImages = data.safety_briefing_images.filter((_, i) => i !== idx);
+                                                        onChange('safety_briefing_images', newImages);
+                                                    }}
+                                                    className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                                                >
+                                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                    </svg>
+                                                </button>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                            
+                            {/* 上传按钮 - 仅在可编辑时显示 */}
+                            {canSafetyBriefing && (
+                                <label className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                                    <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                    <span className="text-sm text-gray-600">上传现场照片</span>
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        multiple
+                                        className="hidden"
+                                        onChange={(e) => {
+                                            const files = Array.from(e.target.files);
+                                            if (files.length === 0) return;
+                                            
+                                            // 转换为 base64
+                                            Promise.all(files.map(file => {
+                                                return new Promise((resolve) => {
+                                                    const reader = new FileReader();
+                                                    reader.onloadend = () => resolve(reader.result);
+                                                    reader.readAsDataURL(file);
+                                                });
+                                            })).then(base64Images => {
+                                                const currentImages = data.safety_briefing_images || [];
+                                                onChange('safety_briefing_images', [...currentImages, ...base64Images]);
+                                            });
+                                            
+                                            // 清空 input 以便重复选择同一文件
+                                            e.target.value = '';
+                                        }}
+                                    />
+                                </label>
+                            )}
+                            
+                            {/* 无图片时的提示 */}
+                            {(!data.safety_briefing_images || data.safety_briefing_images.length === 0) && !canSafetyBriefing && (
+                                <p className="text-sm text-gray-400 italic">暂无现场照片</p>
+                            )}
+                        </div>
+                    </div>
+                    )}
+
+                    {/* 完工验收签字 - 作业中或已完工时显示，作业中状态时作业人可编辑 */}
+                    {readOnly && (status === '作业中' || status === '已完工') && (
+                    <div className={`p-4 rounded-lg border ${canComplete ? 'bg-orange-50 border-orange-200' : 'bg-gray-50 border-gray-200'}`}>
+                        <div className="flex items-center gap-2 mb-3">
+                            <span className="text-sm font-medium text-gray-700">完工验收签字</span>
+                            {data.completion_sign && <span className="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded">已签字</span>}
+                            {canComplete && !data.completion_sign && <span className="text-xs text-orange-600 bg-orange-50 px-2 py-0.5 rounded">待签字</span>}
+                            {!canComplete && !data.completion_sign && <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">未签字</span>}
+                        </div>
+                        <FormField label="">
+                            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+                                <div className="md:col-span-6">
+                                    <Input 
+                                        type="text" 
+                                        name="completion_confirm"
+                                        value={data.completion_confirm || ''}
+                                        onChange={handleChange}
+                                        placeholder="作业已完成，人员已撤离，现场已清理"
+                                        readOnly={!canComplete}
+                                    />
+                                </div>
+                                <div className="md:col-span-3">
+                                    <div className="h-24">
+                                        <SignaturePad 
+                                            value={data.completion_sign}
+                                            onChange={(val) => onChange('completion_sign', val)}
+                                            disabled={!canComplete}
+                                            className="w-full h-full"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="md:col-span-3">
+                                    <Input 
+                                        type="datetime-local" 
+                                        name="completion_time"
+                                        value={data.completion_time || ''}
+                                        onChange={handleChange}
+                                        readOnly={!canComplete}
                                     />
                                 </div>
                             </div>
                         </FormField>
                     </div>
+                    )}
                 </div>
             </div>
         </div>
+        
+        {/* 图片查看模态框 */}
+        <ImageViewerModal 
+            images={data.safety_briefing_images || []}
+            isOpen={imageViewerOpen}
+            onClose={() => setImageViewerOpen(false)}
+            initialIndex={imageViewerIndex}
+        />
+    </>
     );
 }

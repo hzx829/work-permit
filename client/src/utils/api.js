@@ -69,6 +69,15 @@ export async function updatePermitStatus(id, status, signatures = null) {
     return await response.json();
 }
 
+export async function updatePermitExtraData(id, data) {
+    const response = await fetch(`${API_BASE}/work-permits/${id}/extra`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    });
+    return await response.json();
+}
+
 // --- UI Helpers ---
 
 export function formatDate(dateString) {

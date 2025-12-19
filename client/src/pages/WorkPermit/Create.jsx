@@ -121,6 +121,12 @@ export default function Create() {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
+        // 检查作业人员签字
+        if (!formData.worker_sign) {
+            alert('请先完成作业人员签字确认');
+            return;
+        }
+
         const start = new Date(formData.start_time);
         const end = new Date(formData.end_time);
         if (end <= start) {
@@ -423,21 +429,30 @@ export default function Create() {
                         )}
 
                         {/* Action Buttons */}
-                        <div className="flex items-center gap-4 pt-4 pb-8">
-                            <button
-                                type="button"
-                                onClick={() => navigate(-1)}
-                                className="px-6 py-3 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors w-1/3"
-                            >
-                                取消
-                            </button>
-                            <button
-                                type="submit"
-                                className="px-6 py-3 rounded-lg bg-blue-600 text-white font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all w-2/3 flex justify-center items-center"
-                            >
-                                <span>提交申请</span>
-                                <i className="fas fa-paper-plane ml-2"></i>
-                            </button>
+                        <div className="flex flex-col gap-3 pt-4 pb-8">
+                            {!formData.worker_sign && (
+                                <p className="text-xs text-orange-600 bg-orange-50 px-3 py-2 rounded">
+                                    <i className="fas fa-info-circle mr-1"></i>
+                                    请先在上方完成作业人员签字确认后再提交申请
+                                </p>
+                            )}
+                            <div className="flex items-center gap-4">
+                                <button
+                                    type="button"
+                                    onClick={() => navigate(-1)}
+                                    className="px-6 py-3 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors w-1/3"
+                                >
+                                    取消
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={!formData.worker_sign}
+                                    className="px-6 py-3 rounded-lg bg-blue-600 text-white font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all w-2/3 flex justify-center items-center disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
+                                >
+                                    <span>提交申请</span>
+                                    <i className="fas fa-paper-plane ml-2"></i>
+                                </button>
+                            </div>
                         </div>
                     </form>
                 </div>
