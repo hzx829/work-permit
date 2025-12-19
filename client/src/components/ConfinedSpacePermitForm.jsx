@@ -49,7 +49,8 @@ const PersonSelect = ({ value, onChange, name, options, unqualifiedOptions = [],
 );
 
 export default function ConfinedSpacePermitForm({ data, onChange, readOnly = false }) {
-    const [isDetecting, setIsDetecting] = React.useState(true);
+    const [isDetecting, setIsDetecting] = React.useState(false);
+    const [hasStartedDetection, setHasStartedDetection] = React.useState(false);
     const [blindPlateData, setBlindPlateData] = React.useState(null);
     const [loadingBlindPlate, setLoadingBlindPlate] = React.useState(false);
 
@@ -89,13 +90,25 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
         }
     }, [data.supervisor, data.workers, readOnly, blindPlateData]);
 
-    // 模拟后台检测加载过程
+    // 模拟后台检测加载过程 - 仅在作业内容填写后才开始检测
     React.useEffect(() => {
-        const timer = setTimeout(() => {
+        // 如果是只读模式（审批/查看），直接显示结果
+        if (readOnly) {
             setIsDetecting(false);
-        }, 10000); // 10秒后显示检测结果
-        return () => clearTimeout(timer);
-    }, []);
+            setHasStartedDetection(true);
+            return;
+        }
+        
+        // 如果作业内容已填写且尚未开始检测，则开始检测
+        if (data.content && data.content.trim() && !hasStartedDetection) {
+            setIsDetecting(true);
+            setHasStartedDetection(true);
+            const timer = setTimeout(() => {
+                setIsDetecting(false);
+            }, 10000); // 10秒后显示检测结果
+            return () => clearTimeout(timer);
+        }
+    }, [data.content, hasStartedDetection, readOnly]);
 
     const handleChange = (e) => {
         if (readOnly) return;
@@ -216,7 +229,15 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                     <div className="md:col-span-2 mt-2 mb-4">
                         <h3 className="text-base font-bold text-blue-600 mb-3">现场安全条件确认</h3>
                         <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3">
-                            {isDetecting ? (
+                            {!hasStartedDetection && !readOnly ? (
+                                /* 等待填写作业内容 */
+                                <div className="flex items-center justify-center gap-3 py-4">
+                                    <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <span className="text-gray-500">请先填写「作业内容」后，系统将自动检测现场安全条件</span>
+                                </div>
+                            ) : isDetecting ? (
                                 /* Loading 状态 */
                                 <>
                                     <div className="flex items-center justify-between animate-pulse">
@@ -359,6 +380,8 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                             readOnly={readOnly}
                         />
                     </FormField>
+                    {/* 关联的其他特殊作业及安全作业票编号 - 仅在审批时显示 */}
+                    {readOnly && (
                     <FormField label="关联的其他特殊作业及安全作业票编号" className="md:col-span-2">
                         {/* 盲板抽堵作业关联信息展示 */}
                         {(loadingBlindPlate || blindPlateData) ? (
@@ -411,6 +434,7 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                             </div>
                         )}
                     </FormField>
+                    )}
                     <FormField label="风险辨识结果" className="md:col-span-2">
                         <Input 
                             type="text" 
@@ -423,7 +447,8 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                 </div>
             </div>
 
-            {/* Gas Analysis */}
+            {/* Gas Analysis - 仅在审批时显示 */}
+            {readOnly && (
             <div className="mb-8">
                 <h2 className="text-base font-bold text-blue-600 mb-6">气体分析</h2>
                 <div className="bg-gray-50 rounded-lg border border-gray-200 p-6">
@@ -523,6 +548,7 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                     </div>
                 </div>
             </div>
+            )}
 
              {/* Time Range */}
              <div className="mb-8">
