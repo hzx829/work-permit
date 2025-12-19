@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { getPermit, formatDate, getStatusColor, updatePermitStatus } from '../../utils/api';
+import { getPermit, formatDate, getStatusColor, updatePermitStatus, updatePermitExtraData } from '../../utils/api';
 import HotWorkPermitForm from '../../components/HotWorkPermitForm';
 import ConfinedSpacePermitForm from '../../components/ConfinedSpacePermitForm';
 import BlindPlatePermitForm from '../../components/BlindPlatePermitForm';
@@ -95,6 +95,13 @@ export default function Detail() {
         
         setApproving(true);
         try {
+            // 保存安全交底时上传的图片到数据库
+            if (permit.safety_briefing_images && permit.safety_briefing_images.length > 0) {
+                await updatePermitExtraData(id, {
+                    safety_briefing_images: permit.safety_briefing_images
+                });
+            }
+            
             await updatePermitStatus(id, '作业中');
             alert('作业已开始');
             const data = await getPermit(id);

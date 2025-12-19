@@ -626,6 +626,43 @@ app.put('/api/work-permits/:id/status', (req, res) => {
     });
 });
 
+// Update permit extra data (for signatures, images, etc.)
+app.put('/api/work-permits/:id/extra', (req, res) => {
+    const { id } = req.params;
+    const updates = req.body;
+
+    // First get existing extra_data
+    db.get('SELECT extra_data FROM work_permits WHERE id = ?', [id], (err, row) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        if (!row) {
+            res.status(404).json({ error: 'Permit not found' });
+            return;
+        }
+
+        let existingData = {};
+        try {
+            existingData = JSON.parse(row.extra_data || '{}');
+        } catch (e) {}
+
+        // Merge updates with existing data
+        const newData = { ...existingData, ...updates };
+
+        db.run('UPDATE work_permits SET extra_data = ? WHERE id = ?', 
+            [JSON.stringify(newData), id], 
+            function(err) {
+                if (err) {
+                    res.status(500).json({ error: err.message });
+                    return;
+                }
+                res.json({ success: true, data: newData });
+            }
+        );
+    });
+});
+
 // ========== Camera URL Configuration APIs ==========
 
 // Get all camera URL configs
