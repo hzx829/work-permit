@@ -57,6 +57,15 @@ export default function Detail() {
     const executeApprove = async () => {
         setApproving(true);
         try {
+            // 保存审批人签字数据
+            if (permit.approver_sign) {
+                await updatePermitExtraData(id, {
+                    approver_sign: permit.approver_sign,
+                    approver_opinion: permit.approver_opinion || '',
+                    approver_sign_time: permit.approver_sign_time || ''
+                });
+            }
+            
             await updatePermitStatus(id, '已批准');
             alert('审批成功');
             const data = await getPermit(id);
@@ -95,11 +104,18 @@ export default function Detail() {
         
         setApproving(true);
         try {
-            // 保存安全交底时上传的图片到数据库
+            // 保存安全交底签字数据和图片到数据库
+            const extraData = {};
+            if (permit.safety_briefing_sign) {
+                extraData.safety_briefing_sign = permit.safety_briefing_sign;
+                extraData.safety_briefing_confirm = permit.safety_briefing_confirm || '';
+                extraData.safety_briefing_time = permit.safety_briefing_time || '';
+            }
             if (permit.safety_briefing_images && permit.safety_briefing_images.length > 0) {
-                await updatePermitExtraData(id, {
-                    safety_briefing_images: permit.safety_briefing_images
-                });
+                extraData.safety_briefing_images = permit.safety_briefing_images;
+            }
+            if (Object.keys(extraData).length > 0) {
+                await updatePermitExtraData(id, extraData);
             }
             
             await updatePermitStatus(id, '作业中');
@@ -120,6 +136,15 @@ export default function Detail() {
         
         setApproving(true);
         try {
+            // 保存完工签字数据到数据库
+            if (permit.completion_sign) {
+                await updatePermitExtraData(id, {
+                    completion_sign: permit.completion_sign,
+                    completion_confirm: permit.completion_confirm || '',
+                    completion_time: permit.completion_time || ''
+                });
+            }
+            
             await updatePermitStatus(id, '已完工');
             alert('作业已完成');
             const data = await getPermit(id);
