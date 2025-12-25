@@ -1,7 +1,7 @@
 import React from 'react';
 
 // Helper components for consistent styling
-const FormField = ({ label, required = false, children, className = "" }) => (
+const FormField = ({ label, children, className = "" }) => (
     <div className={`flex flex-col ${className}`}>
         <label className="text-sm font-medium text-gray-500 mb-1.5">
             {label}

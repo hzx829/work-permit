@@ -5,35 +5,49 @@ const SignaturePad = ({ value, onChange, disabled = false, className = "" }) => 
     const [isDrawing, setIsDrawing] = useState(false);
     const [hasSignature, setHasSignature] = useState(false);
 
-    useEffect(() => {
+    const setupCanvas = () => {
         const canvas = canvasRef.current;
-        if (!canvas) return;
+        if (!canvas) return null;
 
         const ctx = canvas.getContext('2d');
-        
+
         // Handle high DPI displays
         const dpr = window.devicePixelRatio || 1;
         const rect = canvas.getBoundingClientRect();
-        
+
         canvas.width = rect.width * dpr;
         canvas.height = rect.height * dpr;
-        
+
+        // Reset transform then scale (avoid cumulative scaling)
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.scale(dpr, dpr);
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         ctx.lineWidth = 2;
         ctx.strokeStyle = '#000';
 
-        // Load existing signature if available
+        return { ctx, rect };
+    };
+
+    useEffect(() => {
+        const setup = setupCanvas();
+        if (!setup) return;
+
+        const { ctx, rect } = setup;
+        ctx.clearRect(0, 0, rect.width, rect.height);
+
         if (value) {
             const img = new Image();
             img.onload = () => {
+                ctx.clearRect(0, 0, rect.width, rect.height);
                 ctx.drawImage(img, 0, 0, rect.width, rect.height);
                 setHasSignature(true);
             };
             img.src = value;
+        } else {
+            setHasSignature(false);
         }
-    }, []); // Run once on mount to setup canvas size
+    }, [value]);
 
     // We might need to resize canvas on window resize, but keeping it simple for now.
 
@@ -121,11 +135,6 @@ const SignaturePad = ({ value, onChange, disabled = false, className = "" }) => 
                     >
                         清除
                     </button>
-                </div>
-            )}
-            {!hasSignature && !isDrawing && (
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-gray-300">
-                    {disabled ? (value ? '' : '未签名') : '请在此区域签名'}
                 </div>
             )}
         </div>
