@@ -249,7 +249,7 @@ export default function Detail() {
                             <div className="flex overflow-x-auto border-b border-gray-200">
                                 <button
                                     onClick={() => setActiveTab('basic')}
-                                    className={`px-6 py-4 text-sm font-medium whitespace-nowrap transition-colors ${
+                                    className={`px-6 py-4 text-base font-medium whitespace-nowrap transition-colors ${
                                         activeTab === 'basic'
                                             ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
                                             : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
@@ -260,7 +260,7 @@ export default function Detail() {
                                 </button>
                                 <button
                                     onClick={() => setActiveTab('gas')}
-                                    className={`px-6 py-4 text-sm font-medium whitespace-nowrap transition-colors ${
+                                    className={`px-6 py-4 text-base font-medium whitespace-nowrap transition-colors ${
                                         activeTab === 'gas'
                                             ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
                                             : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
@@ -271,7 +271,7 @@ export default function Detail() {
                                 </button>
                                 <button
                                     onClick={() => setActiveTab('safety')}
-                                    className={`px-6 py-4 text-sm font-medium whitespace-nowrap transition-colors ${
+                                    className={`px-6 py-4 text-base font-medium whitespace-nowrap transition-colors ${
                                         activeTab === 'safety'
                                             ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
                                             : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
@@ -282,7 +282,7 @@ export default function Detail() {
                                 </button>
                                 <button
                                     onClick={() => setActiveTab('approval')}
-                                    className={`px-6 py-4 text-sm font-medium whitespace-nowrap transition-colors ${
+                                    className={`px-6 py-4 text-base font-medium whitespace-nowrap transition-colors ${
                                         activeTab === 'approval'
                                             ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
                                             : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
@@ -293,7 +293,7 @@ export default function Detail() {
                                 </button>
                                 <button
                                     onClick={() => setActiveTab('briefing')}
-                                    className={`px-6 py-4 text-sm font-medium whitespace-nowrap transition-colors ${
+                                    className={`px-6 py-4 text-base font-medium whitespace-nowrap transition-colors ${
                                         activeTab === 'briefing'
                                             ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
                                             : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
@@ -304,7 +304,7 @@ export default function Detail() {
                                 </button>
                                 <button
                                     onClick={() => setActiveTab('inspection')}
-                                    className={`px-6 py-4 text-sm font-medium whitespace-nowrap transition-colors ${
+                                    className={`px-6 py-4 text-base font-medium whitespace-nowrap transition-colors ${
                                         activeTab === 'inspection'
                                             ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
                                             : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'

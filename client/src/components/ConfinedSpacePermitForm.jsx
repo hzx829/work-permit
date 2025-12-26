@@ -727,29 +727,58 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                                 <div className="col-span-1 text-sm text-gray-500">{measure.id}</div>
                                 <div className="col-span-8 text-sm text-gray-700 leading-relaxed">
                                     {measure.id === 11 ? (
-                                        <div className="flex flex-wrap items-center gap-2">
-                                            <span>{measure.content}</span>
-                                            <select
-                                                value={measure.facilityType || ''}
-                                                onChange={(e) => handleMeasureChange(idx, 'facilityType', e.target.value)}
-                                                disabled={readOnly}
-                                                className="border border-gray-300 rounded px-2 py-1 text-xs md:text-sm bg-white"
-                                            >
-                                                <option value="">请选择设施类型</option>
-                                                <option value="消防器材">消防器材</option>
-                                                <option value="救生绳">救生绳</option>
-                                                <option value="气防装备">气防装备</option>
-                                                <option value="其他">其他</option>
-                                            </select>
-                                            <input 
-                                                type="text" 
-                                                value={measure.facilityDetail || ''}
-                                                onChange={(e) => handleMeasureChange(idx, 'facilityDetail', e.target.value)}
-                                                readOnly={readOnly}
-                                                disabled={readOnly}
-                                                className="border-b border-gray-300 outline-none focus:border-blue-500 bg-transparent px-1 py-0.5 text-xs md:text-sm"
-                                                placeholder="请输入补充说明"
-                                            />
+                                        <div className="flex flex-col gap-2">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <span>已配备作业应急设施：消防器材</span>
+                                                <select
+                                                    value={measure.fireEquipmentCount || ''}
+                                                    onChange={(e) => handleMeasureChange(idx, 'fireEquipmentCount', e.target.value)}
+                                                    disabled={readOnly}
+                                                    className="border border-gray-300 rounded px-2 py-1 text-xs md:text-sm bg-white"
+                                                >
+                                                    <option value="">请选择数量</option>
+                                                    {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                                                        <option key={num} value={num}>{num}</option>
+                                                    ))}
+                                                </select>
+                                                <span>、救生绳</span>
+                                                <select
+                                                    value={measure.lifelineCount || ''}
+                                                    onChange={(e) => handleMeasureChange(idx, 'lifelineCount', e.target.value)}
+                                                    disabled={readOnly}
+                                                    className="border border-gray-300 rounded px-2 py-1 text-xs md:text-sm bg-white"
+                                                >
+                                                    <option value="">请选择数量</option>
+                                                    {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                                                        <option key={num} value={num}>{num}</option>
+                                                    ))}
+                                                </select>
+                                                <span>、气防装备</span>
+                                                <select
+                                                    value={measure.airEquipmentCount || ''}
+                                                    onChange={(e) => handleMeasureChange(idx, 'airEquipmentCount', e.target.value)}
+                                                    disabled={readOnly}
+                                                    className="border border-gray-300 rounded px-2 py-1 text-xs md:text-sm bg-white"
+                                                >
+                                                    <option value="">请选择数量</option>
+                                                    {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                                                        <option key={num} value={num}>{num}</option>
+                                                    ))}
+                                                </select>
+                                                <span>，盛有腐蚀性介质的容器作业现场已配备应急冲洗水</span>
+                                            </div>
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <span>其他应急设施类型</span>
+                                                <input 
+                                                    type="text" 
+                                                    value={measure.facilityDetail || ''}
+                                                    onChange={(e) => handleMeasureChange(idx, 'facilityDetail', e.target.value)}
+                                                    readOnly={readOnly}
+                                                    disabled={readOnly}
+                                                    className="border-b border-gray-300 outline-none focus:border-blue-500 bg-transparent px-1 py-0.5 text-xs md:text-sm"
+                                                    placeholder="请输入补充说明"
+                                                />
+                                            </div>
                                         </div>
                                     ) : (
                                         <>
