@@ -74,7 +74,7 @@ export default function GasDetectionModule({ data, onChange, readOnly, currentUs
     };
 
     const removeRecord = (index) => {
-                                <span className="text-sm text-gray-500 block mb-1">签名处：</span>
+        const newRecords = gasDetectionRecords.filter((_, i) => i !== index);
         onChange('gas_detection_records', newRecords);
     };
 

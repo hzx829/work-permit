@@ -3,7 +3,6 @@ import React, { useRef, useEffect, useState } from 'react';
 const SignaturePad = ({ value, onChange, disabled = false, className = "" }) => {
     const canvasRef = useRef(null);
     const [isDrawing, setIsDrawing] = useState(false);
-    const [hasSignature, setHasSignature] = useState(false);
 
     const setupCanvas = () => {
         const canvas = canvasRef.current;
@@ -41,11 +40,8 @@ const SignaturePad = ({ value, onChange, disabled = false, className = "" }) => 
             img.onload = () => {
                 ctx.clearRect(0, 0, rect.width, rect.height);
                 ctx.drawImage(img, 0, 0, rect.width, rect.height);
-                setHasSignature(true);
             };
             img.src = value;
-        } else {
-            setHasSignature(false);
         }
     }, [value]);
 
@@ -64,7 +60,6 @@ const SignaturePad = ({ value, onChange, disabled = false, className = "" }) => 
         ctx.beginPath();
         ctx.moveTo(x, y);
         setIsDrawing(true);
-        setHasSignature(true);
     };
 
     const draw = (e) => {
@@ -109,7 +104,6 @@ const SignaturePad = ({ value, onChange, disabled = false, className = "" }) => 
         const rect = canvas.getBoundingClientRect();
         ctx.clearRect(0, 0, rect.width, rect.height); // Clear scaled rect
         
-        setHasSignature(false);
         if (onChange) onChange('');
     };
 

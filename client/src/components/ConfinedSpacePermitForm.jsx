@@ -63,11 +63,13 @@ const RISK_OPTIONS = [
     '窒息'
 ];
 
-export default function ConfinedSpacePermitForm({ data, onChange, readOnly = false, userRole = '', _status = '' }) {
+export default function ConfinedSpacePermitForm({ data, onChange, readOnly = false, userRole = '' }) {
     const [isDetecting, setIsDetecting] = React.useState(false);
     const [hasStartedDetection, setHasStartedDetection] = React.useState(false);
     const [relatedPermitLoading, setRelatedPermitLoading] = React.useState(false);
     const [relatedPermitInfo, setRelatedPermitInfo] = React.useState(null);
+    const [hasQueriedRelatedPermit, setHasQueriedRelatedPermit] = React.useState(false);
+    const relatedPermitQueryTimerRef = React.useRef(null);
     const VENTILATION_REQUIREMENT_SECONDS = 30 * 60;
     const DEFAULT_VENTILATION_SECONDS = VENTILATION_REQUIREMENT_SECONDS + 60;
     const [ventilationSeconds, setVentilationSeconds] = React.useState(DEFAULT_VENTILATION_SECONDS);
@@ -161,25 +163,6 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
             .filter((value, index, arr) => arr.indexOf(value) === index);
     };
 
-    React.useEffect(() => {
-        if (relatedPermitInfo) return;
-        if (!data.related_blind_plate_permit_number) return;
-        setRelatedPermitInfo({
-            progress: data.related_blind_plate_progress || '堵盲板作业已完成',
-            completionTime: data.related_blind_plate_completion_time || new Date().toLocaleString(),
-            workers: data.related_blind_plate_workers || '赵六',
-            reviewers: data.related_blind_plate_reviewers || '王五',
-            permitNumber: data.related_blind_plate_permit_number || ''
-        });
-    }, [
-        relatedPermitInfo,
-        data.related_blind_plate_permit_number,
-        data.related_blind_plate_progress,
-        data.related_blind_plate_completion_time,
-        data.related_blind_plate_workers,
-        data.related_blind_plate_reviewers
-    ]);
-
     const contentReady = Boolean(data?.content && data.content.trim());
 
     React.useEffect(() => {
@@ -269,11 +252,18 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
             return;
         }
 
+        setHasQueriedRelatedPermit(true);
+
         if (relatedPermitLoading) return;
 
+        if (relatedPermitQueryTimerRef.current) {
+            clearTimeout(relatedPermitQueryTimerRef.current);
+        }
+
         setRelatedPermitLoading(true);
+        setRelatedPermitInfo(null);
         // 按你的要求：结果可随机/模拟，但编号必须与作业端输入一致
-        setTimeout(() => {
+        relatedPermitQueryTimerRef.current = setTimeout(() => {
             const result = {
                 progress: '堵盲板作业已完成',
                 completionTime: new Date().toLocaleString(),
@@ -290,6 +280,24 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
             setRelatedPermitLoading(false);
         }, 5000);
     };
+
+    React.useEffect(() => {
+        return () => {
+            if (relatedPermitQueryTimerRef.current) {
+                clearTimeout(relatedPermitQueryTimerRef.current);
+            }
+        };
+    }, []);
+
+    React.useEffect(() => {
+        if (!readOnly) return;
+        if (relatedPermitQueryTimerRef.current) {
+            clearTimeout(relatedPermitQueryTimerRef.current);
+        }
+        setRelatedPermitLoading(false);
+        setRelatedPermitInfo(null);
+        setHasQueriedRelatedPermit(false);
+    }, [readOnly, data?.permit_code]);
 
     // Initialize safety measures if empty and not readOnly
     React.useEffect(() => {
@@ -581,7 +589,7 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                                     </div>
                                 )}
 
-                                {!relatedPermitLoading && canQueryRelatedPermits && relatedPermitInfo && (
+                                {!relatedPermitLoading && canQueryRelatedPermits && hasQueriedRelatedPermit && relatedPermitInfo && (
                                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 animate-fadeIn">
                                         <div className="flex items-center gap-2 mb-2">
                                             <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -623,7 +631,7 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                                         暂无关联作业票编号
                                     </div>
                                 )}
-                                {!relatedPermitLoading && !!String(data.related_permits || '').trim() && canQueryRelatedPermits && !relatedPermitInfo && (
+                                {!relatedPermitLoading && !!String(data.related_permits || '').trim() && canQueryRelatedPermits && !hasQueriedRelatedPermit && (
                                     <div className="text-sm text-gray-400 italic">
                                         已填写关联编号，点击“查询”查看关联详情
                                     </div>
