@@ -83,7 +83,7 @@ export default function InspectionModule({ data, onChange, readOnly, currentUser
         };
     };
 
-    const { allComplete: canSignPostInspection, missingSignatures } = checkAllPreviousSignaturesComplete();
+    const { allComplete: canSignPostInspection } = checkAllPreviousSignaturesComplete();
 
     const handleSave = async () => {
         if (!onSave) return;
@@ -313,28 +313,6 @@ export default function InspectionModule({ data, onChange, readOnly, currentUser
                             <i className="fas fa-signature mr-2 text-indigo-600"></i>
                             验收人签字
                         </h4>
-
-                        {/* 前置签字未完成提醒 */}
-                        {!canSignPostInspection && !data?.post_inspection_signature && (
-                            <div className="mb-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                                <div className="flex items-start gap-2">
-                                    <i className="fas fa-exclamation-triangle text-yellow-600 mt-0.5"></i>
-                                    <div className="flex-1">
-                                        <p className="text-sm font-medium text-yellow-800 mb-1">
-                                            需要完成以下签字后才能进行验收签字：
-                                        </p>
-                                        <ul className="text-xs text-yellow-700 space-y-0.5 ml-4">
-                                            {missingSignatures.map((sig, idx) => (
-                                                <li key={idx} className="flex items-center gap-1">
-                                                    <i className="fas fa-circle text-[4px]"></i>
-                                                    <span>{sig.name}</span>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
                             <div title={!canSignPostInspection ? '请先完成前置模块的签字' : ''}>

@@ -30,17 +30,8 @@ export default function SafetyMeasuresConfirmModule({ data, onChange, readOnly, 
         return `${year}-${month}-${day}T${hours}:${minutes}`;
     };
 
-    // 表格内容来源：票证信息里的 safety_measures_list（与各作业票表单一致）
-    const measures = Array.isArray(data?.safety_measures_list) ? data.safety_measures_list : [];
-
     // 照片列表
     const photos = data?.safety_measures_photos || [];
-
-    const handleMeasureChange = (idx, field, value) => {
-        const newMeasures = [...measures];
-        newMeasures[idx] = { ...newMeasures[idx], [field]: value };
-        onChange('safety_measures_list', newMeasures);
-    };
 
     const handlePhotoUpload = (e) => {
         const files = Array.from(e.target.files);
@@ -90,7 +81,7 @@ export default function SafetyMeasuresConfirmModule({ data, onChange, readOnly, 
         if (!onSave) return;
         await onSave(
             {
-                safety_measures_list: data?.safety_measures_list || measures,
+                safety_measures_list: data?.safety_measures_list || [],
                 safety_measures_photos: data?.safety_measures_photos || [],
                 safety_measures_sign: data?.safety_measures_sign || '',
                 safety_measures_signature: data?.safety_measures_signature || '',
@@ -112,7 +103,7 @@ export default function SafetyMeasuresConfirmModule({ data, onChange, readOnly, 
                     <p className="text-sm text-gray-500 mt-1">权限：安管人员（当前按安全员账号可编辑）</p>
                     <p className="text-xs text-gray-400 mt-1">
                         <i className="fas fa-info-circle mr-1"></i>
-                        表格条目与“票证信息”同步
+                        请上传现场安全措施相关照片并完成提交人签字
                     </p>
                 </div>
                 {canEdit && (
@@ -126,125 +117,6 @@ export default function SafetyMeasuresConfirmModule({ data, onChange, readOnly, 
                         {saving ? '保存中...' : '保存'}
                     </button>
                 )}
-            </div>
-
-            {/* 安全措施表格（与票证信息一致） */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="bg-gray-50 px-6 py-3 grid grid-cols-12 gap-4 border-b border-gray-200">
-                    <div className="col-span-1 flex justify-center"><input type="checkbox" disabled className="rounded border-gray-300" /></div>
-                    <div className="col-span-1 text-sm font-medium text-gray-500">序号</div>
-                    <div className="col-span-8 text-sm font-medium text-gray-500">措施内容</div>
-                    <div className="col-span-2 text-center text-sm font-medium text-gray-500">是否涉及</div>
-                </div>
-                <div className="divide-y divide-gray-100">
-                    {(measures || []).length === 0 ? (
-                        <div className="px-6 py-8 text-center text-gray-400">暂无安全措施条目</div>
-                    ) : (
-                        (measures || []).map((measure, idx) => (
-                            <div key={measure.id ?? idx} className="px-6 py-4 grid grid-cols-12 gap-4 items-center hover:bg-blue-50/30 transition-colors group">
-                                <div className="col-span-1 flex justify-center">
-                                    <input
-                                        type="checkbox"
-                                        className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                                        disabled={!canEdit}
-                                        checked={measure.checked || false}
-                                        onChange={(e) => handleMeasureChange(idx, 'checked', e.target.checked)}
-                                    />
-                                </div>
-                                <div className="col-span-1 text-sm text-gray-500">{measure.id}</div>
-                                <div className="col-span-8 text-sm text-gray-700 leading-relaxed">
-                                    {measure.id === 11 ? (
-                                        <div className="flex flex-col gap-2">
-                                            <div className="flex flex-wrap items-center gap-2">
-                                                <span>已配备作业应急设施：消防器材</span>
-                                                <select
-                                                    value={measure.fireEquipmentCount || ''}
-                                                    onChange={(e) => handleMeasureChange(idx, 'fireEquipmentCount', e.target.value)}
-                                                    disabled={!canEdit}
-                                                    className="border border-gray-300 rounded px-2 py-1 text-xs md:text-sm bg-white"
-                                                >
-                                                    <option value="">请选择数量</option>
-                                                    {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
-                                                        <option key={num} value={num}>{num}</option>
-                                                    ))}
-                                                </select>
-                                                <span>、救生绳</span>
-                                                <select
-                                                    value={measure.lifelineCount || ''}
-                                                    onChange={(e) => handleMeasureChange(idx, 'lifelineCount', e.target.value)}
-                                                    disabled={!canEdit}
-                                                    className="border border-gray-300 rounded px-2 py-1 text-xs md:text-sm bg-white"
-                                                >
-                                                    <option value="">请选择数量</option>
-                                                    {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
-                                                        <option key={num} value={num}>{num}</option>
-                                                    ))}
-                                                </select>
-                                                <span>、气防装备</span>
-                                                <select
-                                                    value={measure.airEquipmentCount || ''}
-                                                    onChange={(e) => handleMeasureChange(idx, 'airEquipmentCount', e.target.value)}
-                                                    disabled={!canEdit}
-                                                    className="border border-gray-300 rounded px-2 py-1 text-xs md:text-sm bg-white"
-                                                >
-                                                    <option value="">请选择数量</option>
-                                                    {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
-                                                        <option key={num} value={num}>{num}</option>
-                                                    ))}
-                                                </select>
-                                                <span>，盛有腐蚀性介质的容器作业现场已配备应急冲洗水</span>
-                                            </div>
-                                            <div className="flex flex-wrap items-center gap-2">
-                                                <span>其他应急设施类型</span>
-                                                <input
-                                                    type="text"
-                                                    value={measure.facilityDetail || ''}
-                                                    onChange={(e) => handleMeasureChange(idx, 'facilityDetail', e.target.value)}
-                                                    readOnly={!canEdit}
-                                                    disabled={!canEdit}
-                                                    className="border-b border-gray-300 outline-none focus:border-blue-500 bg-transparent px-1 py-0.5 text-xs md:text-sm"
-                                                    placeholder="请输入补充说明"
-                                                />
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <>
-                                            {measure.content}
-                                            {measure.id === 15 && (
-                                                <input
-                                                    type="text"
-                                                    value={measure.extraContent || ''}
-                                                    onChange={(e) => handleMeasureChange(idx, 'extraContent', e.target.value)}
-                                                    readOnly={!canEdit}
-                                                    disabled={!canEdit}
-                                                    className="ml-2 border-b border-gray-300 outline-none focus:border-blue-500 bg-transparent"
-                                                    placeholder="请输入"
-                                                />
-                                            )}
-                                        </>
-                                    )}
-                                </div>
-                                <div className="col-span-2 flex justify-center gap-4">
-                                    <label className="flex items-center gap-1 cursor-pointer">
-                                        <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${measure.applicable === 'yes' ? 'border-blue-500' : 'border-gray-300'}`}>
-                                            {measure.applicable === 'yes' && <div className="w-2 h-2 bg-blue-500 rounded-full"></div>}
-                                        </div>
-                                        <input type="radio" name={`applicable-${idx}`} value="yes" checked={measure.applicable === 'yes'} onChange={() => handleMeasureChange(idx, 'applicable', 'yes')} disabled={!canEdit} className="hidden" />
-                                        <span className="text-xs text-gray-600">是</span>
-                                    </label>
-                                    <label className="flex items-center gap-1 cursor-pointer">
-                                        <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${measure.applicable === 'no' ? 'border-blue-500' : 'border-gray-300'}`}>
-                                            {measure.applicable === 'no' && <div className="w-2 h-2 bg-blue-500 rounded-full"></div>}
-                                        </div>
-                                        <input type="radio" name={`applicable-${idx}`} value="no" checked={measure.applicable === 'no'} onChange={() => handleMeasureChange(idx, 'applicable', 'no')} disabled={!canEdit} className="hidden" />
-                                        <span className="text-xs text-gray-600">否</span>
-                                    </label>
-                                </div>
-
-                            </div>
-                        ))
-                    )}
-                </div>
             </div>
 
             {/* 照片上传区域 */}

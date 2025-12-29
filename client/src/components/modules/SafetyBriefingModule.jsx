@@ -141,22 +141,6 @@ export default function SafetyBriefingModule({ data, onChange, readOnly, current
                 </ul>
             </div>
 
-            {/* 交底内容记录 */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                <h3 className="font-semibold text-gray-700 mb-3">
-                    <i className="fas fa-clipboard-list mr-2 text-green-600"></i>
-                    交底内容记录
-                </h3>
-                <textarea
-                    value={data?.safety_briefing_confirm || ''}
-                    onChange={(e) => onChange('safety_briefing_confirm', e.target.value)}
-                    disabled={!canEdit}
-                    placeholder="请记录安全交底的主要内容，包括：作业风险点、安全措施、应急措施等..."
-                    rows="6"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500"
-                />
-            </div>
-
             {/* 交底照片上传区域 */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                 <h3 className="font-semibold text-gray-700 mb-3">
