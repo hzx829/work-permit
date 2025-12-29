@@ -71,7 +71,7 @@ export async function updatePermitStatus(id, status, signatures = null) {
 
 export async function updatePermitExtraData(id, data) {
     const response = await fetch(`${API_BASE}/work-permits/${id}/extra`, {
-        method: 'PUT',
+        method: 'POST', // Changed from PUT to POST for better proxy compatibility
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
     });

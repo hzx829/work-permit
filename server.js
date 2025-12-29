@@ -627,7 +627,8 @@ app.put('/api/work-permits/:id/status', (req, res) => {
 });
 
 // Update permit extra data (for signatures, images, etc.)
-app.put('/api/work-permits/:id/extra', (req, res) => {
+// Support both PUT and POST methods for compatibility with different proxy configurations
+const updateExtraDataHandler = (req, res) => {
     const { id } = req.params;
     const updates = req.body;
 
@@ -661,7 +662,10 @@ app.put('/api/work-permits/:id/extra', (req, res) => {
             }
         );
     });
-});
+};
+
+app.put('/api/work-permits/:id/extra', updateExtraDataHandler);
+app.post('/api/work-permits/:id/extra', updateExtraDataHandler);
 
 // ========== Camera URL Configuration APIs ==========
 

@@ -1,5 +1,5 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/bash
+set -e
 
 APP_DIR="/root/work-permit"
 ZIP_FILE="/root/deploy.zip"
