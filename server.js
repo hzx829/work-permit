@@ -508,36 +508,61 @@ app.get('/api/fire-safety', (req, res) => {
 
 // Get all permits (with optional filtering)
 app.get('/api/work-permits', (req, res) => {
-    const { status, search } = req.query;
-    let sql = "SELECT * FROM work_permits WHERE 1=1";
+    const { status, search, page = 1, pageSize = 20 } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(pageSize);
+    const limit = parseInt(pageSize);
+    
+    // Select fields without extra_data for list view to improve performance
+    let sql = "SELECT id, permit_number, status, type, applicant_id, applicant_name, department, location, start_time, end_time, content, safety_measures, signatures, created_at FROM work_permits WHERE 1=1";
+    let countSql = "SELECT COUNT(*) as total FROM work_permits WHERE 1=1";
     const params = [];
+    const countParams = [];
 
     if (status && status !== '全部') {
         sql += " AND status = ?";
+        countSql += " AND status = ?";
         params.push(status);
+        countParams.push(status);
     }
 
     if (search) {
         sql += " AND (permit_number LIKE ? OR applicant_name LIKE ? OR content LIKE ?)";
+        countSql += " AND (permit_number LIKE ? OR applicant_name LIKE ? OR content LIKE ?)";
         const searchParam = `%${search}%`;
         params.push(searchParam, searchParam, searchParam);
+        countParams.push(searchParam, searchParam, searchParam);
     }
 
-    sql += " ORDER BY created_at DESC";
+    sql += " ORDER BY created_at DESC LIMIT ? OFFSET ?";
+    params.push(limit, offset);
 
-    db.all(sql, params, (err, rows) => {
+    // Get total count
+    db.get(countSql, countParams, (err, countRow) => {
         if (err) {
-            res.status(500).json({ error: err.message });
-            return;
+            console.error(err);
+            return res.status(500).json({ error: err.message });
         }
-        const processedRows = rows.map(row => {
-            let extra = {};
-            try {
-                extra = JSON.parse(row.extra_data || '{}');
-            } catch (e) {}
-            return { ...row, ...extra };
+        
+        // Get paginated data
+        db.all(sql, params, (err, rows) => {
+            if (err) {
+                console.error(err);
+                return res.status(500).json({ error: err.message });
+            }
+            // Parse JSON fields
+            const permits = rows.map(row => ({
+                ...row,
+                safety_measures: row.safety_measures ? JSON.parse(row.safety_measures) : [],
+                signatures: row.signatures ? JSON.parse(row.signatures) : {}
+            }));
+            res.json({
+                data: permits,
+                total: countRow.total,
+                page: parseInt(page),
+                pageSize: limit,
+                totalPages: Math.ceil(countRow.total / limit)
+            });
         });
-        res.json(processedRows);
     });
 });
 

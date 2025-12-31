@@ -31,10 +31,11 @@ export function getCurrentUser() {
 
 // --- Work Permit Functions ---
 
-export async function loadPermits(status = '', search = '') {
+export async function loadPermits(status = '', search = '', page = 1, pageSize = 20) {
     let url = `${API_BASE}/work-permits?`;
     if (status) url += `status=${encodeURIComponent(status)}&`;
-    if (search) url += `search=${encodeURIComponent(search)}`;
+    if (search) url += `search=${encodeURIComponent(search)}&`;
+    url += `page=${page}&pageSize=${pageSize}`;
     
     const response = await fetch(url);
     return await response.json();

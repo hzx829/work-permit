@@ -7,6 +7,12 @@ export default function List() {
     const [permits, setPermits] = useState([]);
     const [search, setSearch] = useState('');
     const [loading, setLoading] = useState(true);
+    const [pagination, setPagination] = useState({
+        page: 1,
+        pageSize: 20,
+        total: 0,
+        totalPages: 0
+    });
     const navigate = useNavigate();
     const { user, logout } = useAuth();
     const [searchParams] = useSearchParams();
@@ -15,13 +21,18 @@ export default function List() {
     useEffect(() => {
         fetchPermits();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [search, statusFilter]);
+    }, [search, statusFilter, pagination.page]);
 
     const fetchPermits = async () => {
         setLoading(true);
         try {
-            const data = await loadPermits(statusFilter, search);
-            setPermits(data);
+            const result = await loadPermits(statusFilter, search, pagination.page, pagination.pageSize);
+            setPermits(result.data);
+            setPagination(prev => ({
+                ...prev,
+                total: result.total,
+                totalPages: result.totalPages
+            }));
             setLoading(false);
         } catch (error) {
             console.error('Error loading permits:', error);
@@ -34,7 +45,13 @@ export default function List() {
         clearTimeout(searchTimeout);
         searchTimeout = setTimeout(() => {
             setSearch(e.target.value.trim());
+            setPagination(prev => ({ ...prev, page: 1 }));
         }, 500);
+    };
+
+    const handlePageChange = (newPage) => {
+        setPagination(prev => ({ ...prev, page: newPage }));
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
     return (
@@ -172,6 +189,75 @@ export default function List() {
                             </tbody>
                         </table>
                     </div>
+                    
+                    {/* Pagination */}
+                    {!loading && permits.length > 0 && pagination.totalPages > 1 && (
+                        <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
+                            <div className="text-sm text-gray-500">
+                                共 {pagination.total} 条记录，第 {pagination.page} / {pagination.totalPages} 页
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => handlePageChange(1)}
+                                    disabled={pagination.page === 1}
+                                    className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    首页
+                                </button>
+                                <button
+                                    onClick={() => handlePageChange(pagination.page - 1)}
+                                    disabled={pagination.page === 1}
+                                    className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    <i className="fas fa-chevron-left"></i>
+                                </button>
+                                
+                                {/* Page numbers */}
+                                {(() => {
+                                    const pages = [];
+                                    const showPages = 5;
+                                    let startPage = Math.max(1, pagination.page - Math.floor(showPages / 2));
+                                    let endPage = Math.min(pagination.totalPages, startPage + showPages - 1);
+                                    
+                                    if (endPage - startPage < showPages - 1) {
+                                        startPage = Math.max(1, endPage - showPages + 1);
+                                    }
+                                    
+                                    for (let i = startPage; i <= endPage; i++) {
+                                        pages.push(
+                                            <button
+                                                key={i}
+                                                onClick={() => handlePageChange(i)}
+                                                className={`px-3 py-1 text-sm border rounded transition-colors ${
+                                                    i === pagination.page
+                                                        ? 'bg-blue-600 text-white border-blue-600'
+                                                        : 'border-gray-300 hover:bg-gray-50'
+                                                }`}
+                                            >
+                                                {i}
+                                            </button>
+                                        );
+                                    }
+                                    return pages;
+                                })()}
+                                
+                                <button
+                                    onClick={() => handlePageChange(pagination.page + 1)}
+                                    disabled={pagination.page === pagination.totalPages}
+                                    className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    <i className="fas fa-chevron-right"></i>
+                                </button>
+                                <button
+                                    onClick={() => handlePageChange(pagination.totalPages)}
+                                    disabled={pagination.page === pagination.totalPages}
+                                    className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    末页
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         </>
