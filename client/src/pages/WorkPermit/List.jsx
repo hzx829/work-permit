@@ -9,7 +9,7 @@ export default function List() {
     const [loading, setLoading] = useState(true);
     const [pagination, setPagination] = useState({
         page: 1,
-        pageSize: 20,
+        pageSize: 10,
         total: 0,
         totalPages: 0
     });

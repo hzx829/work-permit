@@ -31,7 +31,7 @@ export function getCurrentUser() {
 
 // --- Work Permit Functions ---
 
-export async function loadPermits(status = '', search = '', page = 1, pageSize = 20) {
+export async function loadPermits(status = '', search = '', page = 1, pageSize = 10) {
     let url = `${API_BASE}/work-permits?`;
     if (status) url += `status=${encodeURIComponent(status)}&`;
     if (search) url += `search=${encodeURIComponent(search)}&`;

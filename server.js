@@ -508,7 +508,7 @@ app.get('/api/fire-safety', (req, res) => {
 
 // Get all permits (with optional filtering)
 app.get('/api/work-permits', (req, res) => {
-    const { status, search, page = 1, pageSize = 20 } = req.query;
+    const { status, search, page = 1, pageSize = 10 } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(pageSize);
     const limit = parseInt(pageSize);
     
