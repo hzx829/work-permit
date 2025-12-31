@@ -27,15 +27,16 @@ export default function List() {
         setLoading(true);
         try {
             const result = await loadPermits(statusFilter, search, pagination.page, pagination.pageSize);
-            setPermits(result.data);
+            setPermits(result.data || []);
             setPagination(prev => ({
                 ...prev,
-                total: result.total,
-                totalPages: result.totalPages
+                total: result.total || 0,
+                totalPages: result.totalPages || 0
             }));
             setLoading(false);
         } catch (error) {
             console.error('Error loading permits:', error);
+            setPermits([]);
             setLoading(false);
         }
     };
