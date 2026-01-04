@@ -94,7 +94,9 @@ export function getStatusColor(status) {
     const colors = {
         '待审批': 'bg-yellow-100 text-yellow-700',
         '已批准': 'bg-blue-100 text-blue-700',
+        '作业进行中': 'bg-green-100 text-green-700',
         '作业中': 'bg-green-100 text-green-700',
+        '作业已完成': 'bg-gray-100 text-gray-700',
         '已完工': 'bg-gray-100 text-gray-700',
         '已驳回': 'bg-red-100 text-red-700'
     };

@@ -5,7 +5,7 @@ import SignaturePad from '../SignaturePad';
  * 安全交底模块
  * 权限：其他人员 → 班长
  */
-export default function SafetyBriefingModule({ data, onChange, readOnly, currentUser, onSave, saving }) {
+export default function SafetyBriefingModule({ data, onChange, readOnly, currentUser, onSave, saving, requireStrictSignAndPhotos = false }) {
     const [previewImage, setPreviewImage] = useState(null);
 
     // 照片列表
@@ -79,6 +79,16 @@ export default function SafetyBriefingModule({ data, onChange, readOnly, current
 
     const handleSave = async () => {
         if (!onSave) return;
+        if (requireStrictSignAndPhotos) {
+            if (!data?.safety_briefing_images || data.safety_briefing_images.length === 0) {
+                window.alert('请至少上传一张安全交底签字照片。');
+                return;
+            }
+            if (!data?.safety_briefing_signature) {
+                window.alert('请完成交底人签字后再保存安全交底信息。');
+                return;
+            }
+        }
         await onSave(
             {
                 safety_briefing_images: data?.safety_briefing_images || [],
@@ -146,6 +156,7 @@ export default function SafetyBriefingModule({ data, onChange, readOnly, current
                 <h3 className="font-semibold text-gray-700 mb-3">
                     <i className="fas fa-camera mr-2 text-purple-600"></i>
                     交底签字照片上传
+                    {requireStrictSignAndPhotos && <span className="text-red-500 ml-1">*</span>}
                 </h3>
                 <p className="text-sm text-gray-500 mb-4">
                     请上传线下安全交底纸质签字记录或交底现场照片
@@ -199,6 +210,7 @@ export default function SafetyBriefingModule({ data, onChange, readOnly, current
                     <h3 className="font-semibold text-gray-700">
                         <i className="fas fa-signature mr-2 text-indigo-600"></i>
                         交底人签字确认
+                        {requireStrictSignAndPhotos && <span className="text-red-500 ml-1">*</span>}
                     </h3>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">

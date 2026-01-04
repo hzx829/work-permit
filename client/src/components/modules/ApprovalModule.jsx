@@ -4,7 +4,7 @@
  */
 import SignaturePad from '../SignaturePad';
 
-export default function ApprovalModule({ data, onChange, readOnly, currentUser, onSave, saving }) {
+export default function ApprovalModule({ data, onChange, readOnly, currentUser, onSave, saving, requireStrictSignAndPhotos = false }) {
     const canEdit = !readOnly && currentUser?.role === 'safety' && data?.status === '待审批';
 
     const getCurrentUserName = () => {
@@ -48,6 +48,10 @@ export default function ApprovalModule({ data, onChange, readOnly, currentUser, 
 
     const handleSave = async () => {
         if (!onSave) return;
+        if (requireStrictSignAndPhotos && !data?.approver_signature) {
+            window.alert('请先完成审批人签字后再保存票证审批信息。');
+            return;
+        }
         await onSave(
             {
                 approver_sign: data?.approver_sign || '',
@@ -108,6 +112,7 @@ export default function ApprovalModule({ data, onChange, readOnly, currentUser, 
                 <h3 className="font-semibold text-gray-700 mb-3">
                     <i className="fas fa-signature mr-2 text-indigo-600"></i>
                     审批人签字确认
+                    {requireStrictSignAndPhotos && <span className="text-red-500 ml-1">*</span>}
                 </h3>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">

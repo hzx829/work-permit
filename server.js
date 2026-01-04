@@ -519,10 +519,22 @@ app.get('/api/work-permits', (req, res) => {
     const countParams = [];
 
     if (status && status !== '全部') {
-        sql += " AND status = ?";
-        countSql += " AND status = ?";
-        params.push(status);
-        countParams.push(status);
+        if (status === '作业进行中') {
+            sql += " AND status IN (?, ?)";
+            countSql += " AND status IN (?, ?)";
+            params.push('作业进行中', '作业中');
+            countParams.push('作业进行中', '作业中');
+        } else if (status === '作业已完成') {
+            sql += " AND status IN (?, ?)";
+            countSql += " AND status IN (?, ?)";
+            params.push('作业已完成', '已完工');
+            countParams.push('作业已完成', '已完工');
+        } else {
+            sql += " AND status = ?";
+            countSql += " AND status = ?";
+            params.push(status);
+            countParams.push(status);
+        }
     }
 
     if (search) {

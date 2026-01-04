@@ -73,6 +73,7 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
     const VENTILATION_REQUIREMENT_SECONDS = 30 * 60;
     const DEFAULT_VENTILATION_SECONDS = VENTILATION_REQUIREMENT_SECONDS + 60;
     const [ventilationSeconds, setVentilationSeconds] = React.useState(DEFAULT_VENTILATION_SECONDS);
+    const [ventilationStartTime, setVentilationStartTime] = React.useState(null);
 
     const { user } = useAuth();
     
@@ -103,6 +104,13 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
         if (data?.worker_sign_time) return;
         onChange('worker_sign_time', getNowDateTimeLocal());
     }, [readOnly, data?.worker_sign_time]);
+
+    // 自动填充作业申请时间，用于通风时长计时
+    React.useEffect(() => {
+        if (readOnly) return;
+        if (data?.apply_time) return;
+        onChange('apply_time', getNowDateTimeLocal());
+    }, [readOnly, data?.apply_time]);
 
     const createSignatureChangeHandler = ({
         signatureField,
@@ -140,16 +148,29 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
         if (!seconds || seconds <= 0) {
             return '未开始计时';
         }
-        const minutes = Math.floor(seconds / 60);
-        if (minutes < 60) {
-            return `${minutes} 分钟`;
+        const totalSeconds = Math.floor(seconds);
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const restSeconds = totalSeconds % 60;
+        if (hours > 0) {
+            if (minutes === 0 && restSeconds === 0) {
+                return `${hours} 小时`;
+            }
+            if (restSeconds === 0) {
+                return `${hours} 小时 ${minutes} 分钟`;
+            }
+            if (minutes === 0) {
+                return `${hours} 小时 ${restSeconds} 秒`;
+            }
+            return `${hours} 小时 ${minutes} 分钟 ${restSeconds} 秒`;
         }
-        const hours = Math.floor(minutes / 60);
-        const restMinutes = minutes % 60;
-        if (restMinutes === 0) {
-            return `${hours} 小时`;
+        if (minutes > 0) {
+            if (restSeconds === 0) {
+                return `${minutes} 分钟`;
+            }
+            return `${minutes} 分钟 ${restSeconds} 秒`;
         }
-        return `${hours} 小时 ${restMinutes} 分钟`;
+        return `${restSeconds} 秒`;
     };
 
     const canQueryRelatedPermits = readOnly && userRole === 'safety';
@@ -176,15 +197,23 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
         if (!contentReady) {
             setIsDetecting(false);
             setHasStartedDetection(false);
+            setVentilationStartTime(null);
             return;
         }
 
-        // 只在“首次填写作业内容”时启动一次检测计时器
+        // 只在"首次填写作业内容"时启动一次检测计时器和通风计时
         if (!hasStartedDetection) {
             setIsDetecting(true);
             setHasStartedDetection(true);
+            // 记录开始计时的时间戳
+            if (!ventilationStartTime && !data?.ventilation_start_time) {
+                const now = Date.now();
+                setVentilationStartTime(now);
+                // 保存到表单数据中，以便提交到数据库
+                onChange('ventilation_start_time', new Date(now).toISOString());
+            }
         }
-    }, [contentReady, hasStartedDetection, readOnly]);
+    }, [contentReady, hasStartedDetection, readOnly, ventilationStartTime]);
 
     // 单独的 useEffect 处理检测计时器，只依赖 isDetecting 状态
     React.useEffect(() => {
@@ -197,24 +226,37 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
         return () => clearTimeout(timer);
     }, [isDetecting]);
 
+    // 通风时长计时器 - 从填写作业内容时开始计时，从31分钟开始递增
     React.useEffect(() => {
-        if (!data.apply_time) {
+        // 优先使用数据库中保存的时间（用于readOnly模式）
+        if (data?.ventilation_start_time) {
+            const savedStartTime = new Date(data.ventilation_start_time).getTime();
+            if (!isNaN(savedStartTime)) {
+                const update = () => {
+                    const elapsed = Math.floor((Date.now() - savedStartTime) / 1000);
+                    setVentilationSeconds(DEFAULT_VENTILATION_SECONDS + elapsed);
+                };
+                update();
+                const intervalId = setInterval(update, 1000);
+                return () => clearInterval(intervalId);
+            }
+        }
+        
+        // 新建模式：使用本地状态的时间
+        if (!ventilationStartTime) {
             setVentilationSeconds(DEFAULT_VENTILATION_SECONDS);
             return;
         }
-        const startTime = new Date(data.apply_time).getTime();
-        if (!startTime || Number.isNaN(startTime)) {
-            setVentilationSeconds(DEFAULT_VENTILATION_SECONDS);
-            return;
-        }
+        
         const update = () => {
-            const diff = Math.floor((Date.now() - startTime) / 1000);
-            setVentilationSeconds(Math.max(diff > 0 ? diff : 0, DEFAULT_VENTILATION_SECONDS));
+            const elapsed = Math.floor((Date.now() - ventilationStartTime) / 1000);
+            setVentilationSeconds(DEFAULT_VENTILATION_SECONDS + elapsed);
         };
+        
         update();
-        const intervalId = setInterval(update, 60000);
+        const intervalId = setInterval(update, 1000);
         return () => clearInterval(intervalId);
-    }, [data.apply_time]);
+    }, [ventilationStartTime, data?.ventilation_start_time]);
 
     const handleChange = (e) => {
         if (readOnly) return;

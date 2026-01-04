@@ -4,7 +4,7 @@
  */
 import SignaturePad from '../SignaturePad';
 
-export default function InspectionModule({ data, onChange, readOnly, currentUser, onSave, saving }) {
+export default function InspectionModule({ data, onChange, readOnly, currentUser, onSave, saving, requireStrictSignAndPhotos = false }) {
     const canEdit = !readOnly && currentUser?.role === 'safety';
 
     const getCurrentUserName = () => {
@@ -87,6 +87,16 @@ export default function InspectionModule({ data, onChange, readOnly, currentUser
 
     const handleSave = async () => {
         if (!onSave) return;
+        if (requireStrictSignAndPhotos) {
+            if (!data?.pre_inspection_signature_image) {
+                window.alert('请先完成作业前验票签字后再保存。');
+                return;
+            }
+            if (data?.post_inspection_result && !data?.post_inspection_signature_image) {
+                window.alert('请在完成作业后验收签字后再保存验收结果。');
+                return;
+            }
+        }
         await onSave(
             {
                 pre_inspection_person: data?.pre_inspection_signature || data?.pre_inspection_person || '',
@@ -190,6 +200,7 @@ export default function InspectionModule({ data, onChange, readOnly, currentUser
                         <h4 className="font-medium text-gray-700 mb-3">
                             <i className="fas fa-signature mr-2 text-indigo-600"></i>
                             验票人签字
+                            {requireStrictSignAndPhotos && <span className="text-red-500 ml-1">*</span>}
                         </h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
                             <div>
@@ -307,11 +318,11 @@ export default function InspectionModule({ data, onChange, readOnly, currentUser
                         />
                     </div>
 
-                    {/* 验收人签字 */}
                     <div className="pt-4 border-t border-gray-200">
                         <h4 className="font-medium text-gray-700 mb-3">
                             <i className="fas fa-signature mr-2 text-indigo-600"></i>
                             验收人签字
+                            {requireStrictSignAndPhotos && <span className="text-red-500 ml-1">*</span>}
                         </h4>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">

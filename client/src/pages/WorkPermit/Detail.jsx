@@ -48,14 +48,19 @@ export default function Detail() {
         fetchPermit();
     }, [id, navigate]);
 
+    const reloadPermit = async () => {
+        const data = await getPermit(id);
+        if (data.permit_number) data.permit_code = data.permit_number;
+        setPermit(data);
+        return data;
+    };
+
     const saveExtraData = async (updates, successMessage = '保存成功') => {
         if (!updates || Object.keys(updates).length === 0) return;
         setSavingExtra(true);
         try {
             await updatePermitExtraData(id, updates);
-            const data = await getPermit(id);
-            if (data.permit_number) data.permit_code = data.permit_number;
-            setPermit(data);
+            await reloadPermit();
             alert(successMessage);
         } catch (error) {
             console.error('Error saving extra data:', error);
@@ -65,9 +70,76 @@ export default function Detail() {
         }
     };
 
+    const saveApprovalExtraData = async (updates, successMessage = '保存成功') => {
+        if (!updates || Object.keys(updates).length === 0) return;
+        setSavingExtra(true);
+        try {
+            await updatePermitExtraData(id, updates);
+
+            const hasApproverSign = Boolean(
+                (updates?.approver_signature && updates.approver_signature !== '') ||
+                (updates?.approver_sign && updates.approver_sign !== '')
+            );
+            const currentStatus = permit?.status || '';
+            if (hasApproverSign && currentStatus === '待审批') {
+                await updatePermitStatus(id, '已批准');
+            }
+
+            await reloadPermit();
+            alert(successMessage);
+        } catch (error) {
+            console.error('Error saving approval data:', error);
+            alert('保存失败，请重试');
+        } finally {
+            setSavingExtra(false);
+        }
+    };
+
+    const saveInspectionExtraData = async (updates, successMessage = '保存成功') => {
+        if (!updates || Object.keys(updates).length === 0) return;
+        setSavingExtra(true);
+        try {
+            await updatePermitExtraData(id, updates);
+
+            const hasPreInspectionSign = Boolean(
+                (updates?.pre_inspection_signature_image && updates.pre_inspection_signature_image !== '') ||
+                (updates?.pre_inspection_signature && updates.pre_inspection_signature !== '')
+            );
+            const hasPostInspectionSign = Boolean(
+                (updates?.post_inspection_signature_image && updates.post_inspection_signature_image !== '') ||
+                (updates?.post_inspection_signature && updates.post_inspection_signature !== '')
+            );
+
+            const currentStatus = permit?.status || '';
+            if (hasPostInspectionSign && currentStatus !== '作业已完成' && currentStatus !== '已完工') {
+                await updatePermitStatus(id, '作业已完成');
+            } else if (
+                hasPreInspectionSign &&
+                currentStatus !== '作业进行中' &&
+                currentStatus !== '作业中' &&
+                currentStatus !== '作业已完成' &&
+                currentStatus !== '已完工' &&
+                currentStatus !== '已驳回' &&
+                (permit?.approver_sign || permit?.status === '已批准')
+            ) {
+                await updatePermitStatus(id, '作业进行中');
+            }
+
+            await reloadPermit();
+            alert(successMessage);
+        } catch (error) {
+            console.error('Error saving inspection data:', error);
+            alert('保存失败，请重试');
+        } finally {
+            setSavingExtra(false);
+        }
+    };
+
+    const isConfinedSpace = permit?.type === '受限空间作业';
+
     const handleApprove = async () => {
         // 特殊逻辑：受限空间作业需要二次确认
-        if (permit.type === '受限空间作业') {
+        if (isConfinedSpace) {
             setShowConfinedSpaceModal(true);
             setBlindPlateStatus(null); // 重置状态
             return;
@@ -144,7 +216,7 @@ export default function Detail() {
                 await updatePermitExtraData(id, extraData);
             }
             
-            await updatePermitStatus(id, '作业中');
+            await updatePermitStatus(id, '作业进行中');
             alert('作业已开始');
             const data = await getPermit(id);
             if (data.permit_number) data.permit_code = data.permit_number;
@@ -172,7 +244,7 @@ export default function Detail() {
                 });
             }
             
-            await updatePermitStatus(id, '已完工');
+            await updatePermitStatus(id, '作业已完成');
             alert('作业已完成');
             const data = await getPermit(id);
             if (data.permit_number) data.permit_code = data.permit_number;
@@ -217,6 +289,16 @@ export default function Detail() {
     };
 
     const SpecificForm = getSpecificForm();
+
+    const getDerivedStage = () => {
+        if (permit?.post_inspection_signature) return 4;
+        if (permit?.pre_inspection_signature) return 3;
+        if (permit?.approver_sign || permit?.status === '已批准') return 2;
+        return 1;
+    };
+
+    const derivedStage = getDerivedStage();
+    const stages = ['待审批', '已批准', '作业进行中', '作业已完成'];
 
     return (
         <>
@@ -401,6 +483,7 @@ export default function Detail() {
                                         currentUser={user}
                                         onSave={saveExtraData}
                                         saving={savingExtra}
+                                        requireStrictSignAndPhotos={isConfinedSpace}
                                     />
                                 )}
 
@@ -412,6 +495,7 @@ export default function Detail() {
                                         currentUser={user}
                                         onSave={saveExtraData}
                                         saving={savingExtra}
+                                        requireStrictSignAndPhotos={isConfinedSpace}
                                     />
                                 )}
 
@@ -421,8 +505,9 @@ export default function Detail() {
                                         onChange={(field, value) => setPermit(prev => ({ ...prev, [field]: value }))}
                                         readOnly={false}
                                         currentUser={user}
-                                        onSave={saveExtraData}
+                                        onSave={saveApprovalExtraData}
                                         saving={savingExtra}
+                                        requireStrictSignAndPhotos={isConfinedSpace}
                                     />
                                 )}
 
@@ -434,6 +519,7 @@ export default function Detail() {
                                         currentUser={user}
                                         onSave={saveExtraData}
                                         saving={savingExtra}
+                                        requireStrictSignAndPhotos={isConfinedSpace}
                                     />
                                 )}
 
@@ -443,8 +529,9 @@ export default function Detail() {
                                         onChange={(field, value) => setPermit(prev => ({ ...prev, [field]: value }))}
                                         readOnly={false}
                                         currentUser={user}
-                                        onSave={saveExtraData}
+                                        onSave={saveInspectionExtraData}
                                         saving={savingExtra}
+                                        requireStrictSignAndPhotos={isConfinedSpace}
                                     />
                                 )}
                             </div>
@@ -454,61 +541,328 @@ export default function Detail() {
                     {/* Right: Status & Actions */}
                     <div className="space-y-6">
                         {/* Status Card */}
-                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                            <h3 className="text-sm font-medium text-gray-500 mb-2">当前状态</h3>
-                            <span className={`inline-block px-4 py-2 rounded-lg text-lg font-semibold ${getStatusColor(permit.status)}`}>
-                                {permit.status}
-                            </span>
+                        <div className="bg-gradient-to-br from-purple-50 via-white to-blue-50 rounded-xl shadow-lg border border-purple-100 p-6 relative overflow-hidden">
+                            {/* Background decoration */}
+                            <div className="absolute -top-10 -right-10 w-40 h-40 bg-purple-100 rounded-full opacity-20"></div>
+                            <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-blue-100 rounded-full opacity-20"></div>
+                            
+                            <div className="relative">
+                                <div className="flex items-center gap-2 mb-4">
+                                    <div className="w-8 h-8 bg-gradient-to-br from-purple-600 to-blue-600 rounded-lg flex items-center justify-center shadow-md">
+                                        <i className="fas fa-tasks text-white text-sm"></i>
+                                    </div>
+                                    <h3 className="text-sm font-bold text-gray-700">当前状态</h3>
+                                </div>
+                                
+                                <div className="flex justify-center mb-6">
+                                    <span className={`inline-flex items-center gap-2 px-6 py-3 rounded-xl text-lg font-bold shadow-md transform hover:scale-105 transition-transform ${getStatusColor(permit.status === '已驳回' ? permit.status : stages[derivedStage - 1])}`}>
+                                        <i className={`fas ${
+                                            permit.status === '已驳回' ? 'fa-times-circle' :
+                                            derivedStage === 4 ? 'fa-check-circle' :
+                                            derivedStage === 3 ? 'fa-play-circle' :
+                                            derivedStage === 2 ? 'fa-clipboard-check' :
+                                            'fa-clock'
+                                        } text-xl`}></i>
+                                        {permit.status === '已驳回' ? permit.status : stages[derivedStage - 1]}
+                                    </span>
+                                </div>
+                                
+                                <div className="space-y-3">
+                                    {stages.map((label, idx) => {
+                                        const step = idx + 1;
+                                        const isDone = step < derivedStage;
+                                        const isCurrent = step === derivedStage;
+                                        const isPending = step > derivedStage;
+                                        
+                                        const circleClass = isDone
+                                            ? 'bg-gradient-to-br from-green-500 to-green-600 text-white border-green-600 shadow-md'
+                                            : isCurrent
+                                              ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white border-blue-600 shadow-md animate-pulse'
+                                              : 'bg-white text-gray-400 border-gray-300';
+                                        
+                                        const textClass = isDone
+                                            ? 'text-gray-900 font-medium'
+                                            : isCurrent
+                                              ? 'text-blue-700 font-bold'
+                                              : 'text-gray-500';
+                                        
+                                        const lineClass = idx < stages.length - 1
+                                            ? isDone
+                                                ? 'border-l-2 border-green-400'
+                                                : 'border-l-2 border-gray-200'
+                                            : '';
+
+                                        return (
+                                            <div key={label}>
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`w-9 h-9 rounded-full border-2 flex items-center justify-center text-sm font-bold ${circleClass} transition-all duration-300`}>
+                                                        {isDone ? (
+                                                            <i className="fas fa-check text-sm"></i>
+                                                        ) : isCurrent ? (
+                                                            <i className="fas fa-circle text-xs"></i>
+                                                        ) : (
+                                                            step
+                                                        )}
+                                                    </div>
+                                                    <div className="flex-1 flex items-center gap-2">
+                                                        <div className={`text-sm ${textClass} transition-all duration-300`}>
+                                                            {label}
+                                                        </div>
+                                                        {isCurrent && (
+                                                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full animate-pulse">
+                                                                进行中
+                                                            </span>
+                                                        )}
+                                                        {isDone && (
+                                                            <i className="fas fa-check-circle text-green-500 text-sm"></i>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                {idx < stages.length - 1 && (
+                                                    <div className={`ml-4 h-6 ${lineClass} transition-all duration-300`}></div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
                         </div>
 
-                        {/* Applicant Info */}
-                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                            <h3 className="text-sm font-medium text-gray-500 mb-4">申请人信息</h3>
-                            <div className="space-y-3">
-                                <div>
-                                    <span className="text-xs text-gray-500">申请人</span>
-                                    <div className="group relative inline-block">
-                                        <p className="font-medium text-gray-900 cursor-help border-b border-dashed border-gray-300 inline-block">
-                                            {permit.applicant_name}
-                                        </p>
-                                        {/* Tooltip */}
-                                        <div className="invisible group-hover:visible opacity-0 group-hover:opacity-100 absolute right-full top-1/2 -translate-y-1/2 mr-3 w-[36rem] bg-gray-800 text-white text-base rounded-xl shadow-xl p-6 z-50 transition-all duration-200">
-                                            <div className="space-y-5">
-                                                <div>
-                                                    <h4 className="font-bold text-blue-200 text-lg mb-3 border-b border-gray-600 pb-2">培训考核教育纪录</h4>
-                                                    <ul className="space-y-2 text-gray-300">
-                                                        <li className="flex items-start gap-3">
-                                                            <i className="fas fa-check text-green-400 mt-1"></i>
-                                                            <span>2024年度安全生产教育培训 (合格)</span>
-                                                        </li>
-                                                        <li className="flex items-start gap-3">
-                                                            <i className="fas fa-check text-green-400 mt-1"></i>
-                                                            <span>入场三级安全教育 (通过)</span>
-                                                        </li>
-                                                    </ul>
+                        {/* Work Person in Charge Info */}
+                        <div className="bg-gradient-to-br from-blue-50 to-white rounded-xl shadow-sm border border-blue-100 p-6 relative">
+                            <div className="absolute top-0 right-0 w-20 h-20 bg-blue-100 rounded-bl-full opacity-30 pointer-events-none"></div>
+                            <div className="relative">
+                                <div className="flex items-center gap-2 mb-4">
+                                    <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                                        <i className="fas fa-user-tie text-white text-sm"></i>
+                                    </div>
+                                    <h3 className="text-sm font-bold text-gray-700">作业负责人</h3>
+                                </div>
+                                <div className="space-y-4">
+                                    <div>
+                                        <span className="text-xs text-gray-500 flex items-center gap-1 mb-1">
+                                            <i className="fas fa-user text-xs"></i>
+                                            姓名
+                                        </span>
+                                        <div className="group relative inline-block">
+                                            <p className="font-semibold text-gray-900 text-lg cursor-help border-b-2 border-dashed border-blue-300 inline-block hover:border-blue-500 transition-colors">
+                                                {permit.supervisor || '未填写'}
+                                            </p>
+                                            {/* Tooltip */}
+                                            <div className="invisible group-hover:visible opacity-0 group-hover:opacity-100 absolute right-full top-1/2 -translate-y-1/2 mr-3 w-[36rem] bg-gray-900 text-white text-base rounded-xl shadow-2xl p-6 z-[9999] transition-all duration-200">
+                                                <div className="space-y-5">
+                                                    <div>
+                                                        <h4 className="font-bold text-blue-300 text-lg mb-3 border-b border-gray-700 pb-2 flex items-center gap-2">
+                                                            <i className="fas fa-graduation-cap"></i>
+                                                            培训考核教育纪录
+                                                        </h4>
+                                                        <ul className="space-y-2 text-gray-300">
+                                                            <li className="flex items-start gap-3">
+                                                                <i className="fas fa-check-circle text-green-400 mt-1"></i>
+                                                                <span>2025年度安全生产教育培训 (合格)</span>
+                                                            </li>
+                                                            <li className="flex items-start gap-3">
+                                                                <i className="fas fa-check-circle text-green-400 mt-1"></i>
+                                                                <span>入场三级安全教育 (通过)</span>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                    <div>
+                                                        <h4 className="font-bold text-yellow-300 text-lg mb-3 border-b border-gray-700 pb-2 flex items-center gap-2">
+                                                            <i className="fas fa-certificate"></i>
+                                                            考核合格记录
+                                                        </h4>
+                                                        <ul className="space-y-2 text-gray-300">
+                                                            <li className="flex items-start gap-3">
+                                                                <i className="fas fa-award text-yellow-400 mt-1"></i>
+                                                                <span>作业负责人资格证 (有效)</span>
+                                                            </li>
+                                                            <li className="flex items-start gap-3">
+                                                                <i className="fas fa-award text-yellow-400 mt-1"></i>
+                                                                <span>特种作业操作证 (有效)</span>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <h4 className="font-bold text-blue-200 text-lg mb-3 border-b border-gray-600 pb-2">考核合格记录</h4>
-                                                    <ul className="space-y-2 text-gray-300">
-                                                        <li className="flex items-start gap-3">
-                                                            <i className="fas fa-certificate text-yellow-400 mt-1"></i>
-                                                            <span>特殊作业监护人资格证 (有效)</span>
-                                                        </li>
-                                                        <li className="flex items-start gap-3">
-                                                            <i className="fas fa-certificate text-yellow-400 mt-1"></i>
-                                                            <span>安全管理人员资格证 (有效)</span>
-                                                        </li>
-                                                    </ul>
-                                                </div>
+                                                {/* Arrow pointing right */}
+                                                <div className="absolute left-full top-1/2 -translate-y-1/2 -ml-[1px] border-[12px] border-transparent border-l-gray-900"></div>
                                             </div>
-                                            {/* Arrow pointing right */}
-                                            <div className="absolute left-full top-1/2 -translate-y-1/2 -ml-[1px] border-[12px] border-transparent border-l-gray-800"></div>
                                         </div>
                                     </div>
+                                    {permit.supervisor_cert && (
+                                        <div className="bg-white/60 rounded-lg p-3 border border-blue-100">
+                                            <span className="text-xs text-gray-500 flex items-center gap-1 mb-1">
+                                                <i className="fas fa-id-card text-xs"></i>
+                                                证件编号
+                                            </span>
+                                            <p className="text-sm text-gray-800 font-mono font-medium">{permit.supervisor_cert}</p>
+                                        </div>
+                                    )}
+                                    <div className="pt-2 border-t border-blue-100">
+                                        <span className="text-xs text-gray-500 flex items-center gap-1 mb-1">
+                                            <i className="fas fa-clock text-xs"></i>
+                                            登记时间
+                                        </span>
+                                        <p className="text-sm text-gray-700">{formatDate(permit.created_at)}</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <span className="text-xs text-gray-500">申请时间</span>
-                                    <p className="text-sm text-gray-700">{formatDate(permit.created_at)}</p>
+                            </div>
+                        </div>
+
+                        {/* Worker Info */}
+                        <div className="bg-gradient-to-br from-green-50 to-white rounded-xl shadow-sm border border-green-100 p-6 relative">
+                            <div className="absolute top-0 right-0 w-20 h-20 bg-green-100 rounded-bl-full opacity-30 pointer-events-none"></div>
+                            <div className="relative">
+                                <div className="flex items-center gap-2 mb-4">
+                                    <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center">
+                                        <i className="fas fa-hard-hat text-white text-sm"></i>
+                                    </div>
+                                    <h3 className="text-sm font-bold text-gray-700">作业人</h3>
+                                </div>
+                                <div className="space-y-4">
+                                    <div>
+                                        <span className="text-xs text-gray-500 flex items-center gap-1 mb-1">
+                                            <i className="fas fa-user text-xs"></i>
+                                            姓名
+                                        </span>
+                                        <div className="group relative inline-block">
+                                            <p className="font-semibold text-gray-900 text-lg cursor-help border-b-2 border-dashed border-green-300 inline-block hover:border-green-500 transition-colors">
+                                                {permit.workers || '未填写'}
+                                            </p>
+                                            {/* Tooltip */}
+                                            <div className="invisible group-hover:visible opacity-0 group-hover:opacity-100 absolute right-full top-1/2 -translate-y-1/2 mr-3 w-[36rem] bg-gray-900 text-white text-base rounded-xl shadow-2xl p-6 z-[9999] transition-all duration-200">
+                                                <div className="space-y-5">
+                                                    <div>
+                                                        <h4 className="font-bold text-blue-300 text-lg mb-3 border-b border-gray-700 pb-2 flex items-center gap-2">
+                                                            <i className="fas fa-graduation-cap"></i>
+                                                            培训考核教育纪录
+                                                        </h4>
+                                                        <ul className="space-y-2 text-gray-300">
+                                                            <li className="flex items-start gap-3">
+                                                                <i className="fas fa-check-circle text-green-400 mt-1"></i>
+                                                                <span>2025年度安全生产教育培训 (合格)</span>
+                                                            </li>
+                                                            <li className="flex items-start gap-3">
+                                                                <i className="fas fa-check-circle text-green-400 mt-1"></i>
+                                                                <span>入场三级安全教育 (通过)</span>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                    <div>
+                                                        <h4 className="font-bold text-yellow-300 text-lg mb-3 border-b border-gray-700 pb-2 flex items-center gap-2">
+                                                            <i className="fas fa-certificate"></i>
+                                                            考核合格记录
+                                                        </h4>
+                                                        <ul className="space-y-2 text-gray-300">
+                                                            <li className="flex items-start gap-3">
+                                                                <i className="fas fa-award text-yellow-400 mt-1"></i>
+                                                                <span>特种作业操作证 (有效)</span>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                {/* Arrow pointing right */}
+                                                <div className="absolute left-full top-1/2 -translate-y-1/2 -ml-[1px] border-[12px] border-transparent border-l-gray-900"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {permit.worker_cert && (
+                                        <div className="bg-white/60 rounded-lg p-3 border border-green-100">
+                                            <span className="text-xs text-gray-500 flex items-center gap-1 mb-1">
+                                                <i className="fas fa-id-card text-xs"></i>
+                                                证件编号
+                                            </span>
+                                            <p className="text-sm text-gray-800 font-mono font-medium">{permit.worker_cert}</p>
+                                        </div>
+                                    )}
+                                    <div className="pt-2 border-t border-green-100">
+                                        <span className="text-xs text-gray-500 flex items-center gap-1 mb-1">
+                                            <i className="fas fa-clock text-xs"></i>
+                                            登记时间
+                                        </span>
+                                        <p className="text-sm text-gray-700">{formatDate(permit.created_at)}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Guardian Info */}
+                        <div className="bg-gradient-to-br from-amber-50 to-white rounded-xl shadow-sm border border-amber-100 p-6 relative">
+                            <div className="absolute top-0 right-0 w-20 h-20 bg-amber-100 rounded-bl-full opacity-30 pointer-events-none"></div>
+                            <div className="relative">
+                                <div className="flex items-center gap-2 mb-4">
+                                    <div className="w-8 h-8 bg-amber-600 rounded-lg flex items-center justify-center">
+                                        <i className="fas fa-shield-alt text-white text-sm"></i>
+                                    </div>
+                                    <h3 className="text-sm font-bold text-gray-700">监护人</h3>
+                                </div>
+                                <div className="space-y-4">
+                                    <div>
+                                        <span className="text-xs text-gray-500 flex items-center gap-1 mb-1">
+                                            <i className="fas fa-user text-xs"></i>
+                                            姓名
+                                        </span>
+                                        <div className="group relative inline-block">
+                                            <p className="font-semibold text-gray-900 text-lg cursor-help border-b-2 border-dashed border-amber-300 inline-block hover:border-amber-500 transition-colors">
+                                                {permit.guardian || '未填写'}
+                                            </p>
+                                            {/* Tooltip */}
+                                            <div className="invisible group-hover:visible opacity-0 group-hover:opacity-100 absolute right-full top-1/2 -translate-y-1/2 mr-3 w-[36rem] bg-gray-900 text-white text-base rounded-xl shadow-2xl p-6 z-[9999] transition-all duration-200">
+                                                <div className="space-y-5">
+                                                    <div>
+                                                        <h4 className="font-bold text-blue-300 text-lg mb-3 border-b border-gray-700 pb-2 flex items-center gap-2">
+                                                            <i className="fas fa-graduation-cap"></i>
+                                                            培训考核教育纪录
+                                                        </h4>
+                                                        <ul className="space-y-2 text-gray-300">
+                                                            <li className="flex items-start gap-3">
+                                                                <i className="fas fa-check-circle text-green-400 mt-1"></i>
+                                                                <span>2025年度安全生产教育培训 (合格)</span>
+                                                            </li>
+                                                            <li className="flex items-start gap-3">
+                                                                <i className="fas fa-check-circle text-green-400 mt-1"></i>
+                                                                <span>入场三级安全教育 (通过)</span>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                    <div>
+                                                        <h4 className="font-bold text-yellow-300 text-lg mb-3 border-b border-gray-700 pb-2 flex items-center gap-2">
+                                                            <i className="fas fa-certificate"></i>
+                                                            考核合格记录
+                                                        </h4>
+                                                        <ul className="space-y-2 text-gray-300">
+                                                            <li className="flex items-start gap-3">
+                                                                <i className="fas fa-award text-yellow-400 mt-1"></i>
+                                                                <span>特殊作业监护人资格证 (有效)</span>
+                                                            </li>
+                                                            <li className="flex items-start gap-3">
+                                                                <i className="fas fa-award text-yellow-400 mt-1"></i>
+                                                                <span>安全管理人员资格证 (有效)</span>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                {/* Arrow pointing right */}
+                                                <div className="absolute left-full top-1/2 -translate-y-1/2 -ml-[1px] border-[12px] border-transparent border-l-gray-900"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {permit.guardian_cert && (
+                                        <div className="bg-white/60 rounded-lg p-3 border border-amber-100">
+                                            <span className="text-xs text-gray-500 flex items-center gap-1 mb-1">
+                                                <i className="fas fa-id-card text-xs"></i>
+                                                证件编号
+                                            </span>
+                                            <p className="text-sm text-gray-800 font-mono font-medium">{permit.guardian_cert}</p>
+                                        </div>
+                                    )}
+                                    <div className="pt-2 border-t border-amber-100">
+                                        <span className="text-xs text-gray-500 flex items-center gap-1 mb-1">
+                                            <i className="fas fa-clock text-xs"></i>
+                                            登记时间
+                                        </span>
+                                        <p className="text-sm text-gray-700">{formatDate(permit.created_at)}</p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -565,8 +919,8 @@ export default function Detail() {
                                 </>
                             )}
                             
-                            {/* 作业人员结束作业按钮 - 仅作业人员本人且状态为作业中时显示 */}
-                            {user?.role === 'worker' && user?.id === permit.applicant_id && permit.status === '作业中' && (
+                            {/* 作业人员结束作业按钮 - 仅作业人员本人且状态为作业进行中时显示 */}
+                            {user?.role === 'worker' && user?.id === permit.applicant_id && (permit.status === '作业进行中' || permit.status === '作业中') && (
                                 <>
                                     {!permit.completion_sign && (
                                         <p className="text-xs text-orange-600 bg-orange-50 px-3 py-2 rounded mb-3">
@@ -588,7 +942,7 @@ export default function Detail() {
                             {/* 无可操作时显示提示 */}
                             {!((user?.role === 'safety' && permit.status === '待审批') ||
                                (user?.role === 'worker' && user?.id === permit.applicant_id && permit.status === '已批准') ||
-                               (user?.role === 'worker' && user?.id === permit.applicant_id && permit.status === '作业中')) && (
+                               (user?.role === 'worker' && user?.id === permit.applicant_id && (permit.status === '作业进行中' || permit.status === '作业中'))) && (
                                 <div className="text-center py-4 text-gray-400 text-sm">
                                     <i className="fas fa-info-circle mb-2"></i>
                                     <p>当前状态无可执行操作</p>

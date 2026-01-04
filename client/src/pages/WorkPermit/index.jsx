@@ -22,16 +22,16 @@ export default function Dashboard() {
             try {
                 const data = await loadPermits('', '');
                 setPermits(data.slice(0, 5));
-                
+
                 setStats({
                     total: data.length || 0,
                     approved: data.filter(p => p.status === '已批准').length,
-                    active: data.filter(p => p.status === '作业中').length,
+                    active: data.filter(p => p.status === '作业进行中' || p.status === '作业中').length,
                     pending: data.filter(p => p.status === '待审批').length,
-                    completed: data.filter(p => p.status === '已完工').length,
+                    completed: data.filter(p => p.status === '作业已完成' || p.status === '已完工').length,
                     rejected: data.filter(p => p.status === '已驳回').length
                 });
-                
+
                 setLoading(false);
             } catch (error) {
                 console.error('Error loading data:', error);
@@ -116,12 +116,12 @@ export default function Dashboard() {
                 </button>
                 
                 <button
-                    onClick={() => navigate('/work-permit/list?status=作业中')}
+                    onClick={() => navigate('/work-permit/list?status=作业进行中')}
                     className="bg-white rounded-xl p-4 md:p-6 shadow-sm border border-gray-100 hover:shadow-md hover:border-green-200 transition-all text-left"
-                >
-                    <div className="flex justify-between items-start">
-                        <div>
-                            <p className="text-xs md:text-sm text-gray-500 font-medium">作业中</p>
+                    >
+                        <div className="flex justify-between items-start">
+                            <div>
+                                <p className="text-xs md:text-sm text-gray-500 font-medium">作业进行中</p>
                             <h3 className="text-2xl md:text-3xl font-bold text-green-600 mt-1 md:mt-2">{stats.active}</h3>
                         </div>
                         <div className="p-2 md:p-3 bg-green-50 text-green-500 rounded-lg">
@@ -131,12 +131,12 @@ export default function Dashboard() {
                 </button>
 
                 <button
-                    onClick={() => navigate('/work-permit/list?status=已完工')}
+                    onClick={() => navigate('/work-permit/list?status=作业已完成')}
                     className="bg-white rounded-xl p-4 md:p-6 shadow-sm border border-gray-100 hover:shadow-md hover:border-gray-200 transition-all text-left"
-                >
-                    <div className="flex justify-between items-start">
-                        <div>
-                            <p className="text-xs md:text-sm text-gray-500 font-medium">已完工</p>
+                    >
+                        <div className="flex justify-between items-start">
+                            <div>
+                                <p className="text-xs md:text-sm text-gray-500 font-medium">作业已完成</p>
                             <h3 className="text-2xl md:text-3xl font-bold text-gray-600 mt-1 md:mt-2">{stats.completed}</h3>
                         </div>
                         <div className="p-2 md:p-3 bg-gray-50 text-gray-500 rounded-lg">

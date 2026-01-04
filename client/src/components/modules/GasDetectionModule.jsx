@@ -1,11 +1,7 @@
 import { useState } from 'react';
 import SignaturePad from '../SignaturePad';
 
-/**
- * 气体浓度检测模块
- * 权限：其他人员 → 监护人员
- */
-export default function GasDetectionModule({ data, onChange, readOnly, currentUser, onSave, saving }) {
+export default function GasDetectionModule({ data, onChange, readOnly, currentUser, onSave, saving, requireStrictSignAndPhotos = false }) {
     const [isWaiting, setIsWaiting] = useState(false);
     const [waitingProgress, setWaitingProgress] = useState(0);
 
@@ -137,6 +133,10 @@ export default function GasDetectionModule({ data, onChange, readOnly, currentUs
 
     const handleSave = async () => {
         if (!onSave) return;
+        if (requireStrictSignAndPhotos && !data?.gas_detection_guardian_signature) {
+            window.alert('请先完成监护人签字后再保存气体浓度检测。');
+            return;
+        }
         await onSave(
             {
                 gas_detection_records: data?.gas_detection_records || gasDetectionRecords,
@@ -210,7 +210,7 @@ export default function GasDetectionModule({ data, onChange, readOnly, currentUs
             {/* 气体检测记录列表 */}
             <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-gray-700">手持气体浓度检测记录</h3>
+                    <h3 className="font-semibold text-gray-700">首次气体浓度检测记录</h3>
                     {canEdit && (
                         <button
                             onClick={addRecord}
@@ -472,7 +472,10 @@ export default function GasDetectionModule({ data, onChange, readOnly, currentUs
             {/* 监护人签字 */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                 <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-semibold text-gray-700">监护人签字确认</h3>
+                    <h3 className="font-semibold text-gray-700">
+                        监护人签字确认
+                        {requireStrictSignAndPhotos && <span className="text-red-500 ml-1">*</span>}
+                    </h3>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
                     <div>

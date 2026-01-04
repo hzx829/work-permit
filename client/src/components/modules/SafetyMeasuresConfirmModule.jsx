@@ -5,7 +5,7 @@ import SignaturePad from '../SignaturePad';
  * 现场安全措施确认模块
  * 权限：其他人员 → 安管人员
  */
-export default function SafetyMeasuresConfirmModule({ data, onChange, readOnly, currentUser, onSave, saving }) {
+export default function SafetyMeasuresConfirmModule({ data, onChange, readOnly, currentUser, onSave, saving, requireStrictSignAndPhotos = false }) {
     const [previewImage, setPreviewImage] = useState(null);
 
     const getCurrentUserName = () => {
@@ -79,6 +79,16 @@ export default function SafetyMeasuresConfirmModule({ data, onChange, readOnly, 
 
     const handleSave = async () => {
         if (!onSave) return;
+        if (requireStrictSignAndPhotos) {
+            if (!data?.safety_measures_photos || data.safety_measures_photos.length === 0) {
+                window.alert('请至少上传一张现场安全措施签字照片。');
+                return;
+            }
+            if (!data?.safety_measures_signature) {
+                window.alert('请完成提交人签字后再保存现场安全措施确认。');
+                return;
+            }
+        }
         await onSave(
             {
                 safety_measures_list: data?.safety_measures_list || [],
@@ -124,6 +134,7 @@ export default function SafetyMeasuresConfirmModule({ data, onChange, readOnly, 
                 <h3 className="font-semibold text-gray-700 mb-3">
                     <i className="fas fa-camera mr-2 text-purple-600"></i>
                     安全措施签字照片上传
+                    {requireStrictSignAndPhotos && <span className="text-red-500 ml-1">*</span>}
                 </h3>
                 <p className="text-sm text-gray-500 mb-4">
                     请在线下纸质签字完成后，拍照上传签字记录
@@ -175,7 +186,10 @@ export default function SafetyMeasuresConfirmModule({ data, onChange, readOnly, 
             {/* 提交人签字框 */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                 <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-semibold text-gray-700">提交人签字</h3>
+                    <h3 className="font-semibold text-gray-700">
+                        提交人签字
+                        {requireStrictSignAndPhotos && <span className="text-red-500 ml-1">*</span>}
+                    </h3>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
