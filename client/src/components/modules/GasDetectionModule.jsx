@@ -2,8 +2,6 @@ import { useState } from 'react';
 import SignaturePad from '../SignaturePad';
 
 export default function GasDetectionModule({ data, onChange, readOnly, currentUser, onSave, saving, requireStrictSignAndPhotos = false }) {
-    const [isWaiting, setIsWaiting] = useState(false);
-    const [waitingProgress, setWaitingProgress] = useState(0);
 
     const getCurrentUserName = () => {
         if (!currentUser) return '当前用户';
@@ -97,22 +95,6 @@ export default function GasDetectionModule({ data, onChange, readOnly, currentUs
         onChange('continuous_gas_detection_records', newRecords);
     };
 
-    // 启动等待检测（25秒）
-    const startWaiting = () => {
-        setIsWaiting(true);
-        setWaitingProgress(0);
-        const interval = setInterval(() => {
-            setWaitingProgress(prev => {
-                if (prev >= 100) {
-                    clearInterval(interval);
-                    setIsWaiting(false);
-                    return 100;
-                }
-                return prev + (100 / 25); // 25秒
-            });
-        }, 1000);
-    };
-
     const canEdit = !readOnly && currentUser?.role === 'safety';
 
     const handleGuardianSignatureChange = (dataUrl) => {
@@ -162,50 +144,17 @@ export default function GasDetectionModule({ data, onChange, readOnly, currentUs
                     <p className="text-sm text-gray-500 mt-1">权限：监护人员（当前按安全员账号可编辑）</p>
                 </div>
                 {canEdit && (
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={startWaiting}
-                            disabled={isWaiting}
-                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                        >
-                            <i className="fas fa-clock mr-2"></i>
-                            {isWaiting ? '检测中...' : '开始检测'}
-                        </button>
-                        <button
-                            type="button"
-                            onClick={handleSave}
-                            disabled={saving}
-                            className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                        >
-                            <i className="fas fa-save mr-2"></i>
-                            {saving ? '保存中...' : '保存'}
-                        </button>
-                    </div>
+                    <button
+                        type="button"
+                        onClick={handleSave}
+                        disabled={saving}
+                        className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                    >
+                        <i className="fas fa-save mr-2"></i>
+                        {saving ? '保存中...' : '保存'}
+                    </button>
                 )}
             </div>
-
-            {/* 等待检测进度条 */}
-            {isWaiting && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm text-blue-700 font-medium">
-                            <i className="fas fa-spinner fa-spin mr-2"></i>
-                            正在进行气体浓度检测...
-                        </span>
-                        <span className="text-sm text-blue-600">{Math.round(waitingProgress)}%</span>
-                    </div>
-                    <div className="w-full bg-blue-200 rounded-full h-2 overflow-hidden">
-                        <div 
-                            className="bg-blue-600 h-full transition-all duration-1000 ease-linear"
-                            style={{ width: `${waitingProgress}%` }}
-                        ></div>
-                    </div>
-                    <p className="text-xs text-blue-600 mt-2">
-                        <i className="fas fa-info-circle mr-1"></i>
-                        等待时长：25秒（根据现场条件自动检测）
-                    </p>
-                </div>
-            )}
 
             {/* 气体检测记录列表 */}
             <div className="space-y-4">
