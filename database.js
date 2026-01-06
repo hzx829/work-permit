@@ -72,7 +72,7 @@ function initDb() {
                 stmt.run("worker", "Schy123456#", "worker", "张三 (作业员)");
                 stmt.run("safety", "Schy123456#", "safety", "其他人员");
                 stmt.finalize();
-                console.log("Seeded initial users: worker/123, safety/123");
+                console.log("Seeded initial users: worker/Schy123456#, safety/Schy123456#");
             }
         });
     });
