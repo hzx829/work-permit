@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import SignaturePad from '../SignaturePad';
+import { compressImages } from '../../utils/imageUtils';
 
 /**
  * 现场安全措施确认模块
@@ -7,6 +8,7 @@ import SignaturePad from '../SignaturePad';
  */
 export default function SafetyMeasuresConfirmModule({ data, onChange, readOnly, currentUser, onSave, saving, requireStrictSignAndPhotos = false }) {
     const [previewImage, setPreviewImage] = useState(null);
+    const [uploading, setUploading] = useState(false);
 
     const getCurrentUserName = () => {
         if (!currentUser) return '当前用户';
@@ -33,25 +35,25 @@ export default function SafetyMeasuresConfirmModule({ data, onChange, readOnly, 
     // 照片列表
     const photos = data?.safety_measures_photos || [];
 
-    const handlePhotoUpload = (e) => {
+    const handlePhotoUpload = async (e) => {
         const files = Array.from(e.target.files);
-        const newPhotos = [];
-
-        files.forEach(file => {
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                newPhotos.push({
-                    url: event.target.result,
-                    name: file.name,
-                    uploadTime: new Date().toISOString()
-                });
-                
-                if (newPhotos.length === files.length) {
-                    onChange('safety_measures_photos', [...photos, ...newPhotos]);
-                }
-            };
-            reader.readAsDataURL(file);
-        });
+        if (files.length === 0) return;
+        
+        setUploading(true);
+        try {
+            // 使用图片压缩工具压缩图片
+            const compressedPhotos = await compressImages(files, {
+                maxWidth: 1200,
+                maxHeight: 1200,
+                quality: 0.7
+            });
+            onChange('safety_measures_photos', [...photos, ...compressedPhotos]);
+        } catch (error) {
+            console.error('图片上传失败:', error);
+            alert('图片上传失败，请重试');
+        } finally {
+            setUploading(false);
+        }
     };
 
     const removePhoto = (index) => {
@@ -147,7 +149,9 @@ export default function SafetyMeasuresConfirmModule({ data, onChange, readOnly, 
                             <img
                                 src={photo.url}
                                 alt={photo.name}
-                                className="w-full h-32 object-cover rounded-lg border border-gray-200 cursor-pointer hover:opacity-75 transition-opacity"
+                                loading="lazy"
+                                decoding="async"
+                                className="w-full h-32 object-cover rounded-lg border border-gray-200 cursor-pointer hover:opacity-75 transition-opacity bg-gray-100"
                                 onClick={() => setPreviewImage(photo.url)}
                             />
                             {canEdit && (
@@ -164,14 +168,24 @@ export default function SafetyMeasuresConfirmModule({ data, onChange, readOnly, 
 
                     {/* 上传按钮 */}
                     {canEdit && (
-                        <label className="w-full h-32 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors">
-                            <i className="fas fa-cloud-upload-alt text-3xl text-gray-400 mb-2"></i>
-                            <span className="text-sm text-gray-500">点击上传</span>
+                        <label className={`w-full h-32 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                            {uploading ? (
+                                <>
+                                    <i className="fas fa-spinner fa-spin text-3xl text-blue-500 mb-2"></i>
+                                    <span className="text-sm text-blue-500">压缩上传中...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <i className="fas fa-cloud-upload-alt text-3xl text-gray-400 mb-2"></i>
+                                    <span className="text-sm text-gray-500">点击上传</span>
+                                </>
+                            )}
                             <input
                                 type="file"
                                 accept="image/*"
                                 multiple
                                 onChange={handlePhotoUpload}
+                                disabled={uploading}
                                 className="hidden"
                             />
                         </label>

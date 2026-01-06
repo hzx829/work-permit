@@ -89,7 +89,9 @@ const SignaturePad = ({ value, onChange, disabled = false, className = "" }) => 
     const saveSignature = () => {
         const canvas = canvasRef.current;
         if (canvas && onChange) {
-            onChange(canvas.toDataURL());
+            // 使用较低质量的 PNG 以减少数据大小
+            // 签名一般是黑白线条，PNG 压缩效果好
+            onChange(canvas.toDataURL('image/png', 0.8));
         }
     };
 

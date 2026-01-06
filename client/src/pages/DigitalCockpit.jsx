@@ -19,11 +19,14 @@ export default function DigitalCockpit() {
     useEffect(() => {
         async function fetchWorkPermitStats() {
             try {
-                const permits = await loadPermits('', '');
-                console.log('数字驾驶舱 - 加载的作业票数据:', permits);
+                // 获取所有作业票（设置较大的 pageSize 以获取全部数据用于统计）
+                const response = await loadPermits('', '', 1, 1000);
+                console.log('数字驾驶舱 - 加载的作业票数据:', response);
                 
-                // API 直接返回数组，不是 {success, data} 格式
-                if (Array.isArray(permits) && permits.length > 0) {
+                // API 返回的是分页格式: { data: [...], total, page, pageSize, totalPages }
+                const permits = response?.data || [];
+                
+                if (permits.length > 0) {
                     // 按作业类型统计
                     const typeCount = {};
                     permits.forEach(permit => {
@@ -48,8 +51,8 @@ export default function DigitalCockpit() {
                     console.log('最终统计数据:', stats);
                     setWorkPermitStats(stats);
                 } else {
-                    console.log('没有作业票数据或数据格式错误');
-                    // 如果加载失败，使用默认值
+                    console.log('没有作业票数据');
+                    // 如果没有数据，使用默认值
                     setWorkPermitStats([
                         { label: '动火作业', value: 0 },
                         { label: '临时用电作业', value: 0 },
