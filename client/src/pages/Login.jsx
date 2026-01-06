@@ -91,8 +91,8 @@ export default function Login() {
                 </form>
 
                 <div className="mt-6 text-center text-sm text-gray-500">
-                    <p>测试账号: worker / 123 (作业员)</p>
-                    <p>测试账号: safety / 123 (安全员)</p>
+                    <p>测试账号: worker / Schy123456# (作业员)</p>
+                    <p>测试账号: safety / Schy123456# (其他人员)</p>
                 </div>
             </div>
         </div>

@@ -95,8 +95,8 @@ ssh root@8.149.232.48 -i deploy-0729.pem 'cp /data/work-permit/work_permits.db /
 ## 默认账号
 
 系统预置两个测试账号：
-- 作业员: `worker` / `123`
-- 安全员: `safety` / `123`
+- 作业员: `worker` / `Schy123456#`
+- 其他人员: `safety` / `Schy123456#`
 
 ## 端口说明
 

@@ -69,8 +69,8 @@ function initDb() {
         db.get("SELECT count(*) as count FROM users", (err, row) => {
             if (row.count === 0) {
                 const stmt = db.prepare("INSERT INTO users (username, password, role, full_name) VALUES (?, ?, ?, ?)");
-                stmt.run("worker", "123", "worker", "张三 (作业员)");
-                stmt.run("safety", "123", "safety", "李四 (安全员)");
+                stmt.run("worker", "Schy123456#", "worker", "张三 (作业员)");
+                stmt.run("safety", "Schy123456#", "safety", "其他人员");
                 stmt.finalize();
                 console.log("Seeded initial users: worker/123, safety/123");
             }
