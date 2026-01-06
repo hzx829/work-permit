@@ -223,7 +223,7 @@ export default function SafetyBriefingModule({ data, onChange, readOnly, current
                 <div className="flex items-center justify-between mb-3">
                     <h3 className="font-semibold text-gray-700">
                         <i className="fas fa-signature mr-2 text-indigo-600"></i>
-                        交底人签字确认
+                        确认人签字
                         {requireStrictSignAndPhotos && <span className="text-red-500 ml-1">*</span>}
                     </h3>
                 </div>

@@ -223,7 +223,7 @@ export default function Create() {
                             {formData.work_type === '动火作业' ? (
                                 <HotWorkPermitForm data={formData} onChange={handleCustomChange} />
                             ) : formData.work_type === '受限空间作业' ? (
-                                <ConfinedSpacePermitForm data={formData} onChange={handleCustomChange} />
+                                <ConfinedSpacePermitForm data={formData} onChange={handleCustomChange} isCreating={true} />
                             ) : formData.work_type === '盲板抽堵作业' ? (
                                 <BlindPlatePermitForm data={formData} onChange={handleCustomChange} />
                             ) : formData.work_type === '高处作业' ? (

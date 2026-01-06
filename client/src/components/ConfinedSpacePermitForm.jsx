@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import SignaturePad from './SignaturePad';
 
@@ -119,7 +119,7 @@ const parseRelatedPermitNumbers = (raw) => {
         .filter((value, index, arr) => arr.indexOf(value) === index);
 };
 
-export default function ConfinedSpacePermitForm({ data, onChange, readOnly = false, userRole = '' }) {
+export default function ConfinedSpacePermitForm({ data, onChange, readOnly = false, userRole = '', isCreating = false }) {
     const [isDetecting, setIsDetecting] = React.useState(false);
     const [hasStartedDetection, setHasStartedDetection] = React.useState(() => readOnly);
     const [relatedPermitLoading, setRelatedPermitLoading] = React.useState(false);
@@ -169,34 +169,18 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
 
     const contentReady = Boolean(data?.content && data.content.trim());
 
+    // 在审批模式下打开作业票时自动触发25秒的检测动画
     React.useEffect(() => {
-        if (readOnly) {
-            setIsDetecting(false);
-            setHasStartedDetection(true);
-            return;
+        if (readOnly && !isCreating) {
+            // 延迟一点开始，让页面先渲染
+            const startTimer = setTimeout(() => {
+                setIsDetecting(true);
+                setHasStartedDetection(true);
+            }, 100);
+            
+            return () => clearTimeout(startTimer);
         }
-
-        // 清空作业内容时，回到“等待填写”初始态
-        if (!contentReady) {
-            setIsDetecting(false);
-            setHasStartedDetection(false);
-            setVentilationStartTime(null);
-            return;
-        }
-
-        // 只在"首次填写作业内容"时启动一次检测计时器和通风计时
-        if (!hasStartedDetection) {
-            setIsDetecting(true);
-            setHasStartedDetection(true);
-            // 记录开始计时的时间戳
-            if (!ventilationStartTime && !data?.ventilation_start_time) {
-                const now = Date.now();
-                setVentilationStartTime(now);
-                // 保存到表单数据中，以便提交到数据库
-                onChange('ventilation_start_time', new Date(now).toISOString());
-            }
-        }
-    }, [contentReady, hasStartedDetection, readOnly, ventilationStartTime]);
+    }, [readOnly, isCreating]);
 
     // 单独的 useEffect 处理检测计时器，只依赖 isDetecting 状态
     React.useEffect(() => {
@@ -388,18 +372,20 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                         />
                     </FormField>
 
-                    <div className="md:col-span-2 mt-2 mb-4">
-                        <h3 className="text-base font-bold text-blue-600 mb-3">现场安全条件确认</h3>
-                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3">
-                            {!hasStartedDetection && !readOnly ? (
-                                /* 等待填写作业内容 */
-                                <div className="flex items-center justify-center gap-3 py-4">
-                                    <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                    </svg>
-                                    <span className="text-gray-500">请先填写「作业内容」后，系统将自动检测现场安全条件</span>
-                                </div>
-                            ) : isDetecting ? (
+                    {/* 仅在非创建模式（即审批/详情查看）时显示现场安全条件确认 */}
+                    {!isCreating && (
+                        <div className="md:col-span-2 mt-2 mb-4">
+                            <h3 className="text-base font-bold text-blue-600 mb-3">现场安全条件确认</h3>
+                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3">
+                                {!hasStartedDetection && !readOnly ? (
+                                    /* 等待填写作业内容 */
+                                    <div className="flex items-center justify-center gap-3 py-4">
+                                        <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        <span className="text-gray-500">请先填写「作业内容」后，系统将自动检测现场安全条件</span>
+                                    </div>
+                                ) : isDetecting ? (
                                 /* Loading 状态 */
                                 <>
                                     <div className="flex items-center justify-between animate-pulse">
@@ -485,6 +471,8 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                             )}
                         </div>
                     </div>
+                    )}
+
                     <FormField label="作业单位" required>
                         <Input 
                             type="text" 

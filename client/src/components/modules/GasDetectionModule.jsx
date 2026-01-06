@@ -1,7 +1,10 @@
 import { useState } from 'react';
 import SignaturePad from '../SignaturePad';
+import { compressImages } from '../../utils/imageUtils';
 
 export default function GasDetectionModule({ data, onChange, readOnly, currentUser, onSave, saving, requireStrictSignAndPhotos = false }) {
+    const [previewImage, setPreviewImage] = useState(null);
+    const [uploading, setUploading] = useState(false);
 
     const getCurrentUserName = () => {
         if (!currentUser) return '当前用户';
@@ -25,15 +28,12 @@ export default function GasDetectionModule({ data, onChange, readOnly, currentUs
         return `${year}-${month}-${day}T${hours}:${minutes}`;
     };
 
-    // 初始化气体检测记录数据
+    // 初始化气体检测记录数据（简化版：只保留位置和结果）
     const gasDetectionRecords = data?.gas_detection_records || [
         {
-            gasName: '',
             location: '',
-            standard: '',
-            result: '',
-            samplingTime: '',
-            qualified: null
+            qualified: null,
+            images: []
         }
     ];
 
@@ -57,13 +57,38 @@ export default function GasDetectionModule({ data, onChange, readOnly, currentUs
 
     const addRecord = () => {
         const newRecords = [...gasDetectionRecords, {
-            gasName: '',
             location: '',
-            standard: '',
-            result: '',
-            samplingTime: '',
-            qualified: null
+            qualified: null,
+            images: []
         }];
+        onChange('gas_detection_records', newRecords);
+    };
+
+    const handlePhotoUpload = async (e, recordIndex) => {
+        const files = Array.from(e.target.files);
+        if (files.length === 0) return;
+        
+        setUploading(true);
+        try {
+            const compressedPhotos = await compressImages(files, {
+                maxWidth: 1200,
+                maxHeight: 1200,
+                quality: 0.7
+            });
+            const newRecords = [...gasDetectionRecords];
+            newRecords[recordIndex].images = [...(newRecords[recordIndex].images || []), ...compressedPhotos];
+            onChange('gas_detection_records', newRecords);
+        } catch (error) {
+            console.error('图片上传失败:', error);
+            alert('图片上传失败，请重试');
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const removePhoto = (recordIndex, photoIndex) => {
+        const newRecords = [...gasDetectionRecords];
+        newRecords[recordIndex].images = newRecords[recordIndex].images.filter((_, i) => i !== photoIndex);
         onChange('gas_detection_records', newRecords);
     };
 
@@ -172,35 +197,20 @@ export default function GasDetectionModule({ data, onChange, readOnly, currentUs
                 </div>
 
                 {gasDetectionRecords.map((record, index) => (
-                    <div key={index} className="bg-gray-50 rounded-lg p-4 border border-gray-200 relative">
+                    <div key={index} className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm relative">
                         {canEdit && gasDetectionRecords.length > 1 && (
                             <button
                                 onClick={() => removeRecord(index)}
-                                className="absolute top-2 right-2 text-red-500 hover:text-red-700 text-sm"
+                                className="absolute top-4 right-4 text-red-500 hover:text-red-700 text-sm"
                             >
                                 <i className="fas fa-times"></i>
                             </button>
                         )}
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {/* 气体名称 */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    代表性气体名称 <span className="text-red-500">*</span>
-                                </label>
-                                <input
-                                    type="text"
-                                    value={record.gasName || ''}
-                                    onChange={(e) => handleRecordChange(index, 'gasName', e.target.value)}
-                                    disabled={!canEdit}
-                                    placeholder="如：氧气、一氧化碳、硫化氢等"
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500"
-                                />
-                            </div>
-
+                        <div className="space-y-5">
                             {/* 检测点位置 */}
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
                                     检测点位置 <span className="text-red-500">*</span>
                                 </label>
                                 <input
@@ -208,61 +218,81 @@ export default function GasDetectionModule({ data, onChange, readOnly, currentUs
                                     value={record.location || ''}
                                     onChange={(e) => handleRecordChange(index, 'location', e.target.value)}
                                     disabled={!canEdit}
-                                    placeholder="检测点的具体位置"
+                                    placeholder="请输入检测点的具体位置"
                                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500"
                                 />
                             </div>
 
-                            {/* 合格标准 */}
+                            {/* 检测数据照片上传 */}
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    合格标准 <span className="text-red-500">*</span>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    <i className="fas fa-camera mr-1 text-blue-600"></i>
+                                    检测数据照片上传
+                                    <span className="text-xs text-gray-500 ml-2">（请拍摄检测仪器读数、纸质记录等）</span>
                                 </label>
-                                <input
-                                    type="text"
-                                    value={record.standard || ''}
-                                    onChange={(e) => handleRecordChange(index, 'standard', e.target.value)}
-                                    disabled={!canEdit}
-                                    placeholder="如：≥19.5%、≤24ppm等"
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500"
-                                />
+                                
+                                {/* 照片网格 */}
+                                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
+                                    {(record.images || []).map((photo, photoIndex) => (
+                                        <div key={photoIndex} className="relative group">
+                                            <img
+                                                src={photo.url}
+                                                alt={photo.name}
+                                                loading="lazy"
+                                                decoding="async"
+                                                className="w-full h-24 object-cover rounded-lg border border-gray-200 cursor-pointer hover:opacity-75 transition-opacity bg-gray-100"
+                                                onClick={() => setPreviewImage(photo.url)}
+                                            />
+                                            {canEdit && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removePhoto(index, photoIndex)}
+                                                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                                >
+                                                    <i className="fas fa-times text-xs"></i>
+                                                </button>
+                                            )}
+                                            <p className="text-xs text-gray-500 mt-1 truncate">{photo.name}</p>
+                                        </div>
+                                    ))}
+
+                                    {/* 上传按钮 */}
+                                    {canEdit && (
+                                        <label className={`w-full h-24 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                                            {uploading ? (
+                                                <>
+                                                    <i className="fas fa-spinner fa-spin text-2xl text-blue-500 mb-1"></i>
+                                                    <span className="text-xs text-blue-500">上传中...</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <i className="fas fa-cloud-upload-alt text-2xl text-gray-400 mb-1"></i>
+                                                    <span className="text-xs text-gray-500">点击上传</span>
+                                                </>
+                                            )}
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                multiple
+                                                onChange={(e) => handlePhotoUpload(e, index)}
+                                                disabled={uploading}
+                                                className="hidden"
+                                            />
+                                        </label>
+                                    )}
+                                </div>
+
+                                {(record.images || []).length === 0 && !canEdit && (
+                                    <p className="text-center text-gray-400 py-4 text-sm">暂无照片</p>
+                                )}
                             </div>
 
-                            {/* 分析结果 */}
+                            {/* 检测结果 */}
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    分析结果数据 <span className="text-red-500">*</span>
-                                </label>
-                                <input
-                                    type="text"
-                                    value={record.result || ''}
-                                    onChange={(e) => handleRecordChange(index, 'result', e.target.value)}
-                                    disabled={!canEdit}
-                                    placeholder="实际检测数值"
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500"
-                                />
-                            </div>
-
-                            {/* 取样时间 */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    取样时间 <span className="text-red-500">*</span>
-                                </label>
-                                <input
-                                    type="datetime-local"
-                                    value={record.samplingTime || ''}
-                                    onChange={(e) => handleRecordChange(index, 'samplingTime', e.target.value)}
-                                    disabled={!canEdit}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500"
-                                />
-                            </div>
-
-                            {/* 是否合格 */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
                                     检测结果 <span className="text-red-500">*</span>
                                 </label>
-                                <div className="flex gap-4 pt-2">
+                                <div className="flex gap-6">
                                     <label className="flex items-center gap-2 cursor-pointer">
                                         <input
                                             type="radio"
@@ -270,7 +300,7 @@ export default function GasDetectionModule({ data, onChange, readOnly, currentUs
                                             checked={record.qualified === true}
                                             onChange={() => handleRecordChange(index, 'qualified', true)}
                                             disabled={!canEdit}
-                                            className="text-green-600 focus:ring-green-500"
+                                            className="text-green-600 focus:ring-green-500 w-4 h-4"
                                         />
                                         <span className="text-sm text-gray-700">合格</span>
                                     </label>
@@ -281,7 +311,7 @@ export default function GasDetectionModule({ data, onChange, readOnly, currentUs
                                             checked={record.qualified === false}
                                             onChange={() => handleRecordChange(index, 'qualified', false)}
                                             disabled={!canEdit}
-                                            className="text-red-600 focus:ring-red-500"
+                                            className="text-red-600 focus:ring-red-500 w-4 h-4"
                                         />
                                         <span className="text-sm text-gray-700">不合格</span>
                                     </label>
@@ -448,6 +478,29 @@ export default function GasDetectionModule({ data, onChange, readOnly, currentUs
                     </div>
                 </div>
             </div>
+
+            {/* 图片预览模态框 */}
+            {previewImage && (
+                <div 
+                    className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
+                    onClick={() => setPreviewImage(null)}
+                >
+                    <div className="relative max-w-4xl max-h-[90vh]">
+                        <button
+                            onClick={() => setPreviewImage(null)}
+                            className="absolute -top-10 right-0 text-white hover:text-gray-300 text-2xl"
+                        >
+                            <i className="fas fa-times"></i>
+                        </button>
+                        <img
+                            src={previewImage}
+                            alt="预览"
+                            className="max-w-full max-h-[90vh] object-contain rounded-lg"
+                            onClick={(e) => e.stopPropagation()}
+                        />
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
