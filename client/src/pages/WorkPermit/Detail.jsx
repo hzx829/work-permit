@@ -1,20 +1,34 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { getPermit, formatDate, getStatusColor, updatePermitStatus, updatePermitExtraData } from '../../utils/api';
-import HotWorkPermitForm from '../../components/HotWorkPermitForm';
-import ConfinedSpacePermitForm from '../../components/ConfinedSpacePermitForm';
-import BlindPlatePermitForm from '../../components/BlindPlatePermitForm';
-import HeightWorkPermitForm from '../../components/HeightWorkPermitForm';
-import LiftingPermitForm from '../../components/LiftingPermitForm';
-import TemporaryElectricityPermitForm from '../../components/TemporaryElectricityPermitForm';
-import GroundBreakingPermitForm from '../../components/GroundBreakingPermitForm';
-import RoadBreakingPermitForm from '../../components/RoadBreakingPermitForm';
-import GasDetectionModule from '../../components/modules/GasDetectionModule';
-import SafetyMeasuresConfirmModule from '../../components/modules/SafetyMeasuresConfirmModule';
-import ApprovalModule from '../../components/modules/ApprovalModule';
-import SafetyBriefingModule from '../../components/modules/SafetyBriefingModule';
-import InspectionModule from '../../components/modules/InspectionModule';
+
+// 表单组件懒加载
+const HotWorkPermitForm = lazy(() => import('../../components/HotWorkPermitForm'));
+const ConfinedSpacePermitForm = lazy(() => import('../../components/ConfinedSpacePermitForm'));
+const BlindPlatePermitForm = lazy(() => import('../../components/BlindPlatePermitForm'));
+const HeightWorkPermitForm = lazy(() => import('../../components/HeightWorkPermitForm'));
+const LiftingPermitForm = lazy(() => import('../../components/LiftingPermitForm'));
+const TemporaryElectricityPermitForm = lazy(() => import('../../components/TemporaryElectricityPermitForm'));
+const GroundBreakingPermitForm = lazy(() => import('../../components/GroundBreakingPermitForm'));
+const RoadBreakingPermitForm = lazy(() => import('../../components/RoadBreakingPermitForm'));
+
+// 模块组件懒加载
+const GasDetectionModule = lazy(() => import('../../components/modules/GasDetectionModule'));
+const SafetyMeasuresConfirmModule = lazy(() => import('../../components/modules/SafetyMeasuresConfirmModule'));
+const ApprovalModule = lazy(() => import('../../components/modules/ApprovalModule'));
+const SafetyBriefingModule = lazy(() => import('../../components/modules/SafetyBriefingModule'));
+const InspectionModule = lazy(() => import('../../components/modules/InspectionModule'));
+
+// 模块加载占位符
+const ModuleLoading = () => (
+    <div className="flex items-center justify-center py-12">
+        <div className="flex flex-col items-center gap-3">
+            <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+            <span className="text-sm text-gray-500">加载中...</span>
+        </div>
+    </div>
+);
 
 export default function Detail() {
     const { id } = useParams();
@@ -401,13 +415,15 @@ export default function Detail() {
                             <div className="p-6">
                                 {activeTab === 'basic' && (
                                     SpecificForm ? (
-                                        <SpecificForm 
-                                            data={permit} 
-                                            readOnly={true} 
-                                            onChange={(field, value) => setPermit(prev => ({ ...prev, [field]: value }))} 
-                                            userRole={user?.role} 
-                                            status={permit.status} 
-                                        />
+                                        <Suspense fallback={<ModuleLoading />}>
+                                            <SpecificForm 
+                                                data={permit} 
+                                                readOnly={true} 
+                                                onChange={(field, value) => setPermit(prev => ({ ...prev, [field]: value }))} 
+                                                userRole={user?.role} 
+                                                status={permit.status} 
+                                            />
+                                        </Suspense>
                                     ) : (
                                         <>
                                             {/* Basic Info */}
@@ -476,63 +492,73 @@ export default function Detail() {
                                 )}
 
                                 {activeTab === 'gas' && (
-                                    <GasDetectionModule
-                                        data={permit}
-                                        onChange={(field, value) => setPermit(prev => ({ ...prev, [field]: value }))}
-                                        readOnly={false}
-                                        currentUser={user}
-                                        onSave={saveExtraData}
-                                        saving={savingExtra}
-                                        requireStrictSignAndPhotos={isConfinedSpace}
-                                    />
+                                    <Suspense fallback={<ModuleLoading />}>
+                                        <GasDetectionModule
+                                            data={permit}
+                                            onChange={(field, value) => setPermit(prev => ({ ...prev, [field]: value }))}
+                                            readOnly={false}
+                                            currentUser={user}
+                                            onSave={saveExtraData}
+                                            saving={savingExtra}
+                                            requireStrictSignAndPhotos={isConfinedSpace}
+                                        />
+                                    </Suspense>
                                 )}
 
                                 {activeTab === 'safety' && (
-                                    <SafetyMeasuresConfirmModule
-                                        data={permit}
-                                        onChange={(field, value) => setPermit(prev => ({ ...prev, [field]: value }))}
-                                        readOnly={false}
-                                        currentUser={user}
-                                        onSave={saveExtraData}
-                                        saving={savingExtra}
-                                        requireStrictSignAndPhotos={isConfinedSpace}
-                                    />
+                                    <Suspense fallback={<ModuleLoading />}>
+                                        <SafetyMeasuresConfirmModule
+                                            data={permit}
+                                            onChange={(field, value) => setPermit(prev => ({ ...prev, [field]: value }))}
+                                            readOnly={false}
+                                            currentUser={user}
+                                            onSave={saveExtraData}
+                                            saving={savingExtra}
+                                            requireStrictSignAndPhotos={isConfinedSpace}
+                                        />
+                                    </Suspense>
                                 )}
 
                                 {activeTab === 'approval' && (
-                                    <ApprovalModule
-                                        data={permit}
-                                        onChange={(field, value) => setPermit(prev => ({ ...prev, [field]: value }))}
-                                        readOnly={false}
-                                        currentUser={user}
-                                        onSave={saveApprovalExtraData}
-                                        saving={savingExtra}
-                                        requireStrictSignAndPhotos={isConfinedSpace}
-                                    />
+                                    <Suspense fallback={<ModuleLoading />}>
+                                        <ApprovalModule
+                                            data={permit}
+                                            onChange={(field, value) => setPermit(prev => ({ ...prev, [field]: value }))}
+                                            readOnly={false}
+                                            currentUser={user}
+                                            onSave={saveApprovalExtraData}
+                                            saving={savingExtra}
+                                            requireStrictSignAndPhotos={isConfinedSpace}
+                                        />
+                                    </Suspense>
                                 )}
 
                                 {activeTab === 'briefing' && (
-                                    <SafetyBriefingModule
-                                        data={permit}
-                                        onChange={(field, value) => setPermit(prev => ({ ...prev, [field]: value }))}
-                                        readOnly={false}
-                                        currentUser={user}
-                                        onSave={saveExtraData}
-                                        saving={savingExtra}
-                                        requireStrictSignAndPhotos={isConfinedSpace}
-                                    />
+                                    <Suspense fallback={<ModuleLoading />}>
+                                        <SafetyBriefingModule
+                                            data={permit}
+                                            onChange={(field, value) => setPermit(prev => ({ ...prev, [field]: value }))}
+                                            readOnly={false}
+                                            currentUser={user}
+                                            onSave={saveExtraData}
+                                            saving={savingExtra}
+                                            requireStrictSignAndPhotos={isConfinedSpace}
+                                        />
+                                    </Suspense>
                                 )}
 
                                 {activeTab === 'inspection' && (
-                                    <InspectionModule
-                                        data={permit}
-                                        onChange={(field, value) => setPermit(prev => ({ ...prev, [field]: value }))}
-                                        readOnly={false}
-                                        currentUser={user}
-                                        onSave={saveInspectionExtraData}
-                                        saving={savingExtra}
-                                        requireStrictSignAndPhotos={isConfinedSpace}
-                                    />
+                                    <Suspense fallback={<ModuleLoading />}>
+                                        <InspectionModule
+                                            data={permit}
+                                            onChange={(field, value) => setPermit(prev => ({ ...prev, [field]: value }))}
+                                            readOnly={false}
+                                            currentUser={user}
+                                            onSave={saveInspectionExtraData}
+                                            saving={savingExtra}
+                                            requireStrictSignAndPhotos={isConfinedSpace}
+                                        />
+                                    </Suspense>
                                 )}
                             </div>
                         </div>

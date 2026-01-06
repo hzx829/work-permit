@@ -63,46 +63,84 @@ const RISK_OPTIONS = [
     '窒息'
 ];
 
+// 将常量移到组件外部，避免每次渲染重新创建
+const VENTILATION_REQUIREMENT_SECONDS = 30 * 60;
+const DEFAULT_VENTILATION_SECONDS = VENTILATION_REQUIREMENT_SECONDS + 60;
+
+const INITIAL_SAFETY_MEASURES = [
+    { id: 1, content: '盛装过有毒、可燃物料的受限空间，所有与受限空间有联系的阀门、管线已加盲板 隔离，并落实盲板责任人，未采用水封或关闭阀门代替盲板', applicable: '', confirmer: '' },
+    { id: 2, content: '盛装过有毒、可燃物料的受限空间，设备已经过置换、吹扫或蒸煮', applicable: '', confirmer: '' },
+    { id: 3, content: '设备通风孔已打开进行自然通风，温度适宜人员作业；必要时采用强制通风或佩戴隔绝式呼吸防护装备，不应采用直接通入氧气或富氧空气的方法补充氧', applicable: '', confirmer: '' },
+    { id: 4, content: '转动设备已切断电源，电源开关处已加锁并悬挂"禁止合闸"标志牌', applicable: '', confirmer: '' },
+    { id: 5, content: '受限空间内部已具备进入作业条件，易燃易爆物料容器内作业，作业人员未采用非防爆工具，手持电动工具符合作业安全要求', applicable: '', confirmer: '' },
+    { id: 6, content: '受限空间进出口通道畅通，无阻碍人员进出的障碍物', applicable: '', confirmer: '' },
+    { id: 7, content: '盛装过可燃有毒液体、气体的受限空间，已分析其中的可燃、有毒有害气体和氧气 含量，且在安全范围内', applicable: '', confirmer: '' },
+    { id: 8, content: '存在大量扬尘的设备已停止扬尘', applicable: '', confirmer: '' },
+    { id: 9, content: '用于连续检测的移动式可燃、有毒气体、氧气检测仪已配备到位', applicable: '', confirmer: '' },
+    { id: 10, content: '作业人员已佩戴必要的个体防护装备，清除受限空间内存在的危险因素', applicable: '', confirmer: '' },
+    { id: 11, content: '已配备作业应急设施：消防器材（ ）、救生绳（ ）、气防装备（ ），盛有腐蚀性介 质的容器作业现场已配备应急冲洗水', applicable: '', confirmer: '' },
+    { id: 12, content: '受限空间内作业已配备通信设备', applicable: '', confirmer: '' },
+    { id: 13, content: '受限空间出入口四周已设立警戒区', applicable: '', confirmer: '' },
+    { id: 14, content: '其他相关特殊作业已办理相应安全作业票', applicable: '', confirmer: '' },
+    { id: 15, content: '其他安全措施：', applicable: '', confirmer: '' },
+];
+
+// 工具函数移到组件外部
+const getNowDateTimeLocal = () => {
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+};
+
+const formatVentilationDuration = (seconds) => {
+    if (!seconds || seconds <= 0) return '未开始计时';
+    const totalSeconds = Math.floor(seconds);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const restSeconds = totalSeconds % 60;
+    if (hours > 0) {
+        if (minutes === 0 && restSeconds === 0) return `${hours} 小时`;
+        if (restSeconds === 0) return `${hours} 小时 ${minutes} 分钟`;
+        if (minutes === 0) return `${hours} 小时 ${restSeconds} 秒`;
+        return `${hours} 小时 ${minutes} 分钟 ${restSeconds} 秒`;
+    }
+    if (minutes > 0) {
+        return restSeconds === 0 ? `${minutes} 分钟` : `${minutes} 分钟 ${restSeconds} 秒`;
+    }
+    return `${restSeconds} 秒`;
+};
+
+const parseRelatedPermitNumbers = (raw) => {
+    if (!raw) return [];
+    return String(raw)
+        .split(/[\s,，、;；]+/g)
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .filter((value, index, arr) => arr.indexOf(value) === index);
+};
+
 export default function ConfinedSpacePermitForm({ data, onChange, readOnly = false, userRole = '' }) {
     const [isDetecting, setIsDetecting] = React.useState(false);
-    const [hasStartedDetection, setHasStartedDetection] = React.useState(false);
+    const [hasStartedDetection, setHasStartedDetection] = React.useState(() => readOnly);
     const [relatedPermitLoading, setRelatedPermitLoading] = React.useState(false);
     const [relatedPermitInfo, setRelatedPermitInfo] = React.useState(null);
     const [hasQueriedRelatedPermit, setHasQueriedRelatedPermit] = React.useState(false);
     const relatedPermitQueryTimerRef = React.useRef(null);
-    const VENTILATION_REQUIREMENT_SECONDS = 30 * 60;
-    const DEFAULT_VENTILATION_SECONDS = VENTILATION_REQUIREMENT_SECONDS + 60;
     const [ventilationSeconds, setVentilationSeconds] = React.useState(DEFAULT_VENTILATION_SECONDS);
     const [ventilationStartTime, setVentilationStartTime] = React.useState(null);
 
     const { user } = useAuth();
     
-    const getCurrentUserName = () => {
+    const getCurrentUserName = React.useCallback(() => {
         if (!user) return '当前用户';
-        return (
-            user.full_name ||
-            user.name ||
-            user.username ||
-            user.account ||
-            '当前用户'
-        );
-    };
-
-    const getNowDateTimeLocal = () => {
-        const now = new Date();
-        const pad = (n) => String(n).padStart(2, '0');
-        const year = now.getFullYear();
-        const month = pad(now.getMonth() + 1);
-        const day = pad(now.getDate());
-        const hours = pad(now.getHours());
-        const minutes = pad(now.getMinutes());
-        return `${year}-${month}-${day}T${hours}:${minutes}`;
-    };
+        return user.full_name || user.name || user.username || user.account || '当前用户';
+    }, [user]);
 
     React.useEffect(() => {
         if (readOnly) return;
         if (data?.worker_sign_time) return;
         onChange('worker_sign_time', getNowDateTimeLocal());
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [readOnly, data?.worker_sign_time]);
 
     // 自动填充作业申请时间，用于通风时长计时
@@ -110,79 +148,24 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
         if (readOnly) return;
         if (data?.apply_time) return;
         onChange('apply_time', getNowDateTimeLocal());
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [readOnly, data?.apply_time]);
 
-    const createSignatureChangeHandler = ({
-        signatureField,
-        signerField,
-        timeField,
-        canEdit
-    }) => {
-        return (dataUrl) => {
-            if (!canEdit) return;
-
-            // 允许清除/重签
-            if (dataUrl === '') {
-                onChange(signatureField, '');
-                onChange(signerField, '');
-                onChange(timeField, '');
-                return;
-            }
-
-            if (!dataUrl) return;
-            onChange(signatureField, dataUrl);
-
-            if (!data?.[signerField]) onChange(signerField, getCurrentUserName());
-            if (!data?.[timeField]) onChange(timeField, getNowDateTimeLocal());
-        };
-    };
-
-    const onWorkerSignatureChange = createSignatureChangeHandler({
-        signatureField: 'worker_signature',
-        signerField: 'worker_sign',
-        timeField: 'worker_sign_time',
-        canEdit: !readOnly
-    });
-
-    const formatVentilationDuration = (seconds) => {
-        if (!seconds || seconds <= 0) {
-            return '未开始计时';
+    const onWorkerSignatureChange = React.useCallback((dataUrl) => {
+        if (readOnly) return;
+        if (dataUrl === '') {
+            onChange('worker_signature', '');
+            onChange('worker_sign', '');
+            onChange('worker_sign_time', '');
+            return;
         }
-        const totalSeconds = Math.floor(seconds);
-        const hours = Math.floor(totalSeconds / 3600);
-        const minutes = Math.floor((totalSeconds % 3600) / 60);
-        const restSeconds = totalSeconds % 60;
-        if (hours > 0) {
-            if (minutes === 0 && restSeconds === 0) {
-                return `${hours} 小时`;
-            }
-            if (restSeconds === 0) {
-                return `${hours} 小时 ${minutes} 分钟`;
-            }
-            if (minutes === 0) {
-                return `${hours} 小时 ${restSeconds} 秒`;
-            }
-            return `${hours} 小时 ${minutes} 分钟 ${restSeconds} 秒`;
-        }
-        if (minutes > 0) {
-            if (restSeconds === 0) {
-                return `${minutes} 分钟`;
-            }
-            return `${minutes} 分钟 ${restSeconds} 秒`;
-        }
-        return `${restSeconds} 秒`;
-    };
+        if (!dataUrl) return;
+        onChange('worker_signature', dataUrl);
+        if (!data?.worker_sign) onChange('worker_sign', getCurrentUserName());
+        if (!data?.worker_sign_time) onChange('worker_sign_time', getNowDateTimeLocal());
+    }, [readOnly, onChange, getCurrentUserName, data?.worker_sign, data?.worker_sign_time]);
 
     const canQueryRelatedPermits = readOnly && userRole === 'safety';
-
-    const parseRelatedPermitNumbers = (raw) => {
-        if (!raw) return [];
-        return String(raw)
-            .split(/[\s,，、;；]+/g)
-            .map((s) => s.trim())
-            .filter(Boolean)
-            .filter((value, index, arr) => arr.indexOf(value) === index);
-    };
 
     const contentReady = Boolean(data?.content && data.content.trim());
 
@@ -226,45 +209,36 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
         return () => clearTimeout(timer);
     }, [isDetecting]);
 
-    // 通风时长计时器 - 从填写作业内容时开始计时，从31分钟开始递增
+    // 通风时长计时器 - 降低更新频率，减少重渲染
     React.useEffect(() => {
         // 优先使用数据库中保存的时间（用于readOnly模式）
-        if (data?.ventilation_start_time) {
-            const savedStartTime = new Date(data.ventilation_start_time).getTime();
-            if (!isNaN(savedStartTime)) {
-                const update = () => {
-                    const elapsed = Math.floor((Date.now() - savedStartTime) / 1000);
-                    setVentilationSeconds(DEFAULT_VENTILATION_SECONDS + elapsed);
-                };
-                update();
-                const intervalId = setInterval(update, 1000);
-                return () => clearInterval(intervalId);
-            }
-        }
+        const startTime = data?.ventilation_start_time 
+            ? new Date(data.ventilation_start_time).getTime() 
+            : ventilationStartTime;
         
-        // 新建模式：使用本地状态的时间
-        if (!ventilationStartTime) {
+        if (!startTime || isNaN(startTime)) {
             setVentilationSeconds(DEFAULT_VENTILATION_SECONDS);
             return;
         }
         
         const update = () => {
-            const elapsed = Math.floor((Date.now() - ventilationStartTime) / 1000);
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
             setVentilationSeconds(DEFAULT_VENTILATION_SECONDS + elapsed);
         };
         
         update();
-        const intervalId = setInterval(update, 1000);
+        // 每5秒更新一次，减少重渲染频率
+        const intervalId = setInterval(update, 5000);
         return () => clearInterval(intervalId);
     }, [ventilationStartTime, data?.ventilation_start_time]);
 
-    const handleChange = (e) => {
+    const handleChange = React.useCallback((e) => {
         if (readOnly) return;
         const { name, value, type, checked } = e.target;
         onChange(name, type === 'checkbox' ? checked : value);
-    };
+    }, [readOnly, onChange]);
 
-    const handleRelatedPermitAssociate = () => {
+    const handleRelatedPermitAssociate = React.useCallback(() => {
         if (readOnly) return;
         const numbers = parseRelatedPermitNumbers(data.related_permits);
         if (numbers.length === 0) {
@@ -275,17 +249,15 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
         if (!confirmed) return;
         const normalized = numbers.join('、');
         onChange('related_permits', normalized);
-        // 为了在安全员详情界面展示一致的编号，固定用第一个编号作为展示编号
         onChange('related_blind_plate_permit_number', numbers[0]);
-        // 清空旧的模拟详情（避免编号改变后仍显示旧信息）
         onChange('related_blind_plate_progress', '');
         onChange('related_blind_plate_completion_time', '');
         onChange('related_blind_plate_workers', '');
         onChange('related_blind_plate_reviewers', '');
         setRelatedPermitInfo(null);
-    };
+    }, [readOnly, data.related_permits, onChange]);
 
-    const handleRelatedPermitQuery = async () => {
+    const handleRelatedPermitQuery = React.useCallback(async () => {
         if (!canQueryRelatedPermits) return;
         const numbers = parseRelatedPermitNumbers(data.related_permits);
         const permitNumber = (data.related_blind_plate_permit_number || numbers[0] || '').trim();
@@ -321,7 +293,7 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
             onChange('related_blind_plate_reviewers', result.reviewers);
             setRelatedPermitLoading(false);
         }, 5000);
-    };
+    }, [canQueryRelatedPermits, data.related_permits, data.related_blind_plate_permit_number, relatedPermitLoading, onChange]);
 
     React.useEffect(() => {
         return () => {
@@ -344,26 +316,9 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
     // Initialize safety measures if empty and not readOnly
     React.useEffect(() => {
         if (!readOnly && (!data.safety_measures_list || data.safety_measures_list.length === 0)) {
-            const initialMeasures = [
-                { id: 1, content: '盛装过有毒、可燃物料的受限空间，所有与受限空间有联系的阀门、管线已加盲板 隔离，并落实盲板责任人，未采用水封或关闭阀门代替盲板', applicable: '', confirmer: '' },
-                { id: 2, content: '盛装过有毒、可燃物料的受限空间，设备已经过置换、吹扫或蒸煮', applicable: '', confirmer: '' },
-                { id: 3, content: '设备通风孔已打开进行自然通风，温度适宜人员作业；必要时采用强制通风或佩戴隔绝式呼吸防护装备，不应采用直接通入氧气或富氧空气的方法补充氧', applicable: '', confirmer: '' },
-                { id: 4, content: '转动设备已切断电源，电源开关处已加锁并悬挂“禁止合闸”标志牌', applicable: '', confirmer: '' },
-                { id: 5, content: '受限空间内部已具备进入作业条件，易燃易爆物料容器内作业，作业人员未采用非防爆工具，手持电动工具符合作业安全要求', applicable: '', confirmer: '' },
-                { id: 6, content: '受限空间进出口通道畅通，无阻碍人员进出的障碍物', applicable: '', confirmer: '' },
-                { id: 7, content: '盛装过可燃有毒液体、气体的受限空间，已分析其中的可燃、有毒有害气体和氧气 含量，且在安全范围内', applicable: '', confirmer: '' },
-                { id: 8, content: '存在大量扬尘的设备已停止扬尘', applicable: '', confirmer: '' },
-                { id: 9, content: '用于连续检测的移动式可燃、有毒气体、氧气检测仪已配备到位', applicable: '', confirmer: '' },
-                { id: 10, content: '作业人员已佩戴必要的个体防护装备，清除受限空间内存在的危险因素', applicable: '', confirmer: '' },
-                { id: 11, content: '已配备作业应急设施：消防器材（ ）、救生绳（ ）、气防装备（ ），盛有腐蚀性介 质的容器作业现场已配备应急冲洗水', applicable: '', confirmer: '' },
-                { id: 12, content: '受限空间内作业已配备通信设备', applicable: '', confirmer: '' },
-                { id: 13, content: '受限空间出入口四周已设立警戒区', applicable: '', confirmer: '' },
-                { id: 14, content: '其他相关特殊作业已办理相应安全作业票', applicable: '', confirmer: '' },
-                { id: 15, content: '其他安全措施：', applicable: '', confirmer: '' },
-            ];
-            onChange('safety_measures_list', initialMeasures);
+            onChange('safety_measures_list', INITIAL_SAFETY_MEASURES);
         }
-    }, []);
+    }, [readOnly, data.safety_measures_list, onChange]);
 
     return (
     <>

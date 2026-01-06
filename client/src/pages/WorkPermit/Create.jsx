@@ -1,15 +1,27 @@
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { createPermit } from '../../utils/api';
-import HotWorkPermitForm from '../../components/HotWorkPermitForm';
-import ConfinedSpacePermitForm from '../../components/ConfinedSpacePermitForm';
-import BlindPlatePermitForm from '../../components/BlindPlatePermitForm';
-import HeightWorkPermitForm from '../../components/HeightWorkPermitForm';
-import LiftingPermitForm from '../../components/LiftingPermitForm';
-import TemporaryElectricityPermitForm from '../../components/TemporaryElectricityPermitForm';
-import GroundBreakingPermitForm from '../../components/GroundBreakingPermitForm';
-import RoadBreakingPermitForm from '../../components/RoadBreakingPermitForm';
+
+// 表单组件懒加载
+const HotWorkPermitForm = lazy(() => import('../../components/HotWorkPermitForm'));
+const ConfinedSpacePermitForm = lazy(() => import('../../components/ConfinedSpacePermitForm'));
+const BlindPlatePermitForm = lazy(() => import('../../components/BlindPlatePermitForm'));
+const HeightWorkPermitForm = lazy(() => import('../../components/HeightWorkPermitForm'));
+const LiftingPermitForm = lazy(() => import('../../components/LiftingPermitForm'));
+const TemporaryElectricityPermitForm = lazy(() => import('../../components/TemporaryElectricityPermitForm'));
+const GroundBreakingPermitForm = lazy(() => import('../../components/GroundBreakingPermitForm'));
+const RoadBreakingPermitForm = lazy(() => import('../../components/RoadBreakingPermitForm'));
+
+// 表单加载占位符
+const FormLoading = () => (
+    <div className="flex items-center justify-center py-16">
+        <div className="flex flex-col items-center gap-3">
+            <div className="w-10 h-10 border-3 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+            <span className="text-gray-500">正在加载表单...</span>
+        </div>
+    </div>
+);
 
 const SAFETY_MEASURES_DB = {
     '动火作业': ['清理作业现场易燃物', '配备合格的消防器材', '动火点周围30米内无排放可燃气体', '作业人员持有特种作业证'],
@@ -207,23 +219,24 @@ export default function Create() {
             <main className="flex-1 overflow-auto p-4 md:p-8">
                 <div className="max-w-6xl mx-auto w-full">
                     <form onSubmit={handleSubmit} className="space-y-6">
-                        {formData.work_type === '动火作业' ? (
-                            <HotWorkPermitForm data={formData} onChange={handleCustomChange} />
-                        ) : formData.work_type === '受限空间作业' ? (
-                            <ConfinedSpacePermitForm data={formData} onChange={handleCustomChange} />
-                        ) : formData.work_type === '盲板抽堵作业' ? (
-                            <BlindPlatePermitForm data={formData} onChange={handleCustomChange} />
-                        ) : formData.work_type === '高处作业' ? (
-                            <HeightWorkPermitForm data={formData} onChange={handleCustomChange} />
-                        ) : formData.work_type === '吊装作业' ? (
-                            <LiftingPermitForm data={formData} onChange={handleCustomChange} />
-                        ) : formData.work_type === '临时用电作业' ? (
-                            <TemporaryElectricityPermitForm data={formData} onChange={handleCustomChange} />
-                        ) : formData.work_type === '动土作业' ? (
-            <GroundBreakingPermitForm data={formData} onChange={handleCustomChange} />
-        ) : formData.work_type === '断路作业' ? (
-            <RoadBreakingPermitForm data={formData} onChange={handleCustomChange} />
-        ) : (
+                        <Suspense fallback={<FormLoading />}>
+                            {formData.work_type === '动火作业' ? (
+                                <HotWorkPermitForm data={formData} onChange={handleCustomChange} />
+                            ) : formData.work_type === '受限空间作业' ? (
+                                <ConfinedSpacePermitForm data={formData} onChange={handleCustomChange} />
+                            ) : formData.work_type === '盲板抽堵作业' ? (
+                                <BlindPlatePermitForm data={formData} onChange={handleCustomChange} />
+                            ) : formData.work_type === '高处作业' ? (
+                                <HeightWorkPermitForm data={formData} onChange={handleCustomChange} />
+                            ) : formData.work_type === '吊装作业' ? (
+                                <LiftingPermitForm data={formData} onChange={handleCustomChange} />
+                            ) : formData.work_type === '临时用电作业' ? (
+                                <TemporaryElectricityPermitForm data={formData} onChange={handleCustomChange} />
+                            ) : formData.work_type === '动土作业' ? (
+                                <GroundBreakingPermitForm data={formData} onChange={handleCustomChange} />
+                            ) : formData.work_type === '断路作业' ? (
+                                <RoadBreakingPermitForm data={formData} onChange={handleCustomChange} />
+                            ) : (
                             <>
                                 {/* Basic Info Card */}
                                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
@@ -427,6 +440,7 @@ export default function Create() {
                                 </div>
                             </>
                         )}
+                        </Suspense>
 
                         {/* Action Buttons */}
                         <div className="flex flex-col gap-3 pt-4 pb-8">
