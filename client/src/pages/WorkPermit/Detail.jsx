@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { getPermit, formatDate, getStatusColor, updatePermitStatus, updatePermitExtraData } from '../../utils/api';
@@ -148,6 +148,11 @@ export default function Detail() {
             setSavingExtra(false);
         }
     };
+
+    // 使用 useCallback 确保 onChange 函数引用稳定，避免子组件的 useEffect 无限循环
+    const handlePermitChange = useCallback((field, value) => {
+        setPermit(prev => ({ ...prev, [field]: value }));
+    }, []);
 
     const isConfinedSpace = permit?.type === '受限空间作业';
 
@@ -419,7 +424,7 @@ export default function Detail() {
                                             <SpecificForm 
                                                 data={permit} 
                                                 readOnly={true} 
-                                                onChange={(field, value) => setPermit(prev => ({ ...prev, [field]: value }))} 
+                                                onChange={handlePermitChange} 
                                                 userRole={user?.role} 
                                                 status={permit.status} 
                                             />
@@ -495,7 +500,7 @@ export default function Detail() {
                                     <Suspense fallback={<ModuleLoading />}>
                                         <GasDetectionModule
                                             data={permit}
-                                            onChange={(field, value) => setPermit(prev => ({ ...prev, [field]: value }))}
+                                            onChange={handlePermitChange}
                                             readOnly={false}
                                             currentUser={user}
                                             onSave={saveExtraData}
@@ -509,7 +514,7 @@ export default function Detail() {
                                     <Suspense fallback={<ModuleLoading />}>
                                         <SafetyMeasuresConfirmModule
                                             data={permit}
-                                            onChange={(field, value) => setPermit(prev => ({ ...prev, [field]: value }))}
+                                            onChange={handlePermitChange}
                                             readOnly={false}
                                             currentUser={user}
                                             onSave={saveExtraData}
@@ -523,7 +528,7 @@ export default function Detail() {
                                     <Suspense fallback={<ModuleLoading />}>
                                         <ApprovalModule
                                             data={permit}
-                                            onChange={(field, value) => setPermit(prev => ({ ...prev, [field]: value }))}
+                                            onChange={handlePermitChange}
                                             readOnly={false}
                                             currentUser={user}
                                             onSave={saveApprovalExtraData}
@@ -537,7 +542,7 @@ export default function Detail() {
                                     <Suspense fallback={<ModuleLoading />}>
                                         <SafetyBriefingModule
                                             data={permit}
-                                            onChange={(field, value) => setPermit(prev => ({ ...prev, [field]: value }))}
+                                            onChange={handlePermitChange}
                                             readOnly={false}
                                             currentUser={user}
                                             onSave={saveExtraData}
@@ -551,7 +556,7 @@ export default function Detail() {
                                     <Suspense fallback={<ModuleLoading />}>
                                         <InspectionModule
                                             data={permit}
-                                            onChange={(field, value) => setPermit(prev => ({ ...prev, [field]: value }))}
+                                            onChange={handlePermitChange}
                                             readOnly={false}
                                             currentUser={user}
                                             onSave={saveInspectionExtraData}
