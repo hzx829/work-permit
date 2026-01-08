@@ -211,8 +211,8 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
         };
         
         update();
-        // 每5秒更新一次，减少重渲染频率
-        const intervalId = setInterval(update, 5000);
+        // 每1秒更新一次
+        const intervalId = setInterval(update, 1000);
         return () => clearInterval(intervalId);
     }, [ventilationStartTime, data?.ventilation_start_time]);
 
