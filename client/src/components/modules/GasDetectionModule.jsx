@@ -37,15 +37,12 @@ export default function GasDetectionModule({ data, onChange, readOnly, currentUs
         }
     ];
 
-    // 初始化连续检测记录（表格）
+    // 初始化连续检测记录（改为和首次检测一样的格式）
     const continuousGasDetectionRecords = data?.continuous_gas_detection_records || [
         {
-            gasName: '',
             location: '',
-            standard: '',
-            result: '',
-            samplingTime: '',
-            qualified: null
+            qualified: null,
+            images: []
         }
     ];
 
@@ -105,18 +102,43 @@ export default function GasDetectionModule({ data, onChange, readOnly, currentUs
 
     const addContinuousRecord = () => {
         const newRecords = [...continuousGasDetectionRecords, {
-            gasName: '',
             location: '',
-            standard: '',
-            result: '',
-            samplingTime: '',
-            qualified: null
+            qualified: null,
+            images: []
         }];
         onChange('continuous_gas_detection_records', newRecords);
     };
 
     const removeContinuousRecord = (index) => {
         const newRecords = continuousGasDetectionRecords.filter((_, i) => i !== index);
+        onChange('continuous_gas_detection_records', newRecords);
+    };
+
+    const handleContinuousPhotoUpload = async (e, recordIndex) => {
+        const files = Array.from(e.target.files);
+        if (files.length === 0) return;
+        
+        setUploading(true);
+        try {
+            const compressedPhotos = await compressImages(files, {
+                maxWidth: 1200,
+                maxHeight: 1200,
+                quality: 0.7
+            });
+            const newRecords = [...continuousGasDetectionRecords];
+            newRecords[recordIndex].images = [...(newRecords[recordIndex].images || []), ...compressedPhotos];
+            onChange('continuous_gas_detection_records', newRecords);
+        } catch (error) {
+            console.error('图片上传失败:', error);
+            alert('图片上传失败，请重试');
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const removeContinuousPhoto = (recordIndex, photoIndex) => {
+        const newRecords = [...continuousGasDetectionRecords];
+        newRecords[recordIndex].images = newRecords[recordIndex].images.filter((_, i) => i !== photoIndex);
         onChange('continuous_gas_detection_records', newRecords);
     };
 
@@ -322,9 +344,9 @@ export default function GasDetectionModule({ data, onChange, readOnly, currentUs
                 ))}
             </div>
 
-            {/* 连续气体检测记录（表格） */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                <div className="flex items-center justify-between mb-3">
+            {/* 连续气体检测记录 */}
+            <div className="space-y-4">
+                <div className="flex items-center justify-between">
                     <h3 className="font-semibold text-gray-700">连续气体检测记录</h3>
                     {canEdit && (
                         <button
@@ -338,114 +360,130 @@ export default function GasDetectionModule({ data, onChange, readOnly, currentUs
                     )}
                 </div>
 
-                <div className="overflow-x-auto border border-gray-200 rounded-lg">
-                    <table className="min-w-full text-sm">
-                        <thead className="bg-gray-50 text-gray-600">
-                            <tr>
-                                <th className="px-3 py-2 text-left font-medium">检测时间</th>
-                                <th className="px-3 py-2 text-left font-medium">代表性气体</th>
-                                <th className="px-3 py-2 text-left font-medium">检测点位置</th>
-                                <th className="px-3 py-2 text-left font-medium">合格标准</th>
-                                <th className="px-3 py-2 text-left font-medium">检测值</th>
-                                <th className="px-3 py-2 text-left font-medium">结论</th>
-                                {canEdit && <th className="px-3 py-2 text-right font-medium">操作</th>}
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                            {continuousGasDetectionRecords.map((row, index) => (
-                                <tr key={index} className="bg-white">
-                                    <td className="px-3 py-2 whitespace-nowrap">
-                                        <input
-                                            type="datetime-local"
-                                            value={row.samplingTime || ''}
-                                            onChange={(e) => handleContinuousRecordChange(index, 'samplingTime', e.target.value)}
-                                            disabled={!canEdit}
-                                            className="w-52 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500"
-                                        />
-                                    </td>
-                                    <td className="px-3 py-2">
-                                        <input
-                                            type="text"
-                                            value={row.gasName || ''}
-                                            onChange={(e) => handleContinuousRecordChange(index, 'gasName', e.target.value)}
-                                            disabled={!canEdit}
-                                            placeholder="如：氧气"
-                                            className="w-40 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500"
-                                        />
-                                    </td>
-                                    <td className="px-3 py-2">
-                                        <input
-                                            type="text"
-                                            value={row.location || ''}
-                                            onChange={(e) => handleContinuousRecordChange(index, 'location', e.target.value)}
-                                            disabled={!canEdit}
-                                            placeholder="位置"
-                                            className="w-40 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500"
-                                        />
-                                    </td>
-                                    <td className="px-3 py-2">
-                                        <input
-                                            type="text"
-                                            value={row.standard || ''}
-                                            onChange={(e) => handleContinuousRecordChange(index, 'standard', e.target.value)}
-                                            disabled={!canEdit}
-                                            placeholder="标准"
-                                            className="w-40 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500"
-                                        />
-                                    </td>
-                                    <td className="px-3 py-2">
-                                        <input
-                                            type="text"
-                                            value={row.result || ''}
-                                            onChange={(e) => handleContinuousRecordChange(index, 'result', e.target.value)}
-                                            disabled={!canEdit}
-                                            placeholder="数值"
-                                            className="w-32 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500"
-                                        />
-                                    </td>
-                                    <td className="px-3 py-2 whitespace-nowrap">
-                                        <select
-                                            value={row.qualified === true ? 'qualified' : row.qualified === false ? 'unqualified' : ''}
-                                            onChange={(e) => handleContinuousRecordChange(index, 'qualified', e.target.value === '' ? null : e.target.value === 'qualified')}
-                                            disabled={!canEdit}
-                                            className="w-24 px-2 py-1 border border-gray-300 rounded bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500"
-                                        >
-                                            <option value="">未选择</option>
-                                            <option value="qualified">合格</option>
-                                            <option value="unqualified">不合格</option>
-                                        </select>
-                                    </td>
-                                    {canEdit && (
-                                        <td className="px-3 py-2 text-right whitespace-nowrap">
-                                            <button
-                                                type="button"
-                                                onClick={() => removeContinuousRecord(index)}
-                                                disabled={continuousGasDetectionRecords.length <= 1}
-                                                className="text-red-600 hover:text-red-700 disabled:opacity-40 disabled:cursor-not-allowed"
-                                                title={continuousGasDetectionRecords.length <= 1 ? '至少保留一条记录' : '删除'}
-                                            >
-                                                删除
-                                            </button>
-                                        </td>
-                                    )}
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                {continuousGasDetectionRecords.map((record, index) => (
+                    <div key={index} className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm relative">
+                        {canEdit && continuousGasDetectionRecords.length > 1 && (
+                            <button
+                                onClick={() => removeContinuousRecord(index)}
+                                className="absolute top-4 right-4 text-red-500 hover:text-red-700 text-sm"
+                            >
+                                <i className="fas fa-times"></i>
+                            </button>
+                        )}
 
-                {/* 连续检测备注（保留原字段，兼容历史数据） */}
-                <div className="mt-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">连续检测备注</label>
-                    <textarea
-                        value={data?.continuous_gas_detection || ''}
-                        onChange={(e) => onChange('continuous_gas_detection', e.target.value)}
-                        disabled={!canEdit}
-                        placeholder="可填写趋势变化、异常说明、处理情况等..."
-                        rows="3"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500"
-                    />
-                </div>
+                        <div className="space-y-5">
+                            {/* 检测点位置 */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    检测点位置 <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    value={record.location || ''}
+                                    onChange={(e) => handleContinuousRecordChange(index, 'location', e.target.value)}
+                                    disabled={!canEdit}
+                                    placeholder="请输入检测点的具体位置"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500"
+                                />
+                            </div>
+
+                            {/* 检测数据照片上传 */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    <i className="fas fa-camera mr-1 text-blue-600"></i>
+                                    检测数据照片上传
+                                    <span className="text-xs text-gray-500 ml-2">（请拍摄检测仪器读数、纸质记录等）</span>
+                                </label>
+                                
+                                {/* 照片网格 */}
+                                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
+                                    {(record.images || []).map((photo, photoIndex) => (
+                                        <div key={photoIndex} className="relative group">
+                                            <img
+                                                src={photo.url}
+                                                alt={photo.name}
+                                                loading="lazy"
+                                                decoding="async"
+                                                className="w-full h-24 object-cover rounded-lg border border-gray-200 cursor-pointer hover:opacity-75 transition-opacity bg-gray-100"
+                                                onClick={() => setPreviewImage(photo.url)}
+                                            />
+                                            {canEdit && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeContinuousPhoto(index, photoIndex)}
+                                                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                                >
+                                                    <i className="fas fa-times text-xs"></i>
+                                                </button>
+                                            )}
+                                            <p className="text-xs text-gray-500 mt-1 truncate">{photo.name}</p>
+                                        </div>
+                                    ))}
+
+                                    {/* 上传按钮 */}
+                                    {canEdit && (
+                                        <label className={`w-full h-24 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                                            {uploading ? (
+                                                <>
+                                                    <i className="fas fa-spinner fa-spin text-2xl text-blue-500 mb-1"></i>
+                                                    <span className="text-xs text-blue-500">上传中...</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <i className="fas fa-cloud-upload-alt text-2xl text-gray-400 mb-1"></i>
+                                                    <span className="text-xs text-gray-500">点击上传</span>
+                                                </>
+                                            )}
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                multiple
+                                                onChange={(e) => handleContinuousPhotoUpload(e, index)}
+                                                disabled={uploading}
+                                                className="hidden"
+                                            />
+                                        </label>
+                                    )}
+                                </div>
+
+                                {(record.images || []).length === 0 && !canEdit && (
+                                    <p className="text-center text-gray-400 py-4 text-sm">暂无照片</p>
+                                )}
+                            </div>
+
+                            {/* 检测结果 */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    检测结果 <span className="text-red-500">*</span>
+                                </label>
+                                <div className="flex gap-6">
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="radio"
+                                            name={`continuous-qualified-${index}`}
+                                            checked={record.qualified === true}
+                                            onChange={() => handleContinuousRecordChange(index, 'qualified', true)}
+                                            disabled={!canEdit}
+                                            className="text-green-600 focus:ring-green-500 w-4 h-4"
+                                        />
+                                        <span className="text-sm text-gray-700">合格</span>
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="radio"
+                                            name={`continuous-qualified-${index}`}
+                                            checked={record.qualified === false}
+                                            onChange={() => handleContinuousRecordChange(index, 'qualified', false)}
+                                            disabled={!canEdit}
+                                            className="text-red-600 focus:ring-red-500 w-4 h-4"
+                                        />
+                                        <span className="text-sm text-gray-700">不合格</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                ))}
             </div>
 
             {/* 监护人签字 */}

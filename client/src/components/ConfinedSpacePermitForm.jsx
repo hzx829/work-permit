@@ -262,9 +262,20 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
         setRelatedPermitInfo(null);
         // 按你的要求：结果可随机/模拟，但编号必须与作业端输入一致
         relatedPermitQueryTimerRef.current = setTimeout(() => {
+            // 计算盲板作业完成时间：如果存在作业申请时间，则设置为申请时间的前一天；否则使用当前时间
+            let blindPlateCompletionTime;
+            if (data.apply_time) {
+                const applyDate = new Date(data.apply_time);
+                // 设置为前一天，保持相同的时分秒
+                applyDate.setDate(applyDate.getDate() - 1);
+                blindPlateCompletionTime = applyDate.toLocaleString();
+            } else {
+                blindPlateCompletionTime = new Date().toLocaleString();
+            }
+            
             const result = {
                 progress: '堵盲板作业已完成',
-                completionTime: new Date().toLocaleString(),
+                completionTime: blindPlateCompletionTime,
                 workers: '赵六',
                 reviewers: '王五',
                 permitNumber
