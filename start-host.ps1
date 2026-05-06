@@ -1,6 +1,6 @@
-# 作业票管理系统 - 开发环境启动脚本 (PowerShell)
+# 作业票管理系统 - 开发环境启动脚本 (PowerShell) - Host Mode
 
-Write-Host "🚀 启动作业票管理系统..."
+Write-Host "🚀 启动作业票管理系统 (Host Mode)..."
 Write-Host ""
 
 # 检查 node 是否安装
@@ -47,10 +47,10 @@ Write-Host ""
 Start-Sleep -Seconds 2
 
 # 启动前端开发服务器
-Write-Host "⚛️  启动前端开发服务器..."
+Write-Host "⚛️  启动前端开发服务器 (Host Mode)..."
 Push-Location client
-# 同样启动新窗口运行前端
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "npm run dev"
+# 同样启动新窗口运行前端，添加 -- --host 参数
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "npm run dev -- --host"
 Pop-Location
 
 Write-Host "✅ 前端开发服务器已在新窗口启动"
@@ -61,7 +61,8 @@ Write-Host "✨ 系统启动发起完成！请检查弹出的两个窗口。"
 Write-Host "════════════════════════════════════════"
 Write-Host ""
 Write-Host "📍 访问地址："
-Write-Host "   前端: http://localhost:5173"
+Write-Host "   本机访问: http://localhost:5173"
+Write-Host "   局域网访问: 请查看前端窗口显示的 Network 地址 (通常是 http://<IP>:5173)"
 Write-Host "   后端: http://localhost:3000"
 Write-Host ""
 Write-Host "👤 测试账号："

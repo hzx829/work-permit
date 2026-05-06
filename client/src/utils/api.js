@@ -53,6 +53,10 @@ export async function createPermit(data) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
     });
+    if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`服务器错误 ${response.status}: ${text.substring(0, 300)}`);
+    }
     return await response.json();
 }
 
@@ -61,12 +65,16 @@ export async function updatePermitStatus(id, status, signatures = null) {
     if (signatures) {
         body.signatures = signatures;
     }
-    
+
     const response = await fetch(`${API_BASE}/work-permits/${id}/status`, {
-        method: 'PUT',
+        method: 'POST', // Changed from PUT to POST for better proxy compatibility
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
     });
+    if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`更新状态失败 HTTP ${response.status}: ${text.substring(0, 200)}`);
+    }
     return await response.json();
 }
 
@@ -76,6 +84,10 @@ export async function updatePermitExtraData(id, data) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
     });
+    if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`保存数据失败 HTTP ${response.status}: ${text.substring(0, 200)}`);
+    }
     return await response.json();
 }
 

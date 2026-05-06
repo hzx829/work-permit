@@ -42,7 +42,17 @@ fi
 echo "Using package manager: $PKG_MANAGER"
 
 install_base_tools() {
-  echo "[1/5] 安装基础工具（curl / unzip）..."
+  echo "[1/5] 检查基础工具（curl / unzip）..."
+  local need_install=0
+  command -v curl &> /dev/null || need_install=1
+  command -v unzip &> /dev/null || need_install=1
+
+  if [ "$need_install" -eq 0 ]; then
+    echo "  curl 和 unzip 已安装，跳过"
+    return
+  fi
+
+  echo "  正在安装缺少的工具..."
   if [ "$PKG_MANAGER" = "apt-get" ]; then
     apt-get update
     apt-get install -y curl unzip
@@ -52,6 +62,16 @@ install_base_tools() {
 }
 
 install_node_18_plus() {
+  # 检查是否已有 Node.js 18+
+  if command -v node &> /dev/null; then
+    local node_major
+    node_major=$(node -e "process.stdout.write(String(process.version.match(/^v(\d+)/)[1]))" 2>/dev/null || echo "0")
+    if [ "$node_major" -ge 18 ] 2>/dev/null; then
+      echo "[2-4/5] Node.js $(node -v) 已满足要求（>=18），跳过安装"
+      return
+    fi
+  fi
+
   echo "[2/5] 安装系统 nodejs/npm（先装一个版本以便使用 npm）..."
 
   if [[ "$ID_LOWER" == "openeuler" || "$ID_LOWER" == "openEuler" ]]; then
@@ -126,8 +146,10 @@ deploy_app() {
 
   echo "使用 PM2 启动 / 重启应用..."
   if pm2 list | grep -q "$APP_NAME"; then
-    echo "检测到已有进程 $APP_NAME，执行重启..."
-    pm2 restart "$APP_NAME"
+    echo "检测到已有进程 $APP_NAME，执行停止并重启（保留 NODE_ENV）..."
+    pm2 stop "$APP_NAME" || true
+    pm2 delete "$APP_NAME" || true
+    NODE_ENV=production pm2 start "$APP_ENTRY" --name "$APP_NAME"
   else
     echo "首次启动 $APP_NAME..."
     NODE_ENV=production pm2 start "$APP_ENTRY" --name "$APP_NAME"

@@ -10,8 +10,8 @@ Write-Host "Please enter the password ($User) when prompted."
 Write-Host "Uploading deploy.zip and setup script..."
 scp deploy.zip setup_remote.sh ${User}@${ServerIP}:/root/
 
-# 2. Execute remote setup script
-Write-Host "Executing remote setup..."
-ssh ${User}@${ServerIP} "bash /root/setup_remote.sh"
+# 2. Normalize line endings on remote and execute setup script
+Write-Host "Fixing line endings and executing remote setup..."
+ssh ${User}@${ServerIP} "sed -i 's/\r`$//' /root/setup_remote.sh && bash /root/setup_remote.sh"
 
 Write-Host "Done!"

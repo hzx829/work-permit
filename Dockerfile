@@ -29,6 +29,9 @@ RUN npm install --production
 # 复制后端源码
 COPY server.js database.js ./
 
+# 复制 SSL 证书
+COPY ssl/ ./ssl/
+
 # 复制前端构建产物
 COPY --from=frontend-builder /app/client/dist ./client/dist
 
@@ -41,15 +44,18 @@ RUN apk add --no-cache tzdata && \
 
 # 创建非root用户
 RUN addgroup -S appuser && adduser -S appuser -G appuser && \
-    chown -R appuser:appuser /app
+    chown -R appuser:appuser /app && \
+    chmod 600 /app/ssl/*.key
 USER appuser
 
-# 暴露端口
-EXPOSE 3000
+# 暴露端口（80 HTTP跳转 + 443 HTTPS）
+EXPOSE 80 443
 
 # 设置环境变量
 ENV NODE_ENV=production
 ENV DB_PATH=/app/data/work_permits.db
+ENV PORT=80
+ENV HTTPS_PORT=443
 
 # 启动应用
 CMD ["node", "server.js"]

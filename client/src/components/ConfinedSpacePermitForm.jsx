@@ -122,6 +122,8 @@ const parseRelatedPermitNumbers = (raw) => {
 export default function ConfinedSpacePermitForm({ data, onChange, readOnly = false, userRole = '', isCreating = false }) {
     const [isDetecting, setIsDetecting] = React.useState(false);
     const [hasStartedDetection, setHasStartedDetection] = React.useState(() => readOnly);
+    const [detectionFailed, setDetectionFailed] = React.useState(false);
+    const [detectionRetrySeed, setDetectionRetrySeed] = React.useState(0);
     const [relatedPermitLoading, setRelatedPermitLoading] = React.useState(false);
     const [relatedPermitInfo, setRelatedPermitInfo] = React.useState(null);
     const [hasQueriedRelatedPermit, setHasQueriedRelatedPermit] = React.useState(false);
@@ -169,29 +171,39 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
 
     const contentReady = Boolean(data?.content && data.content.trim());
 
-    // 在审批模式下打开作业票时自动触发25秒的检测动画
-    React.useEffect(() => {
-        if (readOnly && !isCreating) {
-            // 延迟一点开始，让页面先渲染
-            const startTimer = setTimeout(() => {
-                setIsDetecting(true);
-                setHasStartedDetection(true);
-            }, 100);
-            
-            return () => clearTimeout(startTimer);
-        }
-    }, [readOnly, isCreating]);
+    const retryDetection = React.useCallback(() => {
+        if (readOnly || isCreating || !contentReady) return;
+        setDetectionFailed(false);
+        setDetectionRetrySeed((prev) => prev + 1);
+    }, [readOnly, isCreating, contentReady]);
 
-    // 单独的 useEffect 处理检测计时器，只依赖 isDetecting 状态
+    // 编辑模式下在填写作业内容后触发一次短暂检测动画；只读模式直接展示结果
     React.useEffect(() => {
-        if (!isDetecting) return;
-        
-        const timer = setTimeout(() => {
+        if (readOnly || isCreating || !contentReady) return;
+
+        setHasStartedDetection(true);
+        setDetectionFailed(false);
+        setIsDetecting(true);
+
+        const doneTimer = setTimeout(() => {
             setIsDetecting(false);
-        }, 25000);
-        
-        return () => clearTimeout(timer);
-    }, [isDetecting]);
+        }, 1800);
+
+        const failSafeTimer = setTimeout(() => {
+            setIsDetecting((prev) => {
+                if (prev) {
+                    setDetectionFailed(true);
+                    return false;
+                }
+                return prev;
+            });
+        }, 8000);
+
+        return () => {
+            clearTimeout(doneTimer);
+            clearTimeout(failSafeTimer);
+        };
+    }, [readOnly, isCreating, contentReady, detectionRetrySeed]);
 
     // 通风时长计时器 - 降低更新频率，减少重渲染
     React.useEffect(() => {
@@ -427,6 +439,27 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                                         <span className="text-lg font-bold text-blue-600 ml-2">正在检测现场条件...</span>
                                     </div>
                                 </>
+                            ) : detectionFailed ? (
+                                /* 兜底失败状态 */
+                                <div className="py-4">
+                                    <div className="flex items-center justify-center gap-2 text-amber-700">
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M3.055 11a9 9 0 1117.89 0 9 9 0 01-17.89 0z" />
+                                        </svg>
+                                        <span className="text-sm font-medium">现场条件检测超时，请重试</span>
+                                    </div>
+                                    {!readOnly && (
+                                        <div className="flex items-center justify-center mt-3">
+                                            <button
+                                                type="button"
+                                                onClick={retryDetection}
+                                                className="px-3 py-1.5 text-sm font-medium rounded-md border border-amber-300 text-amber-700 bg-amber-50 hover:bg-amber-100 transition-colors"
+                                            >
+                                                重新检测
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
                             ) : (
                                 /* 检测结果 */
                                 <>

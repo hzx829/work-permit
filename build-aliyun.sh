@@ -62,7 +62,7 @@ echo '=== 构建和推送完成 ==='
 echo "镜像地址: $FULL_IMAGE_NAME"
 echo
 echo '🧪 建议本地测试:'
-echo "docker run -d --name work-permit-test -p 3000:3000 \\"
+echo "docker run -d --name work-permit-test -p 80:80 -p 443:443 \\"
 echo "  -v \$(pwd)/data:/app/data \\"
 echo "  $FULL_IMAGE_NAME"
 echo

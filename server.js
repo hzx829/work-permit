@@ -1,10 +1,14 @@
 const express = require('express');
 const path = require('path');
+const fs = require('fs');
+const http = require('http');
+const https = require('https');
 const db = require('./database');
 
 const app = express();
-// 开发环境使用3000端口（配合vite proxy），生产环境使用80端口
+// 开发环境使用3000端口（配合vite proxy），生产环境HTTP使用80端口，HTTPS使用443端口
 const PORT = process.env.PORT || (process.env.NODE_ENV === 'production' ? 80 : 3000);
+const HTTPS_PORT = process.env.HTTPS_PORT || 443;
 
 app.use(express.json({ limit: '10mb' })); // Increased limit for base64 images
 
@@ -639,7 +643,7 @@ app.post('/api/work-permits', (req, res) => {
 });
 
 // Update status (Approve, Start, Complete, Reject)
-app.put('/api/work-permits/:id/status', (req, res) => {
+const updateStatusHandler = (req, res) => {
     const { id } = req.params;
     const { status, signatures } = req.body; // signatures might be updated during approval
 
@@ -661,7 +665,11 @@ app.put('/api/work-permits/:id/status', (req, res) => {
         }
         res.json({ success: true });
     });
-});
+};
+
+// Support both PUT and POST methods for compatibility with different proxy configurations
+app.put('/api/work-permits/:id/status', updateStatusHandler);
+app.post('/api/work-permits/:id/status', updateStatusHandler);
 
 // Update permit extra data (for signatures, images, etc.)
 // Support both PUT and POST methods for compatibility with different proxy configurations
@@ -795,6 +803,47 @@ if (process.env.NODE_ENV === 'production') {
     });
 }
 
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server is running on http://0.0.0.0:${PORT}`);
+// 全局错误处理中间件
+app.use((err, req, res, next) => {
+    console.error('未捕获的错误:', err);
+    res.status(500).json({ success: false, error: err.message || '服务器内部错误' });
 });
+
+// 启动服务器：生产环境优先启动 HTTPS，开发环境固定使用 HTTP 便于本地联调
+const sslCert = process.env.SSL_CERT || path.join(__dirname, 'ssl', 'STAR_sccc_edu_cn_integrated.crt');
+const sslKey  = process.env.SSL_KEY  || path.join(__dirname, 'ssl', 'STAR_sccc_edu_cn.key');
+
+const shouldUseHttpsInProd = process.env.NODE_ENV === 'production' && fs.existsSync(sslCert) && fs.existsSync(sslKey);
+
+if (shouldUseHttpsInProd) {
+    try {
+        const httpsOptions = {
+            cert: fs.readFileSync(sslCert),
+            key:  fs.readFileSync(sslKey),
+        };
+
+        // HTTPS 主服务
+        https.createServer(httpsOptions, app).listen(HTTPS_PORT, '0.0.0.0', () => {
+            console.log(`HTTPS Server running on https://0.0.0.0:${HTTPS_PORT}`);
+        });
+
+        // HTTP → HTTPS 重定向
+        http.createServer((req, res) => {
+            const host = req.headers.host ? req.headers.host.replace(/:\d+$/, '') : '';
+            const redirectUrl = `https://${host}:${HTTPS_PORT}${req.url}`;
+            res.writeHead(301, { Location: redirectUrl });
+            res.end();
+        }).listen(PORT, '0.0.0.0', () => {
+            console.log(`HTTP redirect running on http://0.0.0.0:${PORT} → https`);
+        });
+    } catch (e) {
+        console.error('SSL 证书加载失败，回退到 HTTP 模式:', e.message);
+        app.listen(PORT, '0.0.0.0', () => {
+            console.log(`Server is running on http://0.0.0.0:${PORT}`);
+        });
+    }
+} else {
+    app.listen(PORT, '0.0.0.0', () => {
+        console.log(`Server is running on http://0.0.0.0:${PORT}`);
+    });
+}

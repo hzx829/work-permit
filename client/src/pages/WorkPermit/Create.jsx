@@ -167,8 +167,8 @@ export default function Create() {
                 alert('提交失败: ' + (result.error || '未知错误'));
             }
         } catch (error) {
-            console.error(error);
-            alert('提交失败，请检查网络');
+            console.error('提交失败:', error);
+            alert('提交失败：' + (error.message || '请检查网络连接'));
         }
     };
 

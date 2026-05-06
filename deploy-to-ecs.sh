@@ -8,7 +8,8 @@ set -e
 ECS_HOST='8.149.232.48'
 IMAGE_NAME='registry.cn-hangzhou.aliyuncs.com/zionzxhuang/work-permit:1.0.0'
 CONTAINER_NAME='work-permit'
-APP_PORT='3000'
+HTTP_PORT='80'
+HTTPS_PORT='443'
 
 echo '=== 开始部署work-permit到阿里云ECS ==='
 echo "ECS服务器: $ECS_HOST"
@@ -42,8 +43,13 @@ echo '步骤3: 创建数据目录...'
 ssh root@$ECS_HOST -i deploy-0729.pem "mkdir -p /data/work-permit"
 
 echo '步骤4: 启动新容器...'
-ssh root@$ECS_HOST -i deploy-0729.pem "docker run -d --name $CONTAINER_NAME -p $APP_PORT:$APP_PORT \
+ssh root@$ECS_HOST -i deploy-0729.pem "docker run -d --name $CONTAINER_NAME \
+  -p $HTTP_PORT:80 -p $HTTPS_PORT:443 \
   -v /data/work-permit:/app/data \
+  -e NODE_ENV=production \
+  -e DB_PATH=/app/data/work_permits.db \
+  -e PORT=80 \
+  -e HTTPS_PORT=443 \
   --restart=unless-stopped \
   $IMAGE_NAME"
 
@@ -63,8 +69,9 @@ ssh root@$ECS_HOST -i deploy-0729.pem "docker logs --tail 20 $CONTAINER_NAME"
 
 echo
 echo '=== 部署完成 ==='
-echo "应用地址: http://$ECS_HOST:$APP_PORT"
-echo "测试API: http://$ECS_HOST:$APP_PORT/api/work-permits"
+echo "应用地址(HTTPS): https://$ECS_HOST:$HTTPS_PORT"
+echo "应用地址(HTTP跳转): http://$ECS_HOST:$HTTP_PORT"
+echo "测试API: https://$ECS_HOST:$HTTPS_PORT/api/work-permits"
 echo
 echo '管理命令:'
 echo "查看日志: ssh root@$ECS_HOST -i deploy-0729.pem 'docker logs -f $CONTAINER_NAME'"

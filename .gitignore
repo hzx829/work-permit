@@ -47,3 +47,7 @@ Thumbs.db
 *.local
 
 deploy
+
+# SSL 私钥（不要提交到版本控制）
+ssl/*.key
+ssl_temp/
