@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { authFetch } from '../utils/api';
 import { useNavigate } from 'react-router-dom';
 
 export default function Training() {
@@ -12,7 +13,7 @@ export default function Training() {
 
     const fetchData = async () => {
         try {
-            const response = await fetch('/api/training');
+            const response = await authFetch('/api/training');
             const result = await response.json();
             setData(result);
         } catch (error) {

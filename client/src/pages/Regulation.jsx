@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { authFetch } from '../utils/api';
 import { useNavigate } from 'react-router-dom';
 
 export default function Regulation() {
@@ -13,7 +14,7 @@ export default function Regulation() {
 
     const fetchData = async () => {
         try {
-            const response = await fetch('/api/regulation');
+            const response = await authFetch('/api/regulation');
             const result = await response.json();
             setData(result);
         } catch (error) {

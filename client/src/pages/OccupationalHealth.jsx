@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { authFetch } from '../utils/api';
 import { useNavigate } from 'react-router-dom';
 
 export default function OccupationalHealth() {
@@ -12,7 +13,7 @@ export default function OccupationalHealth() {
 
     const fetchData = async () => {
         try {
-            const response = await fetch('/api/occupational-health');
+            const response = await authFetch('/api/occupational-health');
             const result = await response.json();
             setData(result);
         } catch (error) {

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { authFetch } from '../utils/api';
 import { useNavigate } from 'react-router-dom';
 
 export default function SafetyOfficer() {
@@ -12,7 +13,7 @@ export default function SafetyOfficer() {
 
     const fetchData = async () => {
         try {
-            const response = await fetch('/api/safety-officer');
+            const response = await authFetch('/api/safety-officer');
             const result = await response.json();
             setData(result);
         } catch (error) {

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { authFetch } from '../utils/api';
 import { useNavigate } from 'react-router-dom';
 
 export default function DailyInspection() {
@@ -13,7 +14,7 @@ export default function DailyInspection() {
 
     const fetchData = async () => {
         try {
-            const response = await fetch('/api/daily-inspection');
+            const response = await authFetch('/api/daily-inspection');
             const result = await response.json();
             setData(result);
         } catch (error) {

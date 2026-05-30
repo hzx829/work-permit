@@ -1,5 +1,32 @@
 const API_BASE = '/api';
 
+// --- Token Management ---
+
+function getToken() {
+    return localStorage.getItem('token');
+}
+
+function getAuthHeaders() {
+    const token = getToken();
+    return token ? { 'Authorization': `Bearer ${token}` } : {};
+}
+
+// 带认证的 fetch 封装：自动附加 Token，401 时跳转登录页
+export async function authFetch(url, options = {}) {
+    const headers = {
+        ...getAuthHeaders(),
+        ...(options.headers || {})
+    };
+    const response = await fetch(url, { ...options, headers });
+    if (response.status === 401) {
+        localStorage.removeItem('user');
+        localStorage.removeItem('token');
+        window.location.href = '/login';
+        throw new Error('未授权，请重新登录');
+    }
+    return response;
+}
+
 // --- Auth Functions ---
 
 export async function login(username, password) {
@@ -12,6 +39,7 @@ export async function login(username, password) {
         const data = await response.json();
         if (data.success) {
             localStorage.setItem('user', JSON.stringify(data.user));
+            localStorage.setItem('token', data.token);
         }
         return data;
     } catch (error) {
@@ -22,6 +50,7 @@ export async function login(username, password) {
 
 export function logout() {
     localStorage.removeItem('user');
+    localStorage.removeItem('token');
 }
 
 export function getCurrentUser() {
@@ -37,18 +66,18 @@ export async function loadPermits(status = '', search = '', page = 1, pageSize =
     if (search) url += `search=${encodeURIComponent(search)}&`;
     url += `page=${page}&pageSize=${pageSize}`;
     
-    const response = await fetch(url);
+    const response = await authFetch(url);
     return await response.json();
 }
 
 export async function getPermit(id) {
-    const response = await fetch(`${API_BASE}/work-permits/${id}`);
+    const response = await authFetch(`${API_BASE}/work-permits/${id}`);
     if (!response.ok) throw new Error('Permit not found');
     return await response.json();
 }
 
 export async function createPermit(data) {
-    const response = await fetch(`${API_BASE}/work-permits`, {
+    const response = await authFetch(`${API_BASE}/work-permits`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -66,8 +95,8 @@ export async function updatePermitStatus(id, status, signatures = null) {
         body.signatures = signatures;
     }
 
-    const response = await fetch(`${API_BASE}/work-permits/${id}/status`, {
-        method: 'POST', // Changed from PUT to POST for better proxy compatibility
+    const response = await authFetch(`${API_BASE}/work-permits/${id}/status`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
     });
@@ -79,8 +108,8 @@ export async function updatePermitStatus(id, status, signatures = null) {
 }
 
 export async function updatePermitExtraData(id, data) {
-    const response = await fetch(`${API_BASE}/work-permits/${id}/extra`, {
-        method: 'POST', // Changed from PUT to POST for better proxy compatibility
+    const response = await authFetch(`${API_BASE}/work-permits/${id}/extra`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
     });

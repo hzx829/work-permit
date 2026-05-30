@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { authFetch } from '../utils/api';
 import { useNavigate } from 'react-router-dom';
 
 export default function AccidentInvestigation() {
@@ -12,7 +13,7 @@ export default function AccidentInvestigation() {
 
     const fetchData = async () => {
         try {
-            const response = await fetch('/api/accident-investigation');
+            const response = await authFetch('/api/accident-investigation');
             const result = await response.json();
             setData(result);
         } catch (error) {

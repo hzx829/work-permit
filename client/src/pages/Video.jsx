@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { authFetch } from '../utils/api';
 
 export default function Video() {
     const navigate = useNavigate();
@@ -22,7 +23,7 @@ export default function Video() {
 
     const fetchData = async () => {
         try {
-            const response = await fetch('/api/video');
+            const response = await authFetch('/api/video');
             const data = await response.json();
             setCameras(data.cameras);
             setAiAlarms(data.aiAlarms || []);
@@ -36,7 +37,7 @@ export default function Video() {
 
     const fetchCameraUrls = async () => {
         try {
-            const response = await fetch('/api/camera-urls');
+            const response = await authFetch('/api/camera-urls');
             const data = await response.json();
             setCameraUrls(data || []);
         } catch (error) {
@@ -59,7 +60,7 @@ export default function Video() {
         }
         
         try {
-            const response = await fetch('/api/camera-urls', {
+            const response = await authFetch('/api/camera-urls', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(configForm)
@@ -82,7 +83,7 @@ export default function Video() {
         if (!confirm('确定要删除此配置吗？')) return;
         
         try {
-            const response = await fetch(`/api/camera-urls/${cameraId}`, { method: 'DELETE' });
+            const response = await authFetch(`/api/camera-urls/${cameraId}`, { method: 'DELETE' });
             if (response.ok) {
                 await fetchCameraUrls();
                 await fetchData();

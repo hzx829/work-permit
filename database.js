@@ -1,5 +1,6 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const bcrypt = require('bcryptjs');
 
 // 支持通过环境变量配置数据库路径（用于Docker部署）
 const dbPath = process.env.DB_PATH || path.resolve(__dirname, 'work_permits.db');
@@ -69,10 +70,20 @@ function initDb() {
         db.get("SELECT count(*) as count FROM users", (err, row) => {
             if (row.count === 0) {
                 const stmt = db.prepare("INSERT INTO users (username, password, role, full_name) VALUES (?, ?, ?, ?)");
-                stmt.run("worker", "Schy123456#", "worker", "张三 (作业员)");
-                stmt.run("safety", "Schy123456#", "safety", "其他人员");
+                stmt.run("worker", bcrypt.hashSync("Schy123456#", 10), "worker", "张三 (作业员)");
+                stmt.run("safety", bcrypt.hashSync("Schy123456#", 10), "safety", "其他人员");
                 stmt.finalize();
-                console.log("Seeded initial users: worker/Schy123456#, safety/Schy123456#");
+                console.log("Seeded initial users with hashed passwords.");
+            } else {
+                // Migrate existing plaintext passwords to bcrypt hashes
+                db.each("SELECT id, password FROM users WHERE password NOT LIKE '$2b$%'", [], (err, row) => {
+                    if (!err && row) {
+                        const hashed = bcrypt.hashSync(row.password, 10);
+                        db.run("UPDATE users SET password = ? WHERE id = ?", [hashed, row.id], (updateErr) => {
+                            if (!updateErr) console.log(`Migrated password hash for user id=${row.id}`);
+                        });
+                    }
+                });
             }
         });
     });

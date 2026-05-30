@@ -145,14 +145,15 @@ deploy_app() {
   npm install --production
 
   echo "使用 PM2 启动 / 重启应用..."
+  JWT_SECRET='e5242c8938c3be63896667a55b126d8e5ed6677b6dfc6bdb9671412a07c1f9f5b367c58f23d1be10592d482d731866b8519f75eb439dd29a43a97be01055a7d0'
   if pm2 list | grep -q "$APP_NAME"; then
     echo "检测到已有进程 $APP_NAME，执行停止并重启（保留 NODE_ENV）..."
     pm2 stop "$APP_NAME" || true
     pm2 delete "$APP_NAME" || true
-    NODE_ENV=production pm2 start "$APP_ENTRY" --name "$APP_NAME"
+    NODE_ENV=production JWT_SECRET="$JWT_SECRET" pm2 start "$APP_ENTRY" --name "$APP_NAME"
   else
     echo "首次启动 $APP_NAME..."
-    NODE_ENV=production pm2 start "$APP_ENTRY" --name "$APP_NAME"
+    NODE_ENV=production JWT_SECRET="$JWT_SECRET" pm2 start "$APP_ENTRY" --name "$APP_NAME"
   fi
 
   # 可选：让 pm2 开机自启（按需开启）

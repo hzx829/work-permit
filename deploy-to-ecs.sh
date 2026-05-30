@@ -43,6 +43,7 @@ echo '步骤3: 创建数据目录...'
 ssh root@$ECS_HOST -i deploy-0729.pem "mkdir -p /data/work-permit"
 
 echo '步骤4: 启动新容器...'
+JWT_SECRET='e5242c8938c3be63896667a55b126d8e5ed6677b6dfc6bdb9671412a07c1f9f5b367c58f23d1be10592d482d731866b8519f75eb439dd29a43a97be01055a7d0'
 ssh root@$ECS_HOST -i deploy-0729.pem "docker run -d --name $CONTAINER_NAME \
   -p $HTTP_PORT:80 -p $HTTPS_PORT:443 \
   -v /data/work-permit:/app/data \
@@ -50,6 +51,7 @@ ssh root@$ECS_HOST -i deploy-0729.pem "docker run -d --name $CONTAINER_NAME \
   -e DB_PATH=/app/data/work_permits.db \
   -e PORT=80 \
   -e HTTPS_PORT=443 \
+  -e JWT_SECRET='$JWT_SECRET' \
   --restart=unless-stopped \
   $IMAGE_NAME"
 

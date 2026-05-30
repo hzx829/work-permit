@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { authFetch } from '../utils/api';
 import { useNavigate } from 'react-router-dom';
 import ConfinedSpaceEmergency from '../components/ConfinedSpaceEmergency';
 
@@ -15,7 +16,7 @@ export default function Emergency() {
 
     const fetchData = async () => {
         try {
-            const response = await fetch('/api/emergency');
+            const response = await authFetch('/api/emergency');
             const result = await response.json();
             setData(result);
         } catch (error) {

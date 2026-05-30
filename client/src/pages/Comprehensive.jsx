@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { authFetch } from '../utils/api';
 import { useNavigate } from 'react-router-dom';
 
 export default function Comprehensive() {
@@ -13,7 +14,7 @@ export default function Comprehensive() {
 
     const fetchData = async () => {
         try {
-            const response = await fetch('/api/comprehensive');
+            const response = await authFetch('/api/comprehensive');
             const result = await response.json();
             setData(result);
         } catch (error) {

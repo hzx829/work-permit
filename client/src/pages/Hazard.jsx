@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { authFetch } from '../utils/api';
 import { useNavigate } from 'react-router-dom';
 
 export default function Hazard() {
@@ -12,7 +13,7 @@ export default function Hazard() {
 
     const fetchData = async () => {
         try {
-            const response = await fetch('/api/hazard');
+            const response = await authFetch('/api/hazard');
             const result = await response.json();
             setData(result);
         } catch (error) {

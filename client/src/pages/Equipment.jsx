@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { authFetch } from '../utils/api';
 
 export default function Equipment() {
     const navigate = useNavigate();
@@ -15,7 +16,7 @@ export default function Equipment() {
 
     const fetchData = async () => {
         try {
-            const response = await fetch('/api/equipment');
+            const response = await authFetch('/api/equipment');
             const data = await response.json();
             setEquipmentList(data.list);
             setAlarmList(data.alarmList || []);

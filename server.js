@@ -3,9 +3,39 @@ const path = require('path');
 const fs = require('fs');
 const http = require('http');
 const https = require('https');
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 const db = require('./database');
 
 const app = express();
+
+// JWT 密钥：生产环境必须通过环境变量 JWT_SECRET 设置固定值，否则重启后 Token 失效
+if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
+    console.warn('WARNING: JWT_SECRET not set in production! Tokens will be invalidated on every restart.');
+}
+const JWT_SECRET = process.env.JWT_SECRET || require('crypto').randomBytes(64).toString('hex');
+
+// 认证中间件
+function authenticateToken(req, res, next) {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    if (!token) {
+        return res.status(401).json({ success: false, message: '未授权，请先登录' });
+    }
+    jwt.verify(token, JWT_SECRET, (err, decoded) => {
+        if (err) {
+            return res.status(401).json({ success: false, message: '登录已过期，请重新登录' });
+        }
+        req.user = decoded;
+        next();
+    });
+}
+
+// 对所有 /api/* 路由启用认证，仅放行 /api/login
+app.use('/api', (req, res, next) => {
+    if (req.path === '/login') return next();
+    authenticateToken(req, res, next);
+});
 // 开发环境使用3000端口（配合vite proxy），生产环境HTTP使用80端口，HTTPS使用443端口
 const PORT = process.env.PORT || (process.env.NODE_ENV === 'production' ? 80 : 3000);
 const HTTPS_PORT = process.env.HTTPS_PORT || 443;
@@ -21,24 +51,20 @@ if (process.env.NODE_ENV === 'production') {
 
 app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
-    db.get("SELECT * FROM users WHERE username = ? AND password = ?", [username, password], (err, row) => {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
-        if (row) {
-            res.json({
-                success: true,
-                user: {
-                    id: row.id,
-                    username: row.username,
-                    role: row.role,
-                    full_name: row.full_name
-                }
-            });
-        } else {
-            res.status(401).json({ success: false, message: "用户名或密码错误" });
-        }
+    if (!username || !password) {
+        return res.status(400).json({ success: false, message: '用户名和密码不能为空' });
+    }
+    db.get("SELECT * FROM users WHERE username = ?", [username], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!row) return res.status(401).json({ success: false, message: '用户名或密码错误' });
+        bcrypt.compare(password, row.password, (compareErr, match) => {
+            if (compareErr || !match) {
+                return res.status(401).json({ success: false, message: '用户名或密码错误' });
+            }
+            const user = { id: row.id, username: row.username, role: row.role, full_name: row.full_name };
+            const token = jwt.sign(user, JWT_SECRET, { expiresIn: '24h' });
+            res.json({ success: true, user, token });
+        });
     });
 });
 

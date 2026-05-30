@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { authFetch } from '../utils/api';
 import { useNavigate } from 'react-router-dom';
 
 export default function Risk() {
@@ -12,7 +13,7 @@ export default function Risk() {
 
     const fetchData = async () => {
         try {
-            const response = await fetch('/api/risk');
+            const response = await authFetch('/api/risk');
             const result = await response.json();
             setData(result);
         } catch (error) {
