@@ -4,7 +4,21 @@
 
 ---
 
-### 一、新建作业票提交异常修复
+### 一、受限空间通风计时器展示优化
+
+✅ **通风时长动态展示**：
+- 将“实时监测：30 分钟”优化为计时器样式，展示 `30:12` 这类按秒累加的动态读数
+- 同步保留中文时长说明，例如 `30 分钟 12 秒`，便于现场人员直接理解
+- 通风未满 30 分钟时显示“通风中，还需 xx:xx”；达到要求后显示“符合要求 (≥30分钟)”
+- 无后端通风开始时间时，前端按默认 30 分钟起步并每秒累加，作业票出现时即为通风完成状态
+
+### 二、测试账号密码迁移逻辑修复
+
+✅ **bcrypt 识别修复**：
+- 修复服务启动时只识别 `$2b$` hash 的问题，避免 `$2a$` bcrypt 密码被误判为明文后重复加密
+- 兼容 `$2a$`、`$2b$`、`$2y$` 常见 bcrypt 前缀，保证 `worker` / `safety` 测试账号重启后仍可登录
+
+### 三、新建作业票提交异常修复
 
 #### 1. 服务端错误响应 JSON 化
 ✅ **接口稳定性修复**：
@@ -23,23 +37,26 @@
 - 对网关返回的空字符和纯文本错误进行清理
 - 提交失败时展示更清晰的业务提示，便于现场定位问题
 
-### 二、内网服务器部署与验证
+### 四、内网服务器部署与验证
 
 ✅ **部署完成**：
 - 已重新构建前端并生成 `deploy.zip`
 - 后端部署包继续使用混淆后的 `server.js` / `database.js`
 - 已部署到内网服务器并通过 PM2 启动 `work-permit-system`
+- 生产访问地址为 `http://121.48.45.133/`
 
 ✅ **数据保护**：
 - 部署前备份远端 SQLite 数据库
-- 部署后恢复原有业务数据库，避免覆盖客户已有作业票数据
+- 部署包跳过本地 `work_permits.db`，避免覆盖客户已有作业票数据
 - 同步修正测试账号密码：`worker` / `safety` 均使用 `Schy123456#`
 
 ### 涉及文件
-- [server.js](server.js) - API 请求体解析、登录和新建作业票错误处理
-- [client/src/utils/api.js](client/src/utils/api.js) - 统一错误响应解析
-- [build_and_package.ps1](build_and_package.ps1) - 构建并打包混淆部署产物
-- [setup_remote.sh](setup_remote.sh) - 远端 PM2 部署流程
+- [client/src/components/ConfinedSpacePermitForm.jsx](client/src/components/ConfinedSpacePermitForm.jsx) - 通风计时器展示
+- [database.js](database.js) - 测试账号 bcrypt 密码迁移兼容
+- [build_and_package.ps1](build_and_package.ps1) - 构建并打包混淆部署产物，跳过本地数据库
+- [deploy_to_remote.ps1](deploy_to_remote.ps1) - 远端部署地址提示
+- [DEPLOYMENT.md](DEPLOYMENT.md) - 当前内网部署流程文档
+- [AGENTS.MD](AGENTS.MD) - 部署注意事项
 
 ---
 

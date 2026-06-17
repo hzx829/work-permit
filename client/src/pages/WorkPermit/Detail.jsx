@@ -593,7 +593,6 @@ export default function Detail() {
                                         const step = idx + 1;
                                         const isDone = step < derivedStage;
                                         const isCurrent = step === derivedStage;
-                                        const isPending = step > derivedStage;
                                         
                                         const circleClass = isDone
                                             ? 'bg-gradient-to-br from-green-500 to-green-600 text-white border-green-600 shadow-md'

@@ -25,4 +25,4 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host ""
-Write-Host "=== Done! App running at http://${ServerIP}:3000 ==="
+Write-Host "=== Done! App running at http://${ServerIP}/ ==="

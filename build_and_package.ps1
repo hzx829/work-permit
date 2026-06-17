@@ -37,13 +37,10 @@ Write-Host "3. Copying package files..."
 Copy-Item package.json -Destination deploy_temp
 if (Test-Path package-lock.json) { Copy-Item package-lock.json -Destination deploy_temp }
 
-# 3.1. Copy Database File (if exists)
-if (Test-Path work_permits.db) {
-    Write-Host "3.1. Copying database file..."
-    Copy-Item work_permits.db -Destination deploy_temp
-} else {
-    Write-Host "3.1. No existing database file found (will be created on first run)"
-}
+# 3.1. Keep the deployment package database-free.
+# The production server owns /root/work-permit/work_permits.db; shipping a local
+# test database would overwrite customer data when the zip is unpacked.
+Write-Host "3.1. Skipping local database file; production data will be preserved on the server."
 
 # 4. Copy Frontend Build Artifacts
 Write-Host "4. Copying frontend build artifacts..."

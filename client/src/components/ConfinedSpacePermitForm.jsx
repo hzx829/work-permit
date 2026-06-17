@@ -65,7 +65,7 @@ const RISK_OPTIONS = [
 
 // 将常量移到组件外部，避免每次渲染重新创建
 const VENTILATION_REQUIREMENT_SECONDS = 30 * 60;
-const DEFAULT_VENTILATION_SECONDS = VENTILATION_REQUIREMENT_SECONDS + 60;
+const DEFAULT_VENTILATION_SECONDS = VENTILATION_REQUIREMENT_SECONDS;
 
 const INITIAL_SAFETY_MEASURES = [
     { id: 1, content: '盛装过有毒、可燃物料的受限空间，所有与受限空间有联系的阀门、管线已加盲板 隔离，并落实盲板责任人，未采用水封或关闭阀门代替盲板', applicable: '', confirmer: '' },
@@ -110,6 +110,20 @@ const formatVentilationDuration = (seconds) => {
     return `${restSeconds} 秒`;
 };
 
+const formatVentilationTimer = (seconds) => {
+    const totalSeconds = Math.max(0, Math.floor(seconds || 0));
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const restSeconds = totalSeconds % 60;
+    const pad = (n) => String(n).padStart(2, '0');
+
+    if (hours > 0) {
+        return `${hours}:${pad(minutes)}:${pad(restSeconds)}`;
+    }
+
+    return `${minutes}:${pad(restSeconds)}`;
+};
+
 const parseRelatedPermitNumbers = (raw) => {
     if (!raw) return [];
     return String(raw)
@@ -129,7 +143,7 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
     const [hasQueriedRelatedPermit, setHasQueriedRelatedPermit] = React.useState(false);
     const relatedPermitQueryTimerRef = React.useRef(null);
     const [ventilationSeconds, setVentilationSeconds] = React.useState(DEFAULT_VENTILATION_SECONDS);
-    const [ventilationStartTime, setVentilationStartTime] = React.useState(null);
+    const [ventilationStartTime] = React.useState(() => Date.now());
 
     const { user } = useAuth();
     
@@ -170,6 +184,8 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
     const canQueryRelatedPermits = readOnly && userRole === 'safety';
 
     const contentReady = Boolean(data?.content && data.content.trim());
+    const ventilationQualified = ventilationSeconds >= VENTILATION_REQUIREMENT_SECONDS;
+    const ventilationRemainingSeconds = Math.max(VENTILATION_REQUIREMENT_SECONDS - ventilationSeconds, 0);
 
     const retryDetection = React.useCallback(() => {
         if (readOnly || isCreating || !contentReady) return;
@@ -205,7 +221,7 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
         };
     }, [readOnly, isCreating, contentReady, detectionRetrySeed]);
 
-    // 通风时长计时器 - 降低更新频率，减少重渲染
+    // 通风时长计时器
     React.useEffect(() => {
         // 优先使用数据库中保存的时间（用于readOnly模式）
         const startTime = data?.ventilation_start_time 
@@ -300,7 +316,7 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
             onChange('related_blind_plate_reviewers', result.reviewers);
             setRelatedPermitLoading(false);
         }, 5000);
-    }, [canQueryRelatedPermits, data.related_permits, data.related_blind_plate_permit_number, relatedPermitLoading, onChange]);
+    }, [canQueryRelatedPermits, data.related_permits, data.related_blind_plate_permit_number, data.apply_time, relatedPermitLoading, onChange]);
 
     React.useEffect(() => {
         return () => {
@@ -464,28 +480,47 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                                 /* 检测结果 */
                                 <>
                                     {/* 通风时长检测 */}
-                                    <div className="flex items-center justify-between animate-fadeIn">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between animate-fadeIn">
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
                                                 <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6l4 2m4-2a8 8 0 11-16 0 8 8 0 0116 0z" />
                                                 </svg>
                                             </div>
-                                            <div>
+                                            <div className="min-w-0">
                                                 <div className="text-base font-bold text-gray-800">通风时长</div>
-                                                <div className="text-sm text-gray-600">
-                                                    实时监测：{formatVentilationDuration(ventilationSeconds)}
+                                                <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                                                    <span className="text-xs text-gray-500">实时监测</span>
+                                                    <span className="font-mono tabular-nums text-2xl font-bold leading-none text-blue-700">
+                                                        {formatVentilationTimer(ventilationSeconds)}
+                                                    </span>
+                                                    <span className="text-xs text-gray-500">
+                                                        {formatVentilationDuration(ventilationSeconds)}
+                                                    </span>
                                                 </div>
                                             </div>
                                         </div>
-                                        {ventilationSeconds >= 1800 && (
-                                            <div className="px-3 py-1.5 rounded-full text-xs font-medium bg-green-100 text-green-700 border border-green-300 flex items-center gap-1">
-                                                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
-                                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                                </svg>
-                                                符合要求 (≥30分钟)
-                                            </div>
-                                        )}
+                                        <div className={`self-start sm:self-center px-3 py-1.5 rounded-full text-xs font-medium border flex items-center gap-1.5 whitespace-nowrap ${
+                                            ventilationQualified
+                                                ? 'bg-green-100 text-green-700 border-green-300'
+                                                : 'bg-amber-50 text-amber-700 border-amber-300'
+                                        }`}>
+                                            {ventilationQualified ? (
+                                                <>
+                                                    <svg className="w-3.5 h-3.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                                    </svg>
+                                                    <span>符合要求 (≥30分钟)</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6l3 3m5-3a8 8 0 11-16 0 8 8 0 0116 0z" />
+                                                    </svg>
+                                                    <span>通风中，还需 {formatVentilationTimer(ventilationRemainingSeconds)}</span>
+                                                </>
+                                            )}
+                                        </div>
                                     </div>
                                     
                                     {/* 分隔线 */}

@@ -75,15 +75,20 @@ function initDb() {
                 stmt.finalize();
                 console.log("Seeded initial users with hashed passwords.");
             } else {
-                // Migrate existing plaintext passwords to bcrypt hashes
-                db.each("SELECT id, password FROM users WHERE password NOT LIKE '$2b$%'", [], (err, row) => {
-                    if (!err && row) {
-                        const hashed = bcrypt.hashSync(row.password, 10);
-                        db.run("UPDATE users SET password = ? WHERE id = ?", [hashed, row.id], (updateErr) => {
-                            if (!updateErr) console.log(`Migrated password hash for user id=${row.id}`);
-                        });
+                // Migrate existing plaintext passwords to bcrypt hashes.
+                // bcryptjs may emit $2a$ hashes, so treat common bcrypt prefixes as already hashed.
+                db.each(
+                    "SELECT id, password FROM users WHERE password NOT LIKE '$2a$%' AND password NOT LIKE '$2b$%' AND password NOT LIKE '$2y$%'",
+                    [],
+                    (err, row) => {
+                        if (!err && row) {
+                            const hashed = bcrypt.hashSync(row.password, 10);
+                            db.run("UPDATE users SET password = ? WHERE id = ?", [hashed, row.id], (updateErr) => {
+                                if (!updateErr) console.log(`Migrated password hash for user id=${row.id}`);
+                            });
+                        }
                     }
-                });
+                );
             }
         });
     });

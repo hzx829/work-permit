@@ -43,10 +43,10 @@ Production-style deployment for the current internal server is zip-based and PM2
 
 Important deployment notes:
 
-- `build_and_package.ps1` builds `client/dist`, obfuscates `server.js` and `database.js`, then writes `deploy.zip`.
+- `build_and_package.ps1` builds `client/dist`, obfuscates `server.js` and `database.js`, then writes `deploy.zip`. It intentionally skips local `work_permits.db` so customer data is not overwritten.
 - `deploy_to_remote.ps1` uploads `deploy.zip` and `setup_remote.sh` to `121.48.45.133` and runs the remote setup script.
 - The remote process name is `work-permit-system`; useful checks are `pm2 status`, `pm2 restart work-permit-system`, and `pm2 logs work-permit-system`.
-- Before any manual remote deployment, back up `/root/work-permit/work_permits.db` and restore it after unpacking if the zip includes a local database file. Do not overwrite customer data with a local test database.
+- Before any manual remote deployment, back up `/root/work-permit/work_permits.db`. Do not add a local test database to the deploy package.
 - Default test accounts are `worker` and `safety`; both currently use `Schy123456#`.
 - If SSH/SCP times out, check that EasyConnect L3VPN/virtual network is active and that local system proxy is not preventing the Sangfor virtual adapter from connecting.
 
