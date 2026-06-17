@@ -23,9 +23,18 @@ Write-Host "2. Preparing temporary directory 'deploy_temp'..."
 if (Test-Path deploy_temp) { Remove-Item -Recurse -Force deploy_temp }
 New-Item -ItemType Directory deploy_temp | Out-Null
 
-# 3. Copy Backend Files
-Write-Host "3. Copying backend files..."
-Copy-Item server.js, database.js, package.json -Destination deploy_temp
+# 3. Obfuscate and Copy Backend Files
+Write-Host "3. Obfuscating backend source files..."
+$obfuscator = ".\node_modules\.bin\javascript-obfuscator.cmd"
+if (-not (Test-Path $obfuscator)) {
+    Write-Error "javascript-obfuscator not found. Run: npm install --save-dev javascript-obfuscator"
+    exit 1
+}
+& $obfuscator server.js   --output deploy_temp/server.js   --compact true --string-array true --string-array-encoding base64 --control-flow-flattening false --identifier-names-generator mangled
+& $obfuscator database.js --output deploy_temp/database.js --compact true --string-array true --string-array-encoding base64 --control-flow-flattening false --identifier-names-generator mangled
+
+Write-Host "3. Copying package files..."
+Copy-Item package.json -Destination deploy_temp
 if (Test-Path package-lock.json) { Copy-Item package-lock.json -Destination deploy_temp }
 
 # 3.1. Copy Database File (if exists)

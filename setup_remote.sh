@@ -139,7 +139,14 @@ deploy_app() {
   cd "$APP_DIR"
 
   echo "解压 $ZIP_FILE 到 $APP_DIR..."
+  set +e
   unzip -o "$ZIP_FILE" -d .
+  UNZIP_RC=$?
+  set -e
+  if [ $UNZIP_RC -gt 1 ]; then
+    echo "错误：unzip 失败（exit code $UNZIP_RC）"
+    exit 1
+  fi
 
   echo "安装 npm 依赖（production 模式）..."
   npm install --production

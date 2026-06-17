@@ -1,83 +1,92 @@
-# Work Permit System - ECS 部署指南
+# Work Permit System - 内网服务器部署指南
 
 ## 项目概述
 Work Permit System 是一个学校作业许可证管理系统，采用 Node.js + Express + React + SQLite 技术栈。
 
 ## 部署架构
-- **容器镜像仓库**: 阿里云容器镜像服务 (ACR)
-- **部署目标**: 阿里云 ECS (8.149.232.48)
+- **部署目标**: 学院内网服务器 (121.48.45.133)
 - **端口**: 3000
-- **数据持久化**: /data/work-permit (ECS主机路径)
+- **进程管理**: PM2
+- **数据存储**: SQLite（`work_permits.db`）
+
+> 注意：需通过 VPN 接入学院内网后方可访问服务器。
 
 ## 快速部署步骤
 
-### 1. 构建并推送镜像
+### 前提条件
+1. 已连接学院 VPN
+2. 本地已安装 Node.js、npm
+3. 本地已安装 OpenSSH（`scp`、`ssh` 命令可用）
 
-在项目根目录执行：
+### 1. 构建并打包
 
-```bash
-./build-aliyun.sh
+在项目根目录（PowerShell）执行：
+
+```powershell
+./build_and_package.ps1
 ```
 
 该脚本会：
-- 构建 Docker 镜像（包含前端构建）
-- 登录阿里云容器镜像服务
-- 标记镜像
-- 推送镜像到 ACR
+- 构建前端（`client/dist/`）
+- 将后端文件和前端构建产物打包为 `deploy.zip`
 
-### 2. 部署到 ECS
+### 2. 上传并部署到服务器
 
-```bash
-./deploy-to-ecs.sh
+```powershell
+./deploy_to_remote.ps1
 ```
 
 该脚本会：
-- 通过 SSH 连接到 ECS
-- 拉取最新镜像
-- 停止并删除旧容器
-- 启动新容器
-- 挂载数据卷以持久化 SQLite 数据库
+- 通过 `scp` 将 `deploy.zip` 上传至服务器 `/root/`
+- 通过 `ssh` 在服务器上执行 `setup_remote.sh`，完成解压、依赖安装、PM2 启动
 
 ## 访问应用
 
-部署完成后，可以通过以下地址访问：
+部署完成后，通过以下地址访问（需在学院内网/VPN 下）：
 
-- **前端页面**: http://8.149.232.48:3000
-- **API接口**: http://8.149.232.48:3000/api/work-permits
+- **前端页面**: http://121.48.45.133:3000
+- **API 接口**: http://121.48.45.133:3000/api/work-permits
 
-## 管理命令
+## 服务器管理命令
 
-### 查看容器日志
+### 连接服务器
 ```bash
-ssh root@8.149.232.48 -i deploy-0729.pem 'docker logs -f work-permit'
+ssh root@121.48.45.133
+```
+
+### 查看应用状态
+```bash
+pm2 status
 ```
 
 ### 重启应用
 ```bash
-ssh root@8.149.232.48 -i deploy-0729.pem 'docker restart work-permit'
+pm2 restart work-permit-system
 ```
 
-### 查看容器状态
+### 查看日志
 ```bash
-ssh root@8.149.232.48 -i deploy-0729.pem 'docker ps | grep work-permit'
-```
-
-### 进入容器
-```bash
-ssh root@8.149.232.48 -i deploy-0729.pem 'docker exec -it work-permit sh'
+pm2 logs work-permit-system
 ```
 
 ### 备份数据库
 ```bash
-ssh root@8.149.232.48 -i deploy-0729.pem 'cp /data/work-permit/work_permits.db /data/work-permit/work_permits.db.backup'
+cp /root/work-permit/work_permits.db /root/work-permit/work_permits.db.backup_$(date +%Y%m%d_%H%M%S)
 ```
 
 ## 技术细节
 
-### Docker 镜像构建
-采用多阶段构建：
-1. **前端构建阶段**: 使用 Node.js 20 Alpine 构建 React 应用
-2. **运行阶段**: 
+### 打包内容
+- 前端：`client/dist/`（已编译的静态文件，不含源码）
+- 后端：`server.js`、`database.js`、`package.json`
+- 数据库：`work_permits.db`（如存在则一并打包）
+
+### 服务器环境
+- 操作系统：Linux（setup_remote.sh 支持 dnf/yum/apt-get）
+- 运行时：Node.js 18+
+- 进程管理：PM2
+
+
    - 安装后端生产依赖
    - 复制后端代码
    - 复制前端构建产物

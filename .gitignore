@@ -47,6 +47,10 @@ Thumbs.db
 *.local
 
 deploy
+deploy.zip
+deploy_temp/
+deploy_test/
+server_obf_test.js
 
 # SSL 私钥（不要提交到版本控制）
 ssl/*.key

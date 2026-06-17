@@ -9,6 +9,9 @@ const db = require('./database');
 
 const app = express();
 
+app.use(express.json({ limit: '10mb' })); // Increased limit for base64 images
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
 // JWT 密钥：生产环境必须通过环境变量 JWT_SECRET 设置固定值，否则重启后 Token 失效
 if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
     console.warn('WARNING: JWT_SECRET not set in production! Tokens will be invalidated on every restart.');
@@ -31,6 +34,22 @@ function authenticateToken(req, res, next) {
     });
 }
 
+function sendInternalError(res, context, err) {
+    console.error(context, err);
+    if (res.headersSent) return;
+
+    const payload = {
+        success: false,
+        message: '服务器内部错误，请稍后重试'
+    };
+
+    if (process.env.NODE_ENV !== 'production') {
+        payload.error = err?.message || String(err);
+    }
+
+    res.status(500).json(payload);
+}
+
 // 对所有 /api/* 路由启用认证，仅放行 /api/login
 app.use('/api', (req, res, next) => {
     if (req.path === '/login') return next();
@@ -40,8 +59,6 @@ app.use('/api', (req, res, next) => {
 const PORT = process.env.PORT || (process.env.NODE_ENV === 'production' ? 80 : 3000);
 const HTTPS_PORT = process.env.HTTPS_PORT || 443;
 
-app.use(express.json({ limit: '10mb' })); // Increased limit for base64 images
-
 // 在生产环境下提供静态文件
 if (process.env.NODE_ENV === 'production') {
     app.use(express.static(path.join(__dirname, 'client/dist')));
@@ -50,21 +67,33 @@ if (process.env.NODE_ENV === 'production') {
 // --- Auth Routes ---
 
 app.post('/api/login', (req, res) => {
-    const { username, password } = req.body;
+    const { username, password } = req.body || {};
     if (!username || !password) {
         return res.status(400).json({ success: false, message: '用户名和密码不能为空' });
     }
     db.get("SELECT * FROM users WHERE username = ?", [username], (err, row) => {
-        if (err) return res.status(500).json({ error: err.message });
-        if (!row) return res.status(401).json({ success: false, message: '用户名或密码错误' });
-        bcrypt.compare(password, row.password, (compareErr, match) => {
-            if (compareErr || !match) {
+        try {
+            if (err) return sendInternalError(res, 'Login user query failed:', err);
+            if (!row || !row.password) {
                 return res.status(401).json({ success: false, message: '用户名或密码错误' });
             }
-            const user = { id: row.id, username: row.username, role: row.role, full_name: row.full_name };
-            const token = jwt.sign(user, JWT_SECRET, { expiresIn: '24h' });
-            res.json({ success: true, user, token });
-        });
+
+            bcrypt.compare(String(password), row.password, (compareErr, match) => {
+                try {
+                    if (compareErr || !match) {
+                        if (compareErr) console.error('Password compare failed:', compareErr);
+                        return res.status(401).json({ success: false, message: '用户名或密码错误' });
+                    }
+                    const user = { id: row.id, username: row.username, role: row.role, full_name: row.full_name };
+                    const token = jwt.sign(user, JWT_SECRET, { expiresIn: '24h' });
+                    res.json({ success: true, user, token });
+                } catch (compareHandlerErr) {
+                    sendInternalError(res, 'Login compare handler failed:', compareHandlerErr);
+                }
+            });
+        } catch (loginErr) {
+            sendInternalError(res, 'Login route failed:', loginErr);
+        }
     });
 });
 
@@ -630,42 +659,54 @@ app.get('/api/work-permits/:id', (req, res) => {
 
 // Create new permit
 app.post('/api/work-permits', (req, res) => {
-    const {
-        type, applicant_id, applicant_name, department, location,
-        start_time, end_time, content, safety_measures, signatures,
-        ...otherFields
-    } = req.body;
+    try {
+        const {
+            type, applicant_id, applicant_name, department, location,
+            start_time, end_time, content, safety_measures, signatures,
+            ...otherFields
+        } = req.body || {};
 
-    // Generate a simple permit number: WP-YYYYMMDD-XXXX
-    const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-    const permit_number = `WP-${dateStr}-${randomSuffix}`;
-    const status = '待审批';
-
-    const sql = `INSERT INTO work_permits (
-        permit_number, status, type, applicant_id, applicant_name, 
-        department, location, start_time, end_time, content, 
-        safety_measures, signatures, extra_data
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-
-    const params = [
-        permit_number, status, type, applicant_id, applicant_name,
-        department, location, start_time, end_time, content,
-        JSON.stringify(safety_measures), JSON.stringify(signatures || {}),
-        JSON.stringify(otherFields)
-    ];
-
-    db.run(sql, params, function(err) {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
+        if (!type || !applicant_name || !start_time || !end_time) {
+            return res.status(400).json({
+                success: false,
+                message: '作业类型、申请人、开始时间和结束时间不能为空'
+            });
         }
-        res.json({
-            success: true,
-            id: this.lastID,
-            permit_number: permit_number
+
+        // Generate a simple permit number: WP-YYYYMMDD-XXXX
+        const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+        const permit_number = `WP-${dateStr}-${randomSuffix}`;
+        const status = '待审批';
+
+        const sql = `INSERT INTO work_permits (
+            permit_number, status, type, applicant_id, applicant_name,
+            department, location, start_time, end_time, content,
+            safety_measures, signatures, extra_data
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+
+        const params = [
+            permit_number, status, type, applicant_id || 0, applicant_name,
+            department || '', location || '', start_time, end_time, content || '',
+            JSON.stringify(Array.isArray(safety_measures) ? safety_measures : []),
+            JSON.stringify(signatures && typeof signatures === 'object' ? signatures : {}),
+            JSON.stringify(otherFields || {})
+        ];
+
+        db.run(sql, params, function(err) {
+            if (err) {
+                sendInternalError(res, 'Create work permit failed:', err);
+                return;
+            }
+            res.json({
+                success: true,
+                id: this.lastID,
+                permit_number: permit_number
+            });
         });
-    });
+    } catch (createErr) {
+        sendInternalError(res, 'Create work permit route failed:', createErr);
+    }
 });
 
 // Update status (Approve, Start, Complete, Reject)
@@ -832,7 +873,23 @@ if (process.env.NODE_ENV === 'production') {
 // 全局错误处理中间件
 app.use((err, req, res, next) => {
     console.error('未捕获的错误:', err);
-    res.status(500).json({ success: false, error: err.message || '服务器内部错误' });
+    if (res.headersSent) return next(err);
+
+    const status = err.status || err.statusCode || 500;
+    let message = '服务器内部错误，请稍后重试';
+
+    if (status === 400 && err.type === 'entity.parse.failed') {
+        message = '请求数据格式错误，请刷新后重试';
+    } else if (status === 413) {
+        message = '提交数据过大，请减少图片或签名数据后重试';
+    }
+
+    const payload = { success: false, message };
+    if (process.env.NODE_ENV !== 'production') {
+        payload.error = err.message;
+    }
+
+    res.status(status).json(payload);
 });
 
 // 启动服务器：生产环境优先启动 HTTPS，开发环境固定使用 HTTP 便于本地联调

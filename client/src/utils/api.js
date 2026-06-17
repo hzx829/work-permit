@@ -11,6 +11,25 @@ function getAuthHeaders() {
     return token ? { 'Authorization': `Bearer ${token}` } : {};
 }
 
+async function getErrorMessage(response, fallback) {
+    const contentType = response.headers.get('content-type') || '';
+    const text = await response.text().catch(() => '');
+
+    if (contentType.includes('application/json') && text) {
+        try {
+            const data = JSON.parse(text);
+            return data.message || data.error || fallback;
+        } catch (error) {
+            console.error('Failed to parse error response:', error);
+        }
+    }
+
+    const cleanText = text.replace(/\0/g, '').trim();
+    if (!cleanText) return `${fallback} HTTP ${response.status}`;
+
+    return `${fallback} HTTP ${response.status}: ${cleanText.substring(0, 200)}`;
+}
+
 // 带认证的 fetch 封装：自动附加 Token，401 时跳转登录页
 export async function authFetch(url, options = {}) {
     const headers = {
@@ -83,8 +102,7 @@ export async function createPermit(data) {
         body: JSON.stringify(data)
     });
     if (!response.ok) {
-        const text = await response.text().catch(() => '');
-        throw new Error(`服务器错误 ${response.status}: ${text.substring(0, 300)}`);
+        throw new Error(await getErrorMessage(response, '提交失败'));
     }
     return await response.json();
 }
@@ -101,8 +119,7 @@ export async function updatePermitStatus(id, status, signatures = null) {
         body: JSON.stringify(body)
     });
     if (!response.ok) {
-        const text = await response.text().catch(() => '');
-        throw new Error(`更新状态失败 HTTP ${response.status}: ${text.substring(0, 200)}`);
+        throw new Error(await getErrorMessage(response, '更新状态失败'));
     }
     return await response.json();
 }
@@ -114,8 +131,7 @@ export async function updatePermitExtraData(id, data) {
         body: JSON.stringify(data)
     });
     if (!response.ok) {
-        const text = await response.text().catch(() => '');
-        throw new Error(`保存数据失败 HTTP ${response.status}: ${text.substring(0, 200)}`);
+        throw new Error(await getErrorMessage(response, '保存数据失败'));
     }
     return await response.json();
 }
