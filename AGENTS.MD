@@ -67,3 +67,6 @@ Use explicit paths if `node` or `npm` are not available in the shell:
 - Prefer the existing Express route style in `server.js` and the existing React patterns under `client/src`.
 - Do not commit generated dependency folders such as `node_modules/`.
 - If port `5173` is busy, Vite may choose the next available port.
+- The cockpit, emergency screen, and current attachment interactions are presentation-stage simulations. Do not represent their values as connected device, weather, video, or document-storage data until the corresponding backend integration is explicitly requested.
+- The cockpit globe uses the MIT-licensed `react-globe.gl` package with local official Blue Marble assets. Its geographic labels are limited to 中国 → 四川省 → 泸州市, default to Luzhou with a red marker, and stop zooming at city level. Sichuan prefecture boundaries come from the local `client/public/sichuan-prefectures.geojson`; keep polygon faces transparent and reveal only the cyan outline linked to the hovered city label, with click/tap as the touch fallback. Keep dashboard indicators outside the globe canvas unless the customer explicitly asks for map overlays.
+- The confined-space permit flow is: 票证申请 → 气体浓度检测 and 现场安全措施确认 → 票证审批 → 安全交底 → 核验票证 → 完成作业. Keep client-facing checks aligned with this order.

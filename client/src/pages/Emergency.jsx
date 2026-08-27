@@ -1,264 +1,69 @@
-import React, { useState, useEffect } from 'react';
-import { authFetch } from '../utils/api';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import ConfinedSpaceEmergency from '../components/ConfinedSpaceEmergency';
+
+const FLOW_STEPS = ['应急响应启动', '信息报告与先期处置', '现场警戒', '救援防护', '伤员救治', '应急指挥', '善后处置', '应急终止', '总结评估'];
+const INITIAL_METRICS = [
+    { key: 'temperature', label: '温度', unit: '°C', value: 25.8, min: 0, max: 50, color: 'from-lime-400 to-green-500' },
+    { key: 'co2', label: '二氧化碳浓度', unit: 'ppm', value: 680, min: 0, max: 2000, color: 'from-cyan-400 to-blue-500' },
+    { key: 'oxygen', label: '氧气浓度', unit: '%VOL', value: 20.9, min: 0, max: 25, color: 'from-violet-400 to-fuchsia-500' },
+    { key: 'co', label: '一氧化碳浓度', unit: 'ppm', value: 4.2, min: 0, max: 50, color: 'from-orange-300 to-red-500' },
+    { key: 'humidity', label: '湿度', unit: '%RH', value: 62, min: 0, max: 100, color: 'from-sky-400 to-indigo-500' }
+];
+
+const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
 export default function Emergency() {
     const navigate = useNavigate();
-    const [data, setData] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState('plans');
-    const [planSubTab, setPlanSubTab] = useState('list'); // list or confined-space
+    const [metrics, setMetrics] = useState(INITIAL_METRICS);
+    const [activeStep, setActiveStep] = useState(0);
+    const [now, setNow] = useState(new Date());
 
     useEffect(() => {
-        fetchData();
+        const timer = setInterval(() => {
+            setNow(new Date());
+            setMetrics((current) => current.map((metric) => {
+                const variation = metric.key === 'co2' ? 35 : metric.key === 'oxygen' ? 0.08 : metric.key === 'co' ? 0.8 : metric.key === 'humidity' ? 1.5 : 0.35;
+                const next = clamp(metric.value + (Math.random() - 0.5) * variation, metric.min, metric.max);
+                return { ...metric, value: Number(next.toFixed(metric.key === 'oxygen' || metric.key === 'temperature' || metric.key === 'co' ? 1 : 0)) };
+            }));
+        }, 2200);
+        return () => clearInterval(timer);
     }, []);
 
-    const fetchData = async () => {
-        try {
-            const response = await authFetch('/api/emergency');
-            const result = await response.json();
-            setData(result);
-        } catch (error) {
-            console.error('Failed to fetch emergency data:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    if (loading) {
-        return (
-            <div className="h-screen bg-gray-50 flex items-center justify-center">
-                <div className="text-center">
-                    <i className="fas fa-spinner fa-spin text-4xl text-blue-500 mb-4"></i>
-                    <div className="text-gray-500">加载中...</div>
-                </div>
-            </div>
-        );
-    }
-
     return (
-        <div className="flex-1 overflow-auto p-6">
-            <div className="mb-6 flex justify-between items-end">
-                <div>
-                    <h2 className="text-2xl font-bold text-gray-800">应急处置管理</h2>
-                    <p className="text-gray-500">应急预案、演练记录及事故响应管理。</p>
-                </div>
-                <button 
-                    onClick={() => navigate('/')}
-                    className="bg-indigo-600 text-white px-4 py-2 rounded-lg shadow hover:bg-indigo-700 transition-colors flex items-center gap-2"
-                >
-                    <i className="fas fa-chart-line"></i>
-                    进入数字驾驶舱
-                </button>
-            </div>
+        <div className="min-h-full overflow-auto bg-[#020817] p-4 text-cyan-50 selection:bg-cyan-500/50">
+            <div className="mx-auto flex min-h-[calc(100vh-7rem)] max-w-[1700px] flex-col bg-[radial-gradient(circle_at_50%_0%,rgba(14,165,233,.18),transparent_38%),linear-gradient(115deg,#020817,#061b3b)] p-4 shadow-[0_0_70px_rgba(14,165,233,.15)]">
+                <header className="relative mb-4 flex min-h-16 items-center justify-between overflow-hidden border-y border-cyan-400/35 px-5">
+                    <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent,rgba(14,165,233,.1),transparent)]" />
+                    <div className="relative"><p className="text-xs tracking-[.35em] text-cyan-300/70">EMERGENCY COMMAND CENTER</p><h1 className="mt-1 text-2xl font-black tracking-[.16em] text-white md:text-3xl">应急处置管理</h1></div>
+                    <div className="relative flex items-center gap-4 text-right"><div className="hidden text-xs text-cyan-200/80 md:block">{now.toLocaleString('zh-CN', { hour12: false })}</div><button onClick={() => navigate('/')} className="rounded border border-cyan-400/60 bg-cyan-500/10 px-3 py-2 text-sm font-medium text-cyan-100 transition hover:bg-cyan-400/20">返回驾驶舱 <i className="fas fa-arrow-right ml-1" /></button></div>
+                </header>
 
-            <div className="max-w-7xl mx-auto">
-                {/* Stats Cards */}
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
-                    {data?.stats?.map((stat, idx) => (
-                        <div key={idx} className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-all">
-                            <div className="flex justify-between items-start">
-                                <div>
-                                    <p className="text-sm text-gray-500 font-medium">{stat.label}</p>
-                                    <h3 className="text-4xl font-bold text-gray-900 mt-2">{stat.value}</h3>
-                                    <p className="text-xs text-gray-400 mt-1">{stat.unit}</p>
-                                </div>
-                                <div className={`p-3 rounded-lg ${stat.bgColor} ${stat.textColor}`}>
-                                    <i className={`${stat.icon} text-2xl`}></i>
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
+                <main className="grid flex-1 grid-cols-1 gap-4 xl:grid-cols-[1fr_1.8fr_1fr]">
+                    <TechFrame title="应急处置流程" icon="fa-sitemap"><div className="space-y-2 overflow-auto pr-1">{FLOW_STEPS.map((step, index) => {
+                        const active = activeStep === index;
+                        return <button key={step} type="button" onClick={() => setActiveStep(index)} className={`group flex w-full items-center gap-3 border px-3 py-2.5 text-left transition ${active ? 'border-cyan-300 bg-cyan-400/20 text-white shadow-[0_0_18px_rgba(34,211,238,.35)]' : 'border-blue-500/30 bg-blue-950/30 text-cyan-100/80 hover:border-cyan-400/70 hover:bg-cyan-500/10'}`}><span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${active ? 'bg-cyan-300 text-slate-950' : 'bg-blue-900 text-cyan-300'}`}>{index + 1}</span><span className="text-sm font-medium">{step}</span>{active && <i className="fas fa-chevron-right ml-auto text-xs text-cyan-300" />}</button>;
+                    })}</div></TechFrame>
 
-                {/* Tab Navigation */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                    <div className="px-6 py-4 border-b border-gray-200 flex gap-4">
-                        <button
-                            onClick={() => setActiveTab('plans')}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                                activeTab === 'plans' 
-                                    ? 'bg-blue-500 text-white' 
-                                    : 'text-gray-600 hover:bg-gray-100'
-                            }`}
-                        >
-                            应急预案
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('drills')}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                                activeTab === 'drills' 
-                                    ? 'bg-blue-500 text-white' 
-                                    : 'text-gray-600 hover:bg-gray-100'
-                            }`}
-                        >
-                            演练记录
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('events')}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                                activeTab === 'events' 
-                                    ? 'bg-blue-500 text-white' 
-                                    : 'text-gray-600 hover:bg-gray-100'
-                            }`}
-                        >
-                            应急事件
-                        </button>
+                    <div className="grid min-h-[620px] grid-rows-[1.12fr_.88fr] gap-4">
+                        <TechFrame title="现场实时画面" icon="fa-video"><Placeholder icon="fa-video" title="视频接入预留区域" text="现场视频 / 无人机视频将在后续设备接入后显示" /></TechFrame>
+                        <TechFrame title="智能交互对话" icon="fa-comments"><Placeholder icon="fa-robot" title="智能交互预留区域" text="后续可接入应急预案问答与处置建议" /></TechFrame>
                     </div>
 
-                    {/* Emergency Plans */}
-                    {activeTab === 'plans' && (
-                        <div>
-                            <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex gap-2">
-                                <button
-                                    onClick={() => setPlanSubTab('list')}
-                                    className={`px-3 py-1.5 rounded-md text-sm transition-colors ${
-                                        planSubTab === 'list'
-                                            ? 'bg-white text-blue-600 shadow-sm font-medium ring-1 ring-black/5'
-                                            : 'text-gray-600 hover:bg-gray-200'
-                                    }`}
-                                >
-                                    <i className="fas fa-list mr-2"></i>
-                                    预案列表
-                                </button>
-                                <button
-                                    onClick={() => setPlanSubTab('confined-space')}
-                                    className={`px-3 py-1.5 rounded-md text-sm transition-colors ${
-                                        planSubTab === 'confined-space'
-                                            ? 'bg-white text-blue-600 shadow-sm font-medium ring-1 ring-black/5'
-                                            : 'text-gray-600 hover:bg-gray-200'
-                                    }`}
-                                >
-                                    <i className="fas fa-project-diagram mr-2"></i>
-                                    有限空间专项预案
-                                </button>
-                            </div>
-
-                            {planSubTab === 'list' ? (
-                                <div className="overflow-x-auto">
-                                    <table className="min-w-full divide-y divide-gray-200">
-                                        <thead className="bg-gray-50">
-                                            <tr>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">预案名称</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">预案类型</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">编制日期</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">责任人</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="bg-white divide-y divide-gray-200">
-                                            {data?.plans?.map((plan, idx) => (
-                                                <tr key={idx} className="hover:bg-gray-50 transition-colors">
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{plan.name}</td>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{plan.type}</td>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{plan.createDate}</td>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{plan.responsible}</td>
-                                                    <td className="px-6 py-4 whitespace-nowrap">
-                                                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                                            plan.status === '有效' ? 'bg-green-100 text-green-800' :
-                                                            'bg-yellow-100 text-yellow-800'
-                                                        }`}>
-                                                            {plan.status}
-                                                        </span>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            ) : (
-                                <div className="p-6">
-                                    <ConfinedSpaceEmergency />
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-
-
-                    {/* Drill Records */}
-                    {activeTab === 'drills' && (
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
-                                    <tr>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">演练名称</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">演练类型</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">演练日期</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">参与人数</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">演练效果</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
-                                    {data?.drills?.map((drill, idx) => (
-                                        <tr key={idx} className="hover:bg-gray-50 transition-colors">
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{drill.name}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{drill.type}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{drill.date}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{drill.participants}人</td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                                    drill.effect === '良好' ? 'bg-green-100 text-green-800' :
-                                                    drill.effect === '一般' ? 'bg-yellow-100 text-yellow-800' :
-                                                    'bg-red-100 text-red-800'
-                                                }`}>
-                                                    {drill.effect}
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-
-                    {/* Emergency Events */}
-                    {activeTab === 'events' && (
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
-                                    <tr>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">事件编号</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">事件类型</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">发生时间</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">事件等级</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">处置状态</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">负责人</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
-                                    {data?.events?.map((event, idx) => (
-                                        <tr key={idx} className="hover:bg-gray-50 transition-colors">
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{event.id}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{event.type}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{event.time}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                                    event.level === '一般' ? 'bg-blue-100 text-blue-800' :
-                                                    event.level === '较大' ? 'bg-yellow-100 text-yellow-800' :
-                                                    'bg-red-100 text-red-800'
-                                                }`}>
-                                                    {event.level}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                                    event.status === '已处置' ? 'bg-green-100 text-green-800' :
-                                                    'bg-orange-100 text-orange-800'
-                                                }`}>
-                                                    {event.status}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{event.responsible}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-                </div>
+                    <TechFrame title="气体检测仪" icon="fa-wave-square"><div className="space-y-3 overflow-auto pr-1">{metrics.map((metric) => {
+                        const percent = ((metric.value - metric.min) / (metric.max - metric.min)) * 100;
+                        return <div key={metric.key} className="border border-blue-400/25 bg-slate-950/45 p-3"><div className="mb-2 flex items-center justify-between"><span className="text-sm font-bold text-cyan-100">{metric.label}</span><span className="font-mono text-sm text-white">{metric.value}<small className="ml-1 text-[10px] text-cyan-300">{metric.unit}</small></span></div><div className="h-2 overflow-hidden bg-blue-950"><div className={`h-full bg-gradient-to-r ${metric.color} shadow-[0_0_12px_rgba(34,211,238,.9)] transition-all duration-700`} style={{ width: `${clamp(percent, 2, 100)}%` }} /></div><div className="mt-2 flex justify-between text-[10px] text-cyan-300/55"><span>{metric.min}</span><span>实时监测</span><span>{metric.max}</span></div></div>;
+                    })}<div className="border border-emerald-400/30 bg-emerald-500/10 p-3 text-xs text-emerald-200"><i className="fas fa-circle mr-2 animate-pulse text-[8px]" />仪表状态正常 · 数据持续刷新</div></div></TechFrame>
+                </main>
             </div>
         </div>
     );
+}
+
+function Placeholder({ icon, title, text }) {
+    return <div className="flex h-full flex-col items-center justify-center border border-dashed border-cyan-400/30 bg-[radial-gradient(circle_at_center,rgba(14,165,233,.12),transparent_62%)] text-center"><div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-cyan-300/40 bg-cyan-400/10 text-2xl text-cyan-300"><i className={`fas ${icon}`} /></div><p className="font-semibold tracking-wider text-cyan-50">{title}</p><p className="mt-2 text-xs text-cyan-200/60">{text}</p></div>;
+}
+
+function TechFrame({ title, icon, children }) {
+    return <section className="relative flex min-h-0 flex-col overflow-hidden border border-cyan-400/40 bg-[#061b3b]/70 p-3 shadow-[inset_0_0_25px_rgba(14,165,233,.08)]"><div className="absolute left-0 top-0 h-3 w-3 border-l-2 border-t-2 border-cyan-200" /><div className="absolute bottom-0 right-0 h-3 w-3 border-b-2 border-r-2 border-cyan-200" /><div className="mb-3 flex shrink-0 items-center gap-2 border-b border-cyan-400/25 pb-2 text-sm font-bold tracking-wider text-cyan-100"><i className={`fas ${icon} text-cyan-300`} />{title}<span className="ml-auto h-1.5 w-1.5 animate-pulse rounded-full bg-cyan-300 shadow-[0_0_8px_#67e8f9]" /></div><div className="min-h-0 flex-1">{children}</div></section>;
 }

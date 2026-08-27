@@ -51,16 +51,21 @@ const PersonSelect = ({ value, onChange, name, options, unqualifiedOptions = [],
 
 const RISK_OPTIONS = [
     '物体打击',
-    '机械伤害',
+    '机械致害',
     '触电',
     '淹溺',
     '灼烫',
     '火灾',
-    '爆炸',
+    '可燃气体爆炸',
+    '可燃液体蒸气爆炸',
+    '粉尘爆炸',
     '高处坠落',
     '坍塌',
     '中毒',
-    '窒息'
+    '窒息',
+    '跌落',
+    '水害',
+    '其他'
 ];
 
 // 将常量移到组件外部，避免每次渲染重新创建
@@ -250,6 +255,18 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
         onChange(name, type === 'checkbox' ? checked : value);
     }, [readOnly, onChange]);
 
+    const handleJsaFileChange = React.useCallback((event) => {
+        if (readOnly) return;
+        const files = Array.from(event.target.files || []).map((file) => ({
+            name: file.name,
+            type: file.type || '文件',
+            size: file.size,
+            uploadedAt: new Date().toLocaleString('zh-CN')
+        }));
+        if (files.length) onChange('jsa_files', [...(data.jsa_files || []), ...files]);
+        event.target.value = '';
+    }, [data.jsa_files, onChange, readOnly]);
+
     const handleRelatedPermitAssociate = React.useCallback(() => {
         if (readOnly) return;
         const numbers = parseRelatedPermitNumbers(data.related_permits);
@@ -410,6 +427,13 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                             readOnly={readOnly}
                         />
                     </FormField>
+                    <div className="md:col-span-2 rounded-lg border border-blue-100 bg-blue-50/50 p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div><div className="font-semibold text-blue-800"><i className="fas fa-file-alt mr-2" />JSA 分析</div><p className="mt-1 text-xs text-blue-600">支持图片、Word、PDF；当前为演示附件，刷新页面后会重置。</p></div>
+                            {!readOnly && <label className="cursor-pointer rounded bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"><i className="fas fa-upload mr-1" />上传文件<input type="file" className="hidden" multiple accept="image/*,.doc,.docx,.pdf" onChange={handleJsaFileChange} /></label>}
+                        </div>
+                        {(data.jsa_files || []).length > 0 && <div className="mt-3 space-y-2">{data.jsa_files.map((file, index) => <div key={`${file.name}-${index}`} className="flex items-center justify-between rounded border border-blue-100 bg-white px-3 py-2 text-sm text-gray-700"><span className="truncate"><i className="fas fa-paperclip mr-2 text-blue-500" />{file.name}</span>{!readOnly && <button type="button" onClick={() => onChange('jsa_files', data.jsa_files.filter((_, fileIndex) => fileIndex !== index))} className="ml-3 text-red-500 hover:text-red-700"><i className="fas fa-times" /></button>}</div>)}</div>}
+                    </div>
 
                     {/* 仅在非创建模式（即审批/详情查看）时显示现场安全条件确认 */}
                     {!isCreating && (
@@ -733,6 +757,9 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                                 );
                             })}
                         </div>
+                        {(data.risk_identification || '').split('、').includes('其他') && (
+                            <Input className="mt-3" readOnly={readOnly} name="risk_identification_other" value={data.risk_identification_other || ''} onChange={handleChange} placeholder="请填写其他风险类型" />
+                        )}
                     </FormField>
                 </div>
             </div>

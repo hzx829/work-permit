@@ -6,6 +6,17 @@ import SignaturePad from '../SignaturePad';
 
 export default function InspectionModule({ data, onChange, readOnly, currentUser, onSave, saving, requireStrictSignAndPhotos = false }) {
     const canEdit = !readOnly && currentUser?.role === 'safety';
+    const entryExitRecords = data?.entry_exit_records || [];
+
+    const updateEntryExitRecords = (next) => onChange('entry_exit_records', next);
+    const addEntryExitRecord = () => updateEntryExitRecords([...entryExitRecords, { person: '', direction: '进入', time: getNowDateTimeLocal(), photos: [] }]);
+    const updateEntryExitRecord = (index, field, value) => updateEntryExitRecords(entryExitRecords.map((record, recordIndex) => recordIndex === index ? { ...record, [field]: value } : record));
+    const addEntryExitPhotos = (index, event) => {
+        const photos = Array.from(event.target.files || []).map((file) => ({ name: file.name, type: file.type || '图片', size: file.size }));
+        if (!photos.length) return;
+        updateEntryExitRecords(entryExitRecords.map((record, recordIndex) => recordIndex === index ? { ...record, photos: [...(record.photos || []), ...photos] } : record));
+        event.target.value = '';
+    };
 
     const getCurrentUserName = () => {
         if (!currentUser) return '当前用户';
@@ -104,6 +115,7 @@ export default function InspectionModule({ data, onChange, readOnly, currentUser
                 pre_inspection_notes: data?.pre_inspection_notes || '',
                 pre_inspection_signature: data?.pre_inspection_signature || '',
                 pre_inspection_signature_image: data?.pre_inspection_signature_image || '',
+                entry_exit_records: data?.entry_exit_records || [],
                 post_inspection_person: data?.post_inspection_signature || data?.post_inspection_person || '',
                 post_inspection_time: data?.post_inspection_time || '',
                 post_inspection_result: data?.post_inspection_result || '',
@@ -225,6 +237,14 @@ export default function InspectionModule({ data, onChange, readOnly, currentUser
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <div className="bg-white rounded-lg border-2 border-cyan-200 p-6">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                    <div><h3 className="text-lg font-semibold text-gray-800"><i className="fas fa-right-left mr-2 text-cyan-600" />进出记录</h3><p className="mt-1 text-sm text-gray-500">记录人员进出受限空间的时间，并可上传现场照片。</p></div>
+                    {canEdit && <button type="button" onClick={addEntryExitRecord} className="rounded bg-cyan-600 px-3 py-2 text-sm font-medium text-white hover:bg-cyan-700"><i className="fas fa-plus mr-1" />添加记录</button>}
+                </div>
+                {entryExitRecords.length === 0 ? <div className="rounded border border-dashed border-cyan-200 bg-cyan-50 p-4 text-center text-sm text-cyan-700">暂无进出记录</div> : <div className="space-y-3">{entryExitRecords.map((record, index) => <div key={index} className="rounded border border-cyan-100 bg-cyan-50/40 p-3"><div className="grid grid-cols-1 gap-3 md:grid-cols-4"><input disabled={!canEdit} value={record.person || ''} onChange={(e) => updateEntryExitRecord(index, 'person', e.target.value)} placeholder="人员姓名" className="rounded border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100" /><select disabled={!canEdit} value={record.direction || '进入'} onChange={(e) => updateEntryExitRecord(index, 'direction', e.target.value)} className="rounded border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100"><option>进入</option><option>离开</option></select><input disabled={!canEdit} type="datetime-local" value={record.time || ''} onChange={(e) => updateEntryExitRecord(index, 'time', e.target.value)} className="rounded border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100" /><div className="flex items-center gap-2">{canEdit && <label className="cursor-pointer rounded border border-cyan-500 px-3 py-2 text-sm text-cyan-700 hover:bg-cyan-50"><i className="fas fa-camera mr-1" />上传照片<input type="file" className="hidden" accept="image/*" multiple onChange={(event) => addEntryExitPhotos(index, event)} /></label>}{canEdit && <button type="button" onClick={() => updateEntryExitRecords(entryExitRecords.filter((_, recordIndex) => recordIndex !== index))} className="text-sm text-red-500 hover:text-red-700">删除</button>}</div></div>{(record.photos || []).length > 0 && <div className="mt-2 text-xs text-gray-600">{record.photos.map((photo, photoIndex) => <span key={`${photo.name}-${photoIndex}`} className="mr-2 inline-block rounded bg-white px-2 py-1"><i className="fas fa-image mr-1 text-cyan-500" />{photo.name}</span>)}</div>}</div>)}</div>}
             </div>
 
             {/* 作业后验收 */}

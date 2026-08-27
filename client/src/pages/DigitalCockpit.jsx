@@ -1,12 +1,41 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { lazy, Suspense, useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { loadPermits } from '../utils/api';
-// import ThreeMap from '../components/ThreeMap';
+const SatelliteGlobe = lazy(() => import('../components/SatelliteGlobe'));
+
+class MapLoadBoundary extends React.Component {
+    constructor(props) {
+        super(props);
+        this.state = { failed: false };
+    }
+
+    static getDerivedStateFromError() {
+        return { failed: true };
+    }
+
+    render() {
+        if (this.state.failed) {
+            return <div className="h-full w-full rounded-xl border border-cyan-300/55 bg-[url('/sichuan-satellite-texture.jpg')] bg-cover bg-center" />;
+        }
+        return this.props.children;
+    }
+}
 
 export default function DigitalCockpit() {
     const navigate = useNavigate();
     const [currentTime, setCurrentTime] = useState(new Date());
     const [workPermitStats, setWorkPermitStats] = useState([]);
+    const safeDays = Math.max(1, Math.floor((currentTime.getTime() - new Date('2026-04-25T00:00:00').getTime()) / 86400000));
+    const [weatherData, setWeatherData] = useState({
+        condition: '多云', temp: 24, windSpeed: '3级', windDirection: '东北风', humidity: 65
+    });
+    const [regulationFiles, setRegulationFiles] = useState([]);
+    const [safetyDynamics, setSafetyDynamics] = useState([
+        { type: '安全员活动', officer: '张三', action: '化工1#车间安全检查', time: '14:30', status: '已完成' },
+        { type: '应急事件', event: '化工2#车间设备故障', level: '一般', time: '13:45', status: '已处置' },
+        { type: '安全员活动', officer: '李四', action: '消防设施专项检查', time: '12:20', status: '进行中' },
+        { type: '应急事件', event: '仓库区物料泄漏演练', level: '演练', time: '11:30', status: '已完成' },
+    ]);
 
     useEffect(() => {
         const timer = setInterval(() => {
@@ -14,6 +43,36 @@ export default function DigitalCockpit() {
         }, 1000);
         return () => clearInterval(timer);
     }, []);
+
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setWeatherData((current) => ({
+                ...current,
+                temp: Number((current.temp + (Math.random() - 0.48) * 0.4).toFixed(1)),
+                humidity: Math.max(45, Math.min(85, Math.round(current.humidity + (Math.random() - 0.5) * 2))),
+                windSpeed: `${Math.max(1, Math.min(5, Math.round(3 + (Math.random() - 0.5) * 2)))}级`
+            }));
+        }, 3000);
+        return () => clearInterval(timer);
+    }, []);
+
+    const handleRegulationUpload = (event) => {
+        const selectedFiles = Array.from(event.target.files || []);
+        if (!selectedFiles.length) return;
+        const now = new Date();
+        const uploaded = selectedFiles.map((file, index) => ({
+            id: `${file.name}-${file.lastModified}-${index}`,
+            name: file.name,
+            type: file.type || '文件',
+            time: now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+        }));
+        setRegulationFiles((current) => [...uploaded, ...current]);
+        setSafetyDynamics((current) => [
+            ...uploaded.map((file) => ({ type: '法规更新', fileName: file.name, time: file.time, status: '已上传' })),
+            ...current
+        ]);
+        event.target.value = '';
+    };
 
     // 加载作业票统计数据
     useEffect(() => {
@@ -92,26 +151,11 @@ export default function DigitalCockpit() {
     };
 
     // Mock Data - 数字驾驶舱6大模块数据
-    const weatherData = {
-        condition: '多云',
-        temp: 24,
-        windSpeed: '3级',
-        windDirection: '东北风',
-        humidity: 65
-    };
-
     const safetyKnowledge = [
         { title: '正确佩戴安全帽', content: '安全帽必须正确佩戴，系好下颚带，避免头部受伤' },
         { title: '高处作业注意事项', content: '高处作业必须系好安全带，检查作业平台稳固性' },
         { title: '动火作业安全规程', content: '动火作业前清理易燃物，配备灭火器，设置监护人' },
         { title: '受限空间作业要求', content: '进入受限空间前必须检测气体，保持通风，设专人监护' },
-    ];
-
-    const safetyDynamics = [
-        { type: '安全员活动', officer: '张三', action: '化工1#车间安全检查', time: '14:30', status: '已完成' },
-        { type: '应急事件', event: '化工2#车间设备故障', level: '一般', time: '13:45', status: '已处置' },
-        { type: '安全员活动', officer: '李四', action: '消防设施专项检查', time: '12:20', status: '进行中' },
-        { type: '应急事件', event: '仓库区物料泄漏演练', level: '演练', time: '11:30', status: '已完成' },
     ];
 
     const announcements = [
@@ -121,31 +165,14 @@ export default function DigitalCockpit() {
         { type: '培训公告', title: '特种作业人员复训通知', dept: '技术部', time: '12-03 16:20' },
     ];
 
-    // Center Floating Modules Data
-    const centerModules = [
-        { title: '实时监测', style: { top: '25%', left: '18%' }, path: '/video', delay: '0s' },
-        { title: '行为识别', style: { top: '25%', right: '18%' }, path: '/safety-review', delay: '1s' },
-        { title: '许可审批', style: { top: '50%', left: '10%', transform: 'translateY(-50%)' }, path: '/work-permit', delay: '2s' },
-        { title: '数据追溯', style: { top: '50%', right: '10%', transform: 'translateY(-50%)' }, path: '/comprehensive', delay: '3s' },
-        { title: '违章预警', style: { bottom: '20%', left: '18%' }, path: '/hazard', delay: '4s' },
-        { title: '状态研判', style: { bottom: '20%', right: '18%' }, path: '/risk', delay: '5s' },
-        { title: '智能抓拍', style: { bottom: '10%', left: '50%', transform: 'translateX(-50%)' }, path: '/video', delay: '6s' },
-    ];
-
     return (
         <div className="h-screen w-screen bg-[#020617] text-white font-sans overflow-hidden relative flex flex-col">
-            {/* Full Screen Background Map */}
-            <div className="absolute inset-0 z-0">
-                <img 
-                    src="/work-permit-background.png" 
-                    alt="Background" 
-                    className="w-full h-full object-cover opacity-80"
-                />
-            </div>
+            {/* CSS-only backdrop: avoids loading the previous 7 MB globe image. */}
+            <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_at_50%_44%,rgba(8,94,150,.42),transparent_38%),linear-gradient(135deg,#020617_0%,#062452_50%,#020617_100%)]" />
+            <div className="absolute inset-0 z-0 opacity-20 [background-image:linear-gradient(rgba(56,189,248,.24)_1px,transparent_1px),linear-gradient(90deg,rgba(56,189,248,.24)_1px,transparent_1px)] [background-size:56px_56px]" />
 
             {/* Background Effects */}
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900/40 via-[#020617]/60 to-[#020617]/80 pointer-events-none z-0"></div>
-            <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none z-0"></div>
 
             {/* Header */}
             <header className="relative h-20 flex-none flex items-center justify-between px-8 bg-gradient-to-b from-[#0f172a]/90 to-transparent border-b border-blue-500/20 z-50 backdrop-blur-sm">
@@ -179,21 +206,27 @@ export default function DigitalCockpit() {
                     {/* 法律法规 */}
                     <TechPanel 
                         title="法律法规" 
-                        className="flex-none h-[220px] cursor-pointer hover:border-blue-400 transition-all hover:shadow-[0_0_30px_rgba(59,130,246,0.4)]"
-                        onClick={() => navigate('/regulation')}
+                        className="flex-none h-[286px] hover:border-blue-400 transition-all hover:shadow-[0_0_30px_rgba(59,130,246,0.4)]"
                     >
-                        <div className="grid grid-cols-3 gap-4 text-center h-full items-center">
+                        <div className="grid grid-cols-3 gap-2 text-center items-center">
                             {['法律法规', '规章制度', '操作规程'].map((label, i) => (
-                                <div key={i} className="bg-blue-950/40 p-4 rounded-lg border border-blue-900/40 hover:border-blue-700/60 transition-colors">
-                                    <div className="text-blue-300 text-sm font-bold mb-2">{label}</div>
-                                    <div className="text-3xl font-bold text-white font-mono mb-1">
-                                        {[102, 246, 224][i]}
+                                <button type="button" key={i} onClick={() => navigate('/regulation')} className="bg-blue-950/40 p-2 rounded-lg border border-blue-900/40 hover:border-blue-700/60 transition-colors">
+                                    <div className="text-blue-300 text-xs font-bold mb-1 whitespace-nowrap">{label}</div>
+                                    <div className="text-2xl font-bold text-white font-mono mb-0.5">
+                                        {[102, 246, 224][i] + (i === 0 ? regulationFiles.length : 0)}
                                     </div>
-                                    <div className="text-xs text-blue-400 font-medium">
+                                    <div className="text-[10px] text-blue-400 font-medium whitespace-nowrap">
                                         现行: {[91, 223, 214][i]}
                                     </div>
-                                </div>
+                                </button>
                             ))}
+                        </div>
+                        <label className="mt-2 flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-cyan-400/60 bg-cyan-500/10 px-2 py-1.5 text-xs font-medium text-cyan-100 hover:bg-cyan-500/20">
+                            <i className="fas fa-cloud-upload-alt" /> 上传标准文件
+                            <input type="file" className="hidden" multiple accept="image/*,.doc,.docx,.pdf" onChange={handleRegulationUpload} />
+                        </label>
+                        <div className="mt-1 truncate text-[10px] text-blue-300">
+                            {regulationFiles.length ? `最新：${regulationFiles[0].name}` : '支持图片、Word、PDF'}
                         </div>
                     </TechPanel>
 
@@ -205,13 +238,13 @@ export default function DigitalCockpit() {
                         <AutoScrollList>
                             {safetyDynamics.map((item, i) => (
                                 <div key={i} className="bg-blue-950/40 p-3 rounded-lg border border-blue-900/40 hover:bg-blue-900/50 transition-colors cursor-pointer"
-                                    onClick={() => navigate(item.type === '安全员活动' ? '/safety-officer' : '/emergency')}
+                                    onClick={() => navigate(item.type === '安全员活动' ? '/safety-officer' : item.type === '法规更新' ? '/regulation' : '/emergency')}
                                 >
                                     <div className="flex items-start justify-between gap-3">
                                         <div className="flex-1">
                                             <div className="flex items-center gap-2 mb-2">
                                                 <span className={`px-2 py-1 text-xs font-bold rounded ${
-                                                    item.type === '安全员活动' ? 'bg-blue-600/40 text-blue-200' : 'bg-orange-600/40 text-orange-200'
+                                                    item.type === '安全员活动' ? 'bg-blue-600/40 text-blue-200' : item.type === '法规更新' ? 'bg-cyan-600/40 text-cyan-100' : 'bg-orange-600/40 text-orange-200'
                                                 }`}>
                                                     {item.type}
                                                 </span>
@@ -223,7 +256,7 @@ export default function DigitalCockpit() {
                                             </div>
                                             <div className="text-base text-white font-medium leading-snug">
                                                 {item.officer && <span className="text-blue-300">{item.officer}：</span>}
-                                                {item.action || item.event}
+                                                {item.action || item.event || item.fileName}
                                                 {item.level && <span className="text-orange-300 ml-1">【{item.level}】</span>}
                                             </div>
                                         </div>
@@ -265,68 +298,28 @@ export default function DigitalCockpit() {
                 </div>
 
                 {/* Center Column */}
-                <div className="col-span-12 lg:col-span-6 flex flex-col gap-4 h-full relative pointer-events-none">
-                    {/* 3D Map Area */}
-                    <div className="flex-1 relative flex items-center justify-center">
-                        
-                        {/* Floating Helmet */}
-                        <img 
-                            src="/work-permit-safety-helmet.png" 
-                            alt="Safety Helmet" 
-                            className="helmet-img relative z-10 drop-shadow-[0_0_50px_rgba(59,130,246,0.6)] scale-125"
-                        />
-                        
-                        {/* Safe Days Counter */}
-                        <div className="absolute top-12 left-1/2 transform -translate-x-1/2 flex flex-col items-center justify-center z-20 pointer-events-none">
-                            <div className="text-blue-200 font-bold text-xl mb-2 tracking-wider drop-shadow-md">安全运行天数(天)</div>
-                            
-                            <div className="relative flex items-center justify-center px-16 py-4">
-                                {/* Background Bar */}
-                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-900/60 to-transparent"></div>
-                                <div className="absolute inset-x-8 top-0 bottom-0 border-y border-blue-500/20 bg-gradient-to-r from-transparent via-blue-950/80 to-transparent"></div>
-
-                                {/* Left Decoration */}
-                                <div className="absolute left-0 w-6 h-12 border-l-4 border-blue-500 rounded-l-full shadow-[-4px_0_10px_rgba(59,130,246,0.6)]"></div>
-                                <div className="absolute left-3 w-3 h-10 border-l-2 border-blue-400/50 rounded-l-full"></div>
-
-                                {/* Numbers */}
-                                <div className="relative z-10 text-6xl font-bold text-white tracking-[0.5em] font-mono drop-shadow-[0_0_20px_rgba(255,255,255,0.8)] pl-[0.5em]">
-                                    124
-                                </div>
-
-                                {/* Right Decoration */}
-                                <div className="absolute right-0 w-6 h-12 border-r-4 border-blue-500 rounded-r-full shadow-[4px_0_10px_rgba(59,130,246,0.6)]"></div>
-                                <div className="absolute right-3 w-3 h-10 border-r-2 border-blue-400/50 rounded-r-full"></div>
-                                
-                                {/* Bottom Accent */}
-                                <div className="absolute bottom-0 w-20 h-[3px] bg-yellow-500 shadow-[0_0_10px_rgba(234,179,8,1)]"></div>
-                            </div>
-                        </div>
-
-                        {/* Floating Modules around Helmet */}
-                        {centerModules.map((mod, i) => (
-                            <div 
-                                key={i}
-                                className="absolute z-20 pointer-events-auto cursor-pointer hover:scale-110 transition-transform duration-300 animate-float"
-                                style={{...mod.style, animationDelay: mod.delay}}
-                                onClick={() => navigate(mod.path || '/')}
-                            >
-                                <div className="relative group flex flex-col items-center">
-                                    {/* Tech Label Content - No Box */}
-                                    <div className="relative z-10 flex flex-col items-center group-hover:scale-110 transition-transform duration-300">
-                                        <div className="text-transparent bg-clip-text bg-gradient-to-r from-blue-200 via-white to-blue-200 text-3xl font-bold tracking-widest drop-shadow-[0_0_15px_rgba(59,130,246,0.8)]">
-                                            {mod.title}
-                                        </div>
-                                        {/* Tech Underline Decoration */}
-                                        <div className="w-full h-[2px] mt-1 bg-gradient-to-r from-transparent via-blue-400 to-transparent shadow-[0_0_10px_#3b82f6] opacity-80 group-hover:opacity-100 transition-opacity"></div>
-                                        <div className="absolute -bottom-1 w-1 h-1 bg-blue-200 rounded-full shadow-[0_0_5px_white]"></div>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-
+                <div className="col-span-12 lg:col-span-6 flex flex-col gap-3 h-full min-h-0 relative">
+                    <div className="flex-1 min-h-0 relative">
+                        <MapLoadBoundary>
+                            <Suspense fallback={<div className="h-full w-full rounded-xl border border-cyan-300/55 bg-[url('/sichuan-satellite-texture.jpg')] bg-cover bg-center shadow-[0_0_30px_rgba(14,165,233,.3)]" />}>
+                                <SatelliteGlobe />
+                            </Suspense>
+                        </MapLoadBoundary>
                     </div>
-
+                    <div className="grid flex-none grid-cols-3 gap-2" aria-label="驾驶舱核心指标">
+                        <div className="rounded border border-cyan-400/35 bg-slate-950/75 px-3 py-2 text-center">
+                            <div className="text-[11px] tracking-wider text-cyan-200">安全运行天数</div>
+                            <div className="font-mono text-2xl font-bold text-white">{String(safeDays).padStart(3, '0')}</div>
+                        </div>
+                        <div className="rounded border border-cyan-400/35 bg-slate-950/75 px-3 py-2 text-center">
+                            <div className="text-[11px] tracking-wider text-cyan-200">四川监测点</div>
+                            <div className="font-mono text-2xl font-bold text-white">04</div>
+                        </div>
+                        <div className="rounded border border-cyan-400/35 bg-slate-950/75 px-3 py-2 text-center">
+                            <div className="text-[11px] tracking-wider text-cyan-200">风险告警</div>
+                            <div className="font-mono text-2xl font-bold text-amber-300">02</div>
+                        </div>
+                    </div>
                 </div>
 
                 {/* Right Column - 作业票分析 + 安全小知识 */}

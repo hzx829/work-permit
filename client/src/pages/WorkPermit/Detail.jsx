@@ -153,8 +153,29 @@ export default function Detail() {
     }, []);
 
     const isConfinedSpace = permit?.type === '受限空间作业';
+    const gasReady = Boolean(permit?.gas_detection_guardian_sign);
+    const safetyMeasuresReady = Boolean(permit?.safety_measures_sign);
+    const approvalReady = gasReady && safetyMeasuresReady;
+    const briefingReady = Boolean(permit?.approver_sign || permit?.status === '已批准');
+    const inspectionReady = Boolean(permit?.safety_briefing_sign);
+    const selectTab = (tab) => {
+        const requirements = {
+            approval: [approvalReady, '请先完成气体浓度检测和现场安全措施确认。'],
+            briefing: [briefingReady, '请先完成票证审批。'],
+            inspection: [inspectionReady, '请先完成安全交底。']
+        };
+        if (requirements[tab] && !requirements[tab][0]) {
+            window.alert(requirements[tab][1]);
+            return;
+        }
+        setActiveTab(tab);
+    };
 
     const handleApprove = async () => {
+        if (!approvalReady) {
+            window.alert('请先完成气体浓度检测和现场安全措施确认后再审批。');
+            return;
+        }
         if (!window.confirm('确认批准该作业票？')) return;
         
         await executeApprove();
@@ -206,6 +227,10 @@ export default function Detail() {
     };
 
     const handleStartWork = async () => {
+        if (!permit?.pre_inspection_signature) {
+            window.alert('请先完成核验票证后再开始作业。');
+            return;
+        }
         if (!window.confirm('确认开始作业？')) return;
         
         setApproving(true);
@@ -300,14 +325,15 @@ export default function Detail() {
     const SpecificForm = getSpecificForm();
 
     const getDerivedStage = () => {
-        if (permit?.post_inspection_signature) return 4;
-        if (permit?.pre_inspection_signature) return 3;
+        if (permit?.post_inspection_signature) return 5;
+        if (permit?.pre_inspection_signature) return 4;
+        if (permit?.safety_briefing_sign) return 3;
         if (permit?.approver_sign || permit?.status === '已批准') return 2;
         return 1;
     };
 
     const derivedStage = getDerivedStage();
-    const stages = ['待审批', '已批准', '作业进行中', '作业已完成'];
+    const stages = ['票证申请', '票证审批', '安全交底', '核验票证', '完成作业'];
 
     return (
         <>
@@ -339,7 +365,7 @@ export default function Detail() {
                         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                             <div className="flex overflow-x-auto border-b border-gray-200">
                                 <button
-                                    onClick={() => setActiveTab('basic')}
+                                    onClick={() => selectTab('basic')}
                                     className={`px-6 py-4 text-base font-medium whitespace-nowrap transition-colors ${
                                         activeTab === 'basic'
                                             ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
@@ -350,7 +376,7 @@ export default function Detail() {
                                     基本信息
                                 </button>
                                 <button
-                                    onClick={() => setActiveTab('gas')}
+                                    onClick={() => selectTab('gas')}
                                     className={`px-6 py-4 text-base font-medium whitespace-nowrap transition-colors ${
                                         activeTab === 'gas'
                                             ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
@@ -361,7 +387,7 @@ export default function Detail() {
                                     气体浓度检测
                                 </button>
                                 <button
-                                    onClick={() => setActiveTab('safety')}
+                                    onClick={() => selectTab('safety')}
                                     className={`px-6 py-4 text-base font-medium whitespace-nowrap transition-colors ${
                                         activeTab === 'safety'
                                             ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
@@ -372,7 +398,7 @@ export default function Detail() {
                                     现场安全措施确认
                                 </button>
                                 <button
-                                    onClick={() => setActiveTab('approval')}
+                                    onClick={() => selectTab('approval')}
                                     className={`px-6 py-4 text-base font-medium whitespace-nowrap transition-colors ${
                                         activeTab === 'approval'
                                             ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
@@ -383,7 +409,7 @@ export default function Detail() {
                                     票证审批
                                 </button>
                                 <button
-                                    onClick={() => setActiveTab('briefing')}
+                                    onClick={() => selectTab('briefing')}
                                     className={`px-6 py-4 text-base font-medium whitespace-nowrap transition-colors ${
                                         activeTab === 'briefing'
                                             ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
@@ -394,7 +420,7 @@ export default function Detail() {
                                     安全交底
                                 </button>
                                 <button
-                                    onClick={() => setActiveTab('inspection')}
+                                    onClick={() => selectTab('inspection')}
                                     className={`px-6 py-4 text-base font-medium whitespace-nowrap transition-colors ${
                                         activeTab === 'inspection'
                                             ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
@@ -579,8 +605,9 @@ export default function Detail() {
                                     <span className={`inline-flex items-center gap-2 px-6 py-3 rounded-xl text-lg font-bold shadow-md transform hover:scale-105 transition-transform ${getStatusColor(permit.status === '已驳回' ? permit.status : stages[derivedStage - 1])}`}>
                                         <i className={`fas ${
                                             permit.status === '已驳回' ? 'fa-times-circle' :
-                                            derivedStage === 4 ? 'fa-check-circle' :
-                                            derivedStage === 3 ? 'fa-play-circle' :
+                                            derivedStage === 5 ? 'fa-check-circle' :
+                                            derivedStage === 4 ? 'fa-clipboard-check' :
+                                            derivedStage === 3 ? 'fa-chalkboard-teacher' :
                                             derivedStage === 2 ? 'fa-clipboard-check' :
                                             'fa-clock'
                                         } text-xl`}></i>
@@ -928,9 +955,15 @@ export default function Detail() {
                                             请先在下方完成安全交底签字后再开始作业
                                         </p>
                                     )}
+                                    {permit.safety_briefing_sign && !permit.pre_inspection_signature && (
+                                        <p className="text-xs text-orange-600 bg-orange-50 px-3 py-2 rounded mb-3">
+                                            <i className="fas fa-info-circle mr-1"></i>
+                                            请先完成核验票证后再开始作业
+                                        </p>
+                                    )}
                                     <button
                                         onClick={handleStartWork}
-                                        disabled={approving || !permit.safety_briefing_sign}
+                                        disabled={approving || !permit.safety_briefing_sign || !permit.pre_inspection_signature}
                                         className="w-full py-3 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
                                     >
                                         <i className="fas fa-play mr-2"></i>

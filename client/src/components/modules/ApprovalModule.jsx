@@ -117,7 +117,6 @@ export default function ApprovalModule({ data, onChange, readOnly, currentUser, 
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
                     <div>
-                        <span className="text-sm text-gray-500 block mb-1">签名处：</span>
                         <SignaturePad
                             value={data?.approver_signature || ''}
                             onChange={handleApproverSignatureChange}
@@ -185,7 +184,7 @@ export default function ApprovalModule({ data, onChange, readOnly, currentUser, 
                         </li>
                         <li className="flex items-start gap-2">
                             <i className="fas fa-caret-right mt-1"></i>
-                            <span>在签名板上手写签名（可调整签字时间）</span>
+                            <span>在签名板完成手写签名</span>
                         </li>
                         <li className="flex items-start gap-2">
                             <i className="fas fa-caret-right mt-1"></i>
