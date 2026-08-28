@@ -79,34 +79,32 @@ export default function SafetyBriefingModule({ data, onChange, readOnly, current
         if (!data?.safety_briefing_time) onChange('safety_briefing_time', getNowDateTimeLocal());
     };
 
-    const handleSave = async () => {
-        if (!onSave) return;
-        if (requireStrictSignAndPhotos) {
-            if (!data?.safety_briefing_images || data.safety_briefing_images.length === 0) {
-                window.alert('请至少上传一张安全交底签字照片。');
-                return;
-            }
-            if (!data?.safety_briefing_signature) {
-                window.alert('请完成交底人签字后再保存安全交底信息。');
-                return;
-            }
+    const commitSafetyBriefingSignature = async (signature) => {
+        if (signature && requireStrictSignAndPhotos && photos.length === 0) {
+            onChange('safety_briefing_signature', '');
+            onChange('safety_briefing_sign', '');
+            onChange('safety_briefing_time', '');
+            window.alert('请至少上传一张安全交底签字照片后再签字确认。');
+            return;
         }
-        await onSave(
+        const signName = signature ? getCurrentUserName() : '';
+        const signTime = signature ? (data?.safety_briefing_time || getNowDateTimeLocal()) : '';
+        await onSave?.(
             {
-                safety_briefing_images: data?.safety_briefing_images || [],
+                safety_briefing_images: photos,
                 safety_briefing_confirm: data?.safety_briefing_confirm || '',
-                safety_briefing_sign: data?.safety_briefing_sign || '',
-                safety_briefing_signature: data?.safety_briefing_signature || '',
-                safety_briefing_time: data?.safety_briefing_time || ''
+                safety_briefing_sign: signName,
+                safety_briefing_signature: signature || '',
+                safety_briefing_time: signTime
             },
-            '安全交底已保存'
+            null
         );
     };
 
     return (
         <div className="space-y-6">
             {/* 模块标题 */}
-            <div className="flex items-center justify-between pb-4 border-b border-gray-200">
+            <div className="pb-4 border-b border-gray-200">
                 <div>
                     <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
                         <i className="fas fa-chalkboard-teacher text-orange-600"></i>
@@ -114,17 +112,6 @@ export default function SafetyBriefingModule({ data, onChange, readOnly, current
                     </h2>
                     <p className="text-sm text-gray-500 mt-1">权限：班长（当前按安全员账号可编辑）</p>
                 </div>
-                {canEdit && (
-                    <button
-                        type="button"
-                        onClick={handleSave}
-                        disabled={saving}
-                        className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                    >
-                        <i className="fas fa-save mr-2"></i>
-                        {saving ? '保存中...' : '保存'}
-                    </button>
-                )}
             </div>
 
             {/* 安全交底说明 */}
@@ -233,6 +220,7 @@ export default function SafetyBriefingModule({ data, onChange, readOnly, current
                         <SignaturePad
                             value={data?.safety_briefing_signature || ''}
                             onChange={handleSafetyBriefingSignatureChange}
+                            onCommit={commitSafetyBriefingSignature}
                             disabled={!canEdit}
                             className="h-20"
                         />
@@ -248,6 +236,7 @@ export default function SafetyBriefingModule({ data, onChange, readOnly, current
                         />
                     </div>
                 </div>
+                <p className="mt-3 text-xs text-blue-600"><i className="fas fa-info-circle mr-1"></i>完成签字即代表确认本板块内容，系统将自动保存，无需另行点击保存。</p>
             </div>
 
             {/* 交底状态提示 */}

@@ -79,34 +79,32 @@ export default function SafetyMeasuresConfirmModule({ data, onChange, readOnly, 
         if (!data?.safety_measures_sign_time) onChange('safety_measures_sign_time', getNowDateTimeLocal());
     };
 
-    const handleSave = async () => {
-        if (!onSave) return;
-        if (requireStrictSignAndPhotos) {
-            if (!data?.safety_measures_photos || data.safety_measures_photos.length === 0) {
-                window.alert('请至少上传一张现场安全措施签字照片。');
-                return;
-            }
-            if (!data?.safety_measures_signature) {
-                window.alert('请完成提交人签字后再保存现场安全措施确认。');
-                return;
-            }
+    const commitSafetyMeasuresSignature = async (signature) => {
+        if (signature && requireStrictSignAndPhotos && photos.length === 0) {
+            onChange('safety_measures_signature', '');
+            onChange('safety_measures_sign', '');
+            onChange('safety_measures_sign_time', '');
+            window.alert('请至少上传一张现场安全措施签字照片后再签字确认。');
+            return;
         }
-        await onSave(
+        const signName = signature ? getCurrentUserName() : '';
+        const signTime = signature ? (data?.safety_measures_sign_time || getNowDateTimeLocal()) : '';
+        await onSave?.(
             {
                 safety_measures_list: data?.safety_measures_list || [],
-                safety_measures_photos: data?.safety_measures_photos || [],
-                safety_measures_sign: data?.safety_measures_sign || '',
-                safety_measures_signature: data?.safety_measures_signature || '',
-                safety_measures_sign_time: data?.safety_measures_sign_time || ''
+                safety_measures_photos: photos,
+                safety_measures_sign: signName,
+                safety_measures_signature: signature || '',
+                safety_measures_sign_time: signTime
             },
-            '现场安全措施确认已保存'
+            null
         );
     };
 
     return (
         <div className="space-y-6">
             {/* 模块标题 */}
-            <div className="flex items-start justify-between pb-4 border-b border-gray-200">
+            <div className="pb-4 border-b border-gray-200">
                 <div>
                     <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
                         <i className="fas fa-clipboard-check text-green-600"></i>
@@ -118,17 +116,6 @@ export default function SafetyMeasuresConfirmModule({ data, onChange, readOnly, 
                         请上传现场安全措施相关照片并完成提交人签字
                     </p>
                 </div>
-                {canEdit && (
-                    <button
-                        type="button"
-                        onClick={handleSave}
-                        disabled={saving}
-                        className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                    >
-                        <i className="fas fa-save mr-2"></i>
-                        {saving ? '保存中...' : '保存'}
-                    </button>
-                )}
             </div>
 
             {/* 照片上传区域 */}
@@ -212,6 +199,7 @@ export default function SafetyMeasuresConfirmModule({ data, onChange, readOnly, 
                         <SignaturePad
                             value={data?.safety_measures_signature || ''}
                             onChange={handleSafetyMeasuresSignatureChange}
+                            onCommit={commitSafetyMeasuresSignature}
                             disabled={!canEdit}
                             className="h-20"
                         />
@@ -227,6 +215,7 @@ export default function SafetyMeasuresConfirmModule({ data, onChange, readOnly, 
                         />
                     </div>
                 </div>
+                <p className="mt-3 text-xs text-blue-600"><i className="fas fa-info-circle mr-1"></i>完成签字即代表确认本板块内容，系统将自动保存，无需另行点击保存。</p>
             </div>
 
             {/* 图片预览模态框 */}

@@ -73,7 +73,7 @@ export default function Detail() {
         try {
             await updatePermitExtraData(id, updates);
             await reloadPermit();
-            alert(successMessage);
+            if (successMessage) alert(successMessage);
         } catch (error) {
             console.error('Error saving extra data:', error);
             alert('保存失败，请重试');
@@ -95,10 +95,12 @@ export default function Detail() {
             const currentStatus = permit?.status || '';
             if (hasApproverSign && currentStatus === '待审批') {
                 await updatePermitStatus(id, '已批准');
+            } else if (!hasApproverSign && currentStatus === '已批准' && !permit?.safety_briefing_sign) {
+                await updatePermitStatus(id, '待审批');
             }
 
             await reloadPermit();
-            alert(successMessage);
+            if (successMessage) alert(successMessage);
         } catch (error) {
             console.error('Error saving approval data:', error);
             alert('保存失败，请重试');
@@ -138,7 +140,7 @@ export default function Detail() {
             }
 
             await reloadPermit();
-            alert(successMessage);
+            if (successMessage) alert(successMessage);
         } catch (error) {
             console.error('Error saving inspection data:', error);
             alert('保存失败，请重试');
@@ -169,61 +171,6 @@ export default function Detail() {
             return;
         }
         setActiveTab(tab);
-    };
-
-    const handleApprove = async () => {
-        if (!approvalReady) {
-            window.alert('请先完成气体浓度检测和现场安全措施确认后再审批。');
-            return;
-        }
-        if (!window.confirm('确认批准该作业票？')) return;
-        
-        await executeApprove();
-    };
-
-    const executeApprove = async () => {
-        setApproving(true);
-        try {
-            // 保存审批人签字数据
-            if (permit.approver_sign) {
-                await updatePermitExtraData(id, {
-                    approver_sign: permit.approver_sign,
-                    approver_signature: permit.approver_signature || '',
-                    approver_opinion: permit.approver_opinion || '',
-                    approver_sign_time: permit.approver_sign_time || ''
-                });
-            }
-            
-            await updatePermitStatus(id, '已批准');
-            alert('审批成功');
-            const data = await getPermit(id);
-            if (data.permit_number) data.permit_code = data.permit_number;
-            setPermit(data);
-        } catch (error) {
-            console.error('Error approving permit:', error);
-            alert('审批失败，请重试');
-        } finally {
-            setApproving(false);
-        }
-    };
-
-    const handleReject = async () => {
-        const reason = window.prompt('请输入驳回原因：');
-        if (!reason) return;
-        
-        setApproving(true);
-        try {
-            await updatePermitStatus(id, '已驳回');
-            alert('已驳回该作业票');
-            const data = await getPermit(id);
-            if (data.permit_number) data.permit_code = data.permit_number;
-            setPermit(data);
-        } catch (error) {
-            console.error('Error rejecting permit:', error);
-            alert('操作失败，请重试');
-        } finally {
-            setApproving(false);
-        }
     };
 
     const handleStartWork = async () => {
@@ -326,13 +273,15 @@ export default function Detail() {
 
     const getDerivedStage = () => {
         if (permit?.post_inspection_signature) return 5;
-        if (permit?.pre_inspection_signature) return 4;
-        if (permit?.safety_briefing_sign) return 3;
-        if (permit?.approver_sign || permit?.status === '已批准') return 2;
+        if (permit?.pre_inspection_signature) return 5;
+        if (permit?.safety_briefing_sign) return 4;
+        if (permit?.approver_sign || permit?.status === '已批准') return 3;
+        if (permit?.safety_measures_sign) return 2;
         return 1;
     };
 
     const derivedStage = getDerivedStage();
+    const workflowComplete = Boolean(permit?.post_inspection_signature || permit?.status === '作业已完成' || permit?.status === '已完工');
     const stages = ['票证申请', '票证审批', '安全交底', '核验票证', '完成作业'];
 
     return (
@@ -618,8 +567,8 @@ export default function Detail() {
                                 <div className="space-y-3">
                                     {stages.map((label, idx) => {
                                         const step = idx + 1;
-                                        const isDone = step < derivedStage;
-                                        const isCurrent = step === derivedStage;
+                                        const isDone = workflowComplete ? step <= derivedStage : step < derivedStage;
+                                        const isCurrent = !workflowComplete && step === derivedStage;
                                         
                                         const circleClass = isDone
                                             ? 'bg-gradient-to-br from-green-500 to-green-600 text-white border-green-600 shadow-md'
@@ -914,37 +863,9 @@ export default function Detail() {
                             </div>
                         </div>
 
-                        {/* Actions */}
-                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                        {/* 作业人员操作 */}
+                        {user?.role === 'worker' && user?.id === permit.applicant_id && (permit.status === '已批准' || permit.status === '作业进行中' || permit.status === '作业中') && <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                             <h3 className="text-sm font-medium text-gray-500 mb-4">操作</h3>
-                            
-                            {/* 安全员审批按钮 - 仅安全员且状态为待审批时显示 */}
-                            {user?.role === 'safety' && permit.status === '待审批' && (
-                                <>
-                                    {!permit.approver_sign && (
-                                        <p className="text-xs text-orange-600 bg-orange-50 px-3 py-2 rounded mb-3">
-                                            <i className="fas fa-info-circle mr-1"></i>
-                                            请先在下方完成审批人签字后再点击批准
-                                        </p>
-                                    )}
-                                    <button
-                                        onClick={handleApprove}
-                                        disabled={approving || !permit.approver_sign}
-                                        className="w-full py-3 px-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors mb-3 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-                                    >
-                                        <i className="fas fa-check mr-2"></i>
-                                        {approving ? '处理中...' : '批准'}
-                                    </button>
-                                    <button
-                                        onClick={handleReject}
-                                        disabled={approving}
-                                        className="w-full py-3 px-4 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-                                    >
-                                        <i className="fas fa-times mr-2"></i>
-                                        {approving ? '处理中...' : '驳回'}
-                                    </button>
-                                </>
-                            )}
                             
                             {/* 作业人员开始作业按钮 - 仅作业人员本人且状态为已批准时显示 */}
                             {user?.role === 'worker' && user?.id === permit.applicant_id && permit.status === '已批准' && (
@@ -992,16 +913,7 @@ export default function Detail() {
                                 </>
                             )}
                             
-                            {/* 无可操作时显示提示 */}
-                            {!((user?.role === 'safety' && permit.status === '待审批') ||
-                               (user?.role === 'worker' && user?.id === permit.applicant_id && permit.status === '已批准') ||
-                               (user?.role === 'worker' && user?.id === permit.applicant_id && (permit.status === '作业进行中' || permit.status === '作业中'))) && (
-                                <div className="text-center py-4 text-gray-400 text-sm">
-                                    <i className="fas fa-info-circle mb-2"></i>
-                                    <p>当前状态无可执行操作</p>
-                                </div>
-                            )}
-                        </div>
+                        </div>}
                     </div>
                 </div>
             </main>

@@ -96,41 +96,38 @@ export default function InspectionModule({ data, onChange, readOnly, currentUser
 
     const { allComplete: canSignPostInspection } = checkAllPreviousSignaturesComplete();
 
-    const handleSave = async () => {
-        if (!onSave) return;
-        if (requireStrictSignAndPhotos) {
-            if (!data?.pre_inspection_signature_image) {
-                window.alert('请先完成作业前验票签字后再保存。');
-                return;
-            }
-            if (data?.post_inspection_result && !data?.post_inspection_signature_image) {
-                window.alert('请在完成作业后验收签字后再保存验收结果。');
-                return;
-            }
-        }
-        await onSave(
-            {
-                pre_inspection_person: data?.pre_inspection_signature || data?.pre_inspection_person || '',
-                pre_inspection_time: data?.pre_inspection_time || '',
-                pre_inspection_notes: data?.pre_inspection_notes || '',
-                pre_inspection_signature: data?.pre_inspection_signature || '',
-                pre_inspection_signature_image: data?.pre_inspection_signature_image || '',
-                entry_exit_records: data?.entry_exit_records || [],
-                post_inspection_person: data?.post_inspection_signature || data?.post_inspection_person || '',
-                post_inspection_time: data?.post_inspection_time || '',
-                post_inspection_result: data?.post_inspection_result || '',
-                post_inspection_notes: data?.post_inspection_notes || '',
-                post_inspection_signature: data?.post_inspection_signature || '',
-                post_inspection_signature_image: data?.post_inspection_signature_image || ''
-            },
-            '验票及验收已保存'
-        );
+    const inspectionPayload = (overrides = {}) => ({
+        pre_inspection_person: data?.pre_inspection_signature || data?.pre_inspection_person || '',
+        pre_inspection_time: data?.pre_inspection_time || '',
+        pre_inspection_notes: data?.pre_inspection_notes || '',
+        pre_inspection_signature: data?.pre_inspection_signature || '',
+        pre_inspection_signature_image: data?.pre_inspection_signature_image || '',
+        entry_exit_records: data?.entry_exit_records || [],
+        post_inspection_person: data?.post_inspection_signature || data?.post_inspection_person || '',
+        post_inspection_time: data?.post_inspection_time || '',
+        post_inspection_result: data?.post_inspection_result || '',
+        post_inspection_notes: data?.post_inspection_notes || '',
+        post_inspection_signature: data?.post_inspection_signature || '',
+        post_inspection_signature_image: data?.post_inspection_signature_image || '',
+        ...overrides
+    });
+
+    const commitPreSignature = async (signature) => {
+        const signer = signature ? getCurrentUserName() : '';
+        const signTime = signature ? (data?.pre_inspection_time || getNowDateTimeLocal()) : '';
+        await onSave?.(inspectionPayload({ pre_inspection_person: signer, pre_inspection_time: signTime, pre_inspection_signature: signer, pre_inspection_signature_image: signature || '' }), null);
+    };
+
+    const commitPostSignature = async (signature) => {
+        const signer = signature ? getCurrentUserName() : '';
+        const signTime = signature ? (data?.post_inspection_time || getNowDateTimeLocal()) : '';
+        await onSave?.(inspectionPayload({ post_inspection_person: signer, post_inspection_time: signTime, post_inspection_signature: signer, post_inspection_signature_image: signature || '' }), null);
     };
 
     return (
         <div className="space-y-6">
             {/* 模块标题 */}
-            <div className="flex items-center justify-between pb-4 border-b border-gray-200">
+            <div className="pb-4 border-b border-gray-200">
                 <div>
                     <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
                         <i className="fas fa-clipboard-check text-teal-600"></i>
@@ -138,17 +135,6 @@ export default function InspectionModule({ data, onChange, readOnly, currentUser
                     </h2>
                     <p className="text-sm text-gray-500 mt-1">权限：班长（当前按安全员账号可编辑）</p>
                 </div>
-                {canEdit && (
-                    <button
-                        type="button"
-                        onClick={handleSave}
-                        disabled={saving}
-                        className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                    >
-                        <i className="fas fa-save mr-2"></i>
-                        {saving ? '保存中...' : '保存'}
-                    </button>
-                )}
             </div>
 
             {/* 作业前验票 */}
@@ -220,6 +206,7 @@ export default function InspectionModule({ data, onChange, readOnly, currentUser
                                 <SignaturePad
                                     value={data?.pre_inspection_signature_image || ''}
                                     onChange={handlePreSignatureChange}
+                                    onCommit={commitPreSignature}
                                     disabled={!canEdit}
                                     className="h-20"
                                 />
@@ -235,6 +222,7 @@ export default function InspectionModule({ data, onChange, readOnly, currentUser
                                 />
                             </div>
                         </div>
+                        <p className="mt-3 text-xs text-blue-600"><i className="fas fa-info-circle mr-1"></i>完成签字即代表确认作业前验票内容，系统将自动保存，无需另行点击保存。</p>
                     </div>
                 </div>
             </div>
@@ -351,6 +339,7 @@ export default function InspectionModule({ data, onChange, readOnly, currentUser
                                 <SignaturePad
                                     value={data?.post_inspection_signature_image || ''}
                                     onChange={handlePostSignatureChange}
+                                    onCommit={commitPostSignature}
                                     disabled={!canEdit || !canSignPostInspection}
                                     className="h-20"
                                 />
@@ -366,6 +355,7 @@ export default function InspectionModule({ data, onChange, readOnly, currentUser
                                 />
                             </div>
                         </div>
+                        <p className="mt-3 text-xs text-blue-600"><i className="fas fa-info-circle mr-1"></i>完成签字即代表确认作业后验收内容，系统将自动保存，无需另行点击保存。</p>
                     </div>
                 </div>
             </div>

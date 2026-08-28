@@ -1,7 +1,8 @@
 import React, { useRef, useEffect, useState } from 'react';
 
-const SignaturePad = ({ value, onChange, disabled = false, className = "" }) => {
+const SignaturePad = ({ value, onChange, onCommit, disabled = false, className = "" }) => {
     const canvasRef = useRef(null);
+    const commitTimerRef = useRef(null);
     const [isDrawing, setIsDrawing] = useState(false);
 
     const setupCanvas = () => {
@@ -44,6 +45,12 @@ const SignaturePad = ({ value, onChange, disabled = false, className = "" }) => 
             img.src = value;
         }
     }, [value]);
+
+    const scheduleCommit = (signature) => {
+        if (!onCommit) return;
+        clearTimeout(commitTimerRef.current);
+        commitTimerRef.current = setTimeout(() => onCommit(signature), 700);
+    };
 
     // We might need to resize canvas on window resize, but keeping it simple for now.
 
@@ -91,7 +98,9 @@ const SignaturePad = ({ value, onChange, disabled = false, className = "" }) => 
         if (canvas && onChange) {
             // 使用较低质量的 PNG 以减少数据大小
             // 签名一般是黑白线条，PNG 压缩效果好
-            onChange(canvas.toDataURL('image/png', 0.8));
+            const signature = canvas.toDataURL('image/png', 0.8);
+            onChange(signature);
+            scheduleCommit(signature);
         }
     };
 
@@ -107,6 +116,7 @@ const SignaturePad = ({ value, onChange, disabled = false, className = "" }) => 
         ctx.clearRect(0, 0, rect.width, rect.height); // Clear scaled rect
         
         if (onChange) onChange('');
+        scheduleCommit('');
     };
 
     return (

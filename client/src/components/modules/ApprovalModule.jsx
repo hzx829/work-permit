@@ -5,7 +5,10 @@
 import SignaturePad from '../SignaturePad';
 
 export default function ApprovalModule({ data, onChange, readOnly, currentUser, onSave, saving, requireStrictSignAndPhotos = false }) {
-    const canEdit = !readOnly && currentUser?.role === 'safety' && data?.status === '待审批';
+    const canEdit = !readOnly && currentUser?.role === 'safety' && (
+        data?.status === '待审批' ||
+        (data?.status === '已批准' && data?.approver_sign && !data?.safety_briefing_sign)
+    );
 
     const getCurrentUserName = () => {
         if (!currentUser) return '当前用户';
@@ -46,27 +49,25 @@ export default function ApprovalModule({ data, onChange, readOnly, currentUser, 
         if (!data?.approver_opinion) onChange('approver_opinion', '同意作业');
     };
 
-    const handleSave = async () => {
-        if (!onSave) return;
-        if (requireStrictSignAndPhotos && !data?.approver_signature) {
-            window.alert('请先完成审批人签字后再保存票证审批信息。');
-            return;
-        }
+    const commitApproverSignature = async (signature) => {
+        const signName = signature ? getCurrentUserName() : '';
+        const signTime = signature ? (data?.approver_sign_time || getNowDateTimeLocal()) : '';
+        const opinion = signature ? (data?.approver_opinion || '同意作业') : (data?.approver_opinion || '');
         await onSave(
             {
-                approver_sign: data?.approver_sign || '',
-                approver_signature: data?.approver_signature || '',
-                approver_opinion: data?.approver_opinion || '',
-                approver_sign_time: data?.approver_sign_time || ''
+                approver_sign: signName,
+                approver_signature: signature || '',
+                approver_opinion: opinion,
+                approver_sign_time: signTime
             },
-            '票证审批信息已保存'
+            null
         );
     };
 
     return (
         <div className="space-y-6">
             {/* 模块标题 */}
-            <div className="flex items-center justify-between pb-4 border-b border-gray-200">
+            <div className="pb-4 border-b border-gray-200">
                 <div>
                     <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
                         <i className="fas fa-stamp text-purple-600"></i>
@@ -74,17 +75,6 @@ export default function ApprovalModule({ data, onChange, readOnly, currentUser, 
                     </h2>
                     <p className="text-sm text-gray-500 mt-1">权限：审批人（当前按安全员账号可审批）</p>
                 </div>
-                {canEdit && (
-                    <button
-                        type="button"
-                        onClick={handleSave}
-                        disabled={saving}
-                        className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                    >
-                        <i className="fas fa-save mr-2"></i>
-                        {saving ? '保存中...' : '保存'}
-                    </button>
-                )}
             </div>
 
             {/* 审批意见输入 */}
@@ -120,6 +110,7 @@ export default function ApprovalModule({ data, onChange, readOnly, currentUser, 
                         <SignaturePad
                             value={data?.approver_signature || ''}
                             onChange={handleApproverSignatureChange}
+                            onCommit={commitApproverSignature}
                             disabled={!canEdit}
                             className="h-20"
                         />
@@ -135,6 +126,7 @@ export default function ApprovalModule({ data, onChange, readOnly, currentUser, 
                         />
                     </div>
                 </div>
+                <p className="mt-3 text-xs text-blue-600"><i className="fas fa-info-circle mr-1"></i>完成签字即代表确认审批意见，系统将自动保存并提交审批，无需另行点击保存。</p>
             </div>
 
             {/* 审批状态提示 */}
@@ -170,29 +162,6 @@ export default function ApprovalModule({ data, onChange, readOnly, currentUser, 
                 </div>
             )}
 
-            {/* 快捷操作提示 */}
-            {canEdit && !data?.approver_sign && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <h4 className="font-medium text-blue-800 mb-2 flex items-center gap-2">
-                        <i className="fas fa-lightbulb"></i>
-                        操作提示
-                    </h4>
-                    <ul className="text-sm text-blue-700 space-y-1">
-                        <li className="flex items-start gap-2">
-                            <i className="fas fa-caret-right mt-1"></i>
-                            <span>填写审批意见（可使用默认意见"同意作业"）</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                            <i className="fas fa-caret-right mt-1"></i>
-                            <span>在签名板完成手写签名</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                            <i className="fas fa-caret-right mt-1"></i>
-                            <span>完成后点击右侧"批准"按钮提交审批</span>
-                        </li>
-                    </ul>
-                </div>
-            )}
         </div>
     );
 }

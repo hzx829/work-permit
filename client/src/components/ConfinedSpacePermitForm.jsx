@@ -429,7 +429,7 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                     </FormField>
                     <div className="md:col-span-2 rounded-lg border border-blue-100 bg-blue-50/50 p-4">
                         <div className="flex flex-wrap items-center justify-between gap-3">
-                            <div><div className="font-semibold text-blue-800"><i className="fas fa-file-alt mr-2" />JSA 分析</div><p className="mt-1 text-xs text-blue-600">支持图片、Word、PDF；当前为演示附件，刷新页面后会重置。</p></div>
+                            <div className="font-semibold text-blue-800"><i className="fas fa-file-alt mr-2" />JSA 分析</div>
                             {!readOnly && <label className="cursor-pointer rounded bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"><i className="fas fa-upload mr-1" />上传文件<input type="file" className="hidden" multiple accept="image/*,.doc,.docx,.pdf" onChange={handleJsaFileChange} /></label>}
                         </div>
                         {(data.jsa_files || []).length > 0 && <div className="mt-3 space-y-2">{data.jsa_files.map((file, index) => <div key={`${file.name}-${index}`} className="flex items-center justify-between rounded border border-blue-100 bg-white px-3 py-2 text-sm text-gray-700"><span className="truncate"><i className="fas fa-paperclip mr-2 text-blue-500" />{file.name}</span>{!readOnly && <button type="button" onClick={() => onChange('jsa_files', data.jsa_files.filter((_, fileIndex) => fileIndex !== index))} className="ml-3 text-red-500 hover:text-red-700"><i className="fas fa-times" /></button>}</div>)}</div>}
