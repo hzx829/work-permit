@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import EmergencyInteraction from '../components/EmergencyInteraction';
 
 const FLOW_STEPS = ['应急响应启动', '信息报告与先期处置', '现场警戒', '救援防护', '伤员救治', '应急指挥', '善后处置', '应急终止', '总结评估'];
 const INITIAL_METRICS = [
@@ -47,7 +48,7 @@ export default function Emergency() {
 
                     <div className="grid min-h-[620px] grid-rows-[1.12fr_.88fr] gap-4">
                         <TechFrame title="现场实时画面" icon="fa-video"><Placeholder icon="fa-video" title="视频接入预留区域" text="现场视频 / 无人机视频将在后续设备接入后显示" /></TechFrame>
-                        <TechFrame title="智能交互对话" icon="fa-comments"><Placeholder icon="fa-robot" title="智能交互预留区域" text="后续可接入应急预案问答与处置建议" /></TechFrame>
+                        <TechFrame title="智能交互对话 · 固定规则引导" icon="fa-comments"><EmergencyInteraction onStepChange={setActiveStep} /></TechFrame>
                     </div>
 
                     <TechFrame title="气体检测仪" icon="fa-wave-square"><div className="space-y-3 overflow-auto pr-1">{metrics.map((metric) => {
