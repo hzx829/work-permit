@@ -32,21 +32,21 @@ export default function Emergency() {
     }, []);
 
     return (
-        <div className="min-h-full overflow-auto bg-[#020817] p-4 text-cyan-50 selection:bg-cyan-500/50">
-            <div className="mx-auto flex min-h-[calc(100vh-7rem)] max-w-[1700px] flex-col bg-[radial-gradient(circle_at_50%_0%,rgba(14,165,233,.18),transparent_38%),linear-gradient(115deg,#020817,#061b3b)] p-4 shadow-[0_0_70px_rgba(14,165,233,.15)]">
-                <header className="relative mb-4 flex min-h-16 items-center justify-between overflow-hidden border-y border-cyan-400/35 px-5">
+        <div className="h-full min-h-0 overflow-auto bg-[#020817] p-4 text-cyan-50 selection:bg-cyan-500/50 xl:overflow-hidden">
+            <div className="mx-auto flex min-h-full max-w-[1700px] flex-col bg-[radial-gradient(circle_at_50%_0%,rgba(14,165,233,.18),transparent_38%),linear-gradient(115deg,#020817,#061b3b)] p-4 shadow-[0_0_70px_rgba(14,165,233,.15)] xl:h-full xl:min-h-0">
+                <header className="relative mb-4 flex min-h-16 shrink-0 items-center justify-between overflow-hidden border-y border-cyan-400/35 px-5">
                     <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent,rgba(14,165,233,.1),transparent)]" />
                     <div className="relative"><p className="text-xs tracking-[.35em] text-cyan-300/70">EMERGENCY COMMAND CENTER</p><h1 className="mt-1 text-2xl font-black tracking-[.16em] text-white md:text-3xl">应急处置管理</h1></div>
                     <div className="relative flex items-center gap-4 text-right"><div className="hidden text-xs text-cyan-200/80 md:block">{now.toLocaleString('zh-CN', { hour12: false })}</div><button onClick={() => navigate('/')} className="rounded border border-cyan-400/60 bg-cyan-500/10 px-3 py-2 text-sm font-medium text-cyan-100 transition hover:bg-cyan-400/20">返回驾驶舱 <i className="fas fa-arrow-right ml-1" /></button></div>
                 </header>
 
-                <main className="grid flex-1 grid-cols-1 gap-4 xl:grid-cols-[1fr_1.8fr_1fr]">
+                <main className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-auto xl:grid-cols-[1fr_1.8fr_1fr] xl:grid-rows-[minmax(0,1fr)] xl:overflow-hidden">
                     <TechFrame title="应急处置流程" icon="fa-sitemap"><div className="space-y-2 overflow-auto pr-1">{FLOW_STEPS.map((step, index) => {
                         const active = activeStep === index;
                         return <button key={step} type="button" onClick={() => setActiveStep(index)} className={`group flex w-full items-center gap-3 border px-3 py-2.5 text-left transition ${active ? 'border-cyan-300 bg-cyan-400/20 text-white shadow-[0_0_18px_rgba(34,211,238,.35)]' : 'border-blue-500/30 bg-blue-950/30 text-cyan-100/80 hover:border-cyan-400/70 hover:bg-cyan-500/10'}`}><span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${active ? 'bg-cyan-300 text-slate-950' : 'bg-blue-900 text-cyan-300'}`}>{index + 1}</span><span className="text-sm font-medium">{step}</span>{active && <i className="fas fa-chevron-right ml-auto text-xs text-cyan-300" />}</button>;
                     })}</div></TechFrame>
 
-                    <div className="grid min-h-[620px] grid-rows-[1.12fr_.88fr] gap-4">
+                    <div className="grid min-h-[620px] min-w-0 grid-rows-[1.12fr_.88fr] gap-4 xl:min-h-0 xl:grid-rows-[minmax(0,1.12fr)_minmax(0,.88fr)]">
                         <TechFrame title="现场实时画面" icon="fa-video"><Placeholder icon="fa-video" title="视频接入预留区域" text="现场视频 / 无人机视频将在后续设备接入后显示" /></TechFrame>
                         <TechFrame title="智能交互对话 · 固定规则引导" icon="fa-comments"><EmergencyInteraction onStepChange={setActiveStep} /></TechFrame>
                     </div>

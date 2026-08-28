@@ -18,8 +18,10 @@ export default function EmergencyInteraction({ onStepChange }) {
     const [broadcastText, setBroadcastText] = useState(DEFAULT_BROADCAST);
     const [endFileName, setEndFileName] = useState('');
     const [reviewFileName, setReviewFileName] = useState('');
+    const [isThinking, setIsThinking] = useState(false);
     const messageIdRef = useRef(1);
     const scrollRef = useRef(null);
+    const pendingTimerRef = useRef(null);
 
     const speechSupported = typeof window !== 'undefined' && 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
 
@@ -36,6 +38,7 @@ export default function EmergencyInteraction({ onStepChange }) {
     useEffect(() => {
         speak(INITIAL_PROMPT);
         return () => {
+            if (pendingTimerRef.current) window.clearTimeout(pendingTimerRef.current);
             if (speechSupported) window.speechSynthesis.cancel();
         };
     }, [speak, speechSupported]);
@@ -43,7 +46,7 @@ export default function EmergencyInteraction({ onStepChange }) {
     useEffect(() => {
         const container = scrollRef.current;
         if (container) container.scrollTop = container.scrollHeight;
-    }, [messages, editingBroadcast]);
+    }, [messages, editingBroadcast, isThinking]);
 
     const appendMessage = useCallback((role, text) => {
         const messageId = messageIdRef.current + 1;
@@ -54,9 +57,15 @@ export default function EmergencyInteraction({ onStepChange }) {
 
     const ask = useCallback((userText, assistantText, nextStage, stepIndex) => {
         appendMessage('user', userText);
-        appendMessage('assistant', assistantText);
-        setStage(nextStage);
-        if (typeof stepIndex === 'number') onStepChange?.(stepIndex);
+        setIsThinking(true);
+        const responseDelay = 1000 + Math.floor(Math.random() * 1001);
+        pendingTimerRef.current = window.setTimeout(() => {
+            appendMessage('assistant', assistantText);
+            setStage(nextStage);
+            if (typeof stepIndex === 'number') onStepChange?.(stepIndex);
+            setIsThinking(false);
+            pendingTimerRef.current = null;
+        }, responseDelay);
     }, [appendMessage, onStepChange]);
 
     const choosePlan = (plan) => {
@@ -153,6 +162,10 @@ export default function EmergencyInteraction({ onStepChange }) {
     };
 
     const reset = () => {
+        if (pendingTimerRef.current) {
+            window.clearTimeout(pendingTimerRef.current);
+            pendingTimerRef.current = null;
+        }
         if (speechSupported) window.speechSynthesis.cancel();
         messageIdRef.current = 1;
         setMessages([{ id: 1, role: 'assistant', text: INITIAL_PROMPT }]);
@@ -163,6 +176,7 @@ export default function EmergencyInteraction({ onStepChange }) {
         setBroadcastText(DEFAULT_BROADCAST);
         setEndFileName('');
         setReviewFileName('');
+        setIsThinking(false);
         onStepChange?.(0);
         speak(INITIAL_PROMPT);
     };
@@ -205,12 +219,21 @@ export default function EmergencyInteraction({ onStepChange }) {
                         </div>
                     </div>
                 ))}
+                {isThinking && (
+                    <div className="flex gap-2 justify-start" aria-label="正在生成回复">
+                        <span className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-cyan-300/40 bg-cyan-400/10 text-xs text-cyan-200"><i className="fas fa-robot" /></span>
+                        <div className="flex items-center gap-1 border border-cyan-400/30 bg-slate-950/50 px-4 py-3">
+                            {[0, 1, 2].map((dot) => <span key={dot} className="h-1.5 w-1.5 animate-bounce rounded-full bg-cyan-300" style={{ animationDelay: `${dot * 140}ms` }} />)}
+                        </div>
+                    </div>
+                )}
             </div>
 
             <div className="mt-2 shrink-0 border-t border-cyan-400/20 pt-2">
-                {stage === 'plan' && <ChoiceGrid options={Object.keys(PLAN_LEVELS)} onSelect={choosePlan} />}
-                {stage === 'report' && <ChoiceGrid options={['已完成上报并拨打120', '暂未完成']} onSelect={(value) => confirmReport(value.startsWith('已完成'))} />}
-                {stage === 'fence' && !editingBroadcast && (
+                {isThinking && <div className="flex items-center justify-center gap-2 border border-cyan-400/20 bg-cyan-500/5 px-3 py-2 text-xs text-cyan-200"><i className="fas fa-circle-notch animate-spin" />正在生成处置指令...</div>}
+                {!isThinking && stage === 'plan' && <ChoiceGrid options={Object.keys(PLAN_LEVELS)} onSelect={choosePlan} />}
+                {!isThinking && stage === 'report' && <ChoiceGrid options={['已完成上报并拨打120', '暂未完成']} onSelect={(value) => confirmReport(value.startsWith('已完成'))} />}
+                {!isThinking && stage === 'fence' && !editingBroadcast && (
                     <ChoiceGrid
                         options={['设置10米电子围栏并播报', '修改播报内容', '暂不设置电子围栏']}
                         onSelect={(value) => {
@@ -223,20 +246,20 @@ export default function EmergencyInteraction({ onStepChange }) {
                         }}
                     />
                 )}
-                {stage === 'fence' && editingBroadcast && (
+                {!isThinking && stage === 'fence' && editingBroadcast && (
                     <div className="flex gap-2">
                         <input value={broadcastText} onChange={(event) => setBroadcastText(event.target.value)} className="min-w-0 flex-1 border border-cyan-400/40 bg-slate-950/70 px-2 py-2 text-xs text-white outline-none focus:border-cyan-300" aria-label="修改广播内容" />
                         <button type="button" onClick={submitCustomBroadcast} className="border border-cyan-300/60 bg-cyan-400/15 px-3 text-xs font-semibold text-cyan-50">确认播报</button>
                         <button type="button" onClick={() => setEditingBroadcast(false)} className="border border-slate-500/40 px-2 text-xs text-slate-300">取消</button>
                     </div>
                 )}
-                {stage === 'rescue-q1' && <YesNoButtons onSelect={(answer) => answerRescueQuestion(1, answer)} />}
-                {stage === 'rescue-q2' && <YesNoButtons onSelect={(answer) => answerRescueQuestion(2, answer)} />}
-                {stage === 'rescue-q3' && <YesNoButtons onSelect={(answer) => answerRescueQuestion(3, answer)} />}
-                {stage === 'control' && <ChoiceGrid options={['处置完成，事态已控制', '处置未完成或事态仍在扩大']} onSelect={(value) => handleControl(value.startsWith('处置完成'))} />}
-                {stage === 'escalate-special' && <ChoiceGrid options={['确认启动受限空间专项应急预案']} onSelect={() => escalate('special')} />}
-                {stage === 'escalate-comprehensive' && <ChoiceGrid options={['确认启动综合应急预案']} onSelect={() => escalate('comprehensive')} />}
-                {stage === 'recovery' && (
+                {!isThinking && stage === 'rescue-q1' && <YesNoButtons onSelect={(answer) => answerRescueQuestion(1, answer)} />}
+                {!isThinking && stage === 'rescue-q2' && <YesNoButtons onSelect={(answer) => answerRescueQuestion(2, answer)} />}
+                {!isThinking && stage === 'rescue-q3' && <YesNoButtons onSelect={(answer) => answerRescueQuestion(3, answer)} />}
+                {!isThinking && stage === 'control' && <ChoiceGrid options={['处置完成，事态已控制', '处置未完成或事态仍在扩大']} onSelect={(value) => handleControl(value.startsWith('处置完成'))} />}
+                {!isThinking && stage === 'escalate-special' && <ChoiceGrid options={['确认启动受限空间专项应急预案']} onSelect={() => escalate('special')} />}
+                {!isThinking && stage === 'escalate-comprehensive' && <ChoiceGrid options={['确认启动综合应急预案']} onSelect={() => escalate('comprehensive')} />}
+                {!isThinking && stage === 'recovery' && (
                     <ChoiceGrid
                         options={['恢复措施已完成', '恢复措施尚未完成']}
                         onSelect={(value) => {
@@ -245,7 +268,7 @@ export default function EmergencyInteraction({ onStepChange }) {
                         }}
                     />
                 )}
-                {stage === 'end' && (
+                {!isThinking && stage === 'end' && (
                     <div className="grid grid-cols-2 gap-2">
                         <label className="cursor-pointer border border-dashed border-cyan-400/50 bg-cyan-400/10 px-3 py-2 text-center text-xs text-cyan-50 hover:bg-cyan-400/15">
                             <i className="fas fa-upload mr-1" />{endFileName || '选择解除通知文件'}
@@ -254,7 +277,7 @@ export default function EmergencyInteraction({ onStepChange }) {
                         <button type="button" disabled={!endFileName} onClick={() => ask('确认应急结束', '应急状态已经解除，进入总结评审。请上传总结评审报告，完成本次应急处置闭环。', 'review', 8)} className="border border-cyan-300/50 bg-cyan-400/15 px-3 py-2 text-xs font-semibold text-cyan-50 disabled:cursor-not-allowed disabled:opacity-40">确认应急结束</button>
                     </div>
                 )}
-                {stage === 'review' && (
+                {!isThinking && stage === 'review' && (
                     <div className="grid grid-cols-2 gap-2">
                         <label className="cursor-pointer border border-dashed border-cyan-400/50 bg-cyan-400/10 px-3 py-2 text-center text-xs text-cyan-50 hover:bg-cyan-400/15">
                             <i className="fas fa-upload mr-1" />{reviewFileName || '选择总结评审报告'}
@@ -263,7 +286,7 @@ export default function EmergencyInteraction({ onStepChange }) {
                         <button type="button" disabled={!reviewFileName} onClick={() => ask('完成总结评审', '本次应急处置流程已完成，所有问答、处置结果和上传资料已进入历史记录。', 'complete', 8)} className="border border-emerald-300/50 bg-emerald-400/15 px-3 py-2 text-xs font-semibold text-emerald-50 disabled:cursor-not-allowed disabled:opacity-40">完成总结评审</button>
                     </div>
                 )}
-                {stage === 'complete' && (
+                {!isThinking && stage === 'complete' && (
                     <div className="flex items-center justify-between border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100">
                         <span><i className="fas fa-check-circle mr-2" />应急处置闭环已完成{rescueMode ? ` · ${rescueMode}` : ''}</span>
                         <button type="button" onClick={reset} className="border border-emerald-300/40 px-3 py-1 hover:bg-emerald-300/10">重新演示</button>
