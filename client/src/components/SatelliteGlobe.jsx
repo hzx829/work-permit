@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Globe from 'react-globe.gl';
 
-const LUZHOU_VIEW = { lat: 28.87, lng: 105.44, altitude: 0.62 };
+const LUZHOU_VIEW = { lat: 28.87, lng: 105.44, altitude: 0.28 };
 const LUZHOU_MARKER = { name: '泸州市', lat: 28.87, lng: 105.44, color: '#ff3048' };
 
 const CHINA_PROVINCES = [
@@ -29,15 +29,14 @@ const SICHUAN_CITIES = [
     lat,
     lng,
     level: 'city-name',
-    color: name === '泸州市' ? '#ff4058' : '#d5f5ff',
-    selected: name === '泸州市',
+    color: '#d5f5ff',
 }));
 
 const LUZHOU_LABEL = { level: 'city-focus', name: '泸州市', lat: 28.87, lng: 105.44, color: '#ff4058', selected: true };
 
 function levelFromAltitude(altitude) {
-    if (altitude <= 0.8) return 'city';
-    if (altitude <= 1.6) return 'province';
+    if (altitude <= 0.3) return 'city';
+    if (altitude <= 0.7) return 'province';
     return 'country';
 }
 
@@ -48,7 +47,7 @@ function createMapLabel(location, onEnter, onLeave, onSelect) {
     root.style.cursor = interactive ? 'pointer' : 'default';
 
     const content = document.createElement('div');
-    content.style.cssText = `display:flex;align-items:center;gap:7px;white-space:nowrap;padding:${location.active ? '3px 7px' : '2px 4px'};border-radius:5px;background:${location.active ? 'rgba(3,105,161,.82)' : 'rgba(2,12,27,.2)'};border:1px solid ${location.active ? 'rgba(103,232,249,.9)' : 'transparent'};filter:drop-shadow(0 1px 5px rgba(0,0,0,.95));transition:background .15s,border-color .15s;`;
+    content.style.cssText = 'display:flex;align-items:center;gap:7px;white-space:nowrap;padding:2px 4px;border-radius:5px;background:rgba(2,12,27,.2);filter:drop-shadow(0 1px 5px rgba(0,0,0,.95));';
 
     if (location.level === 'city-focus') {
         const marker = document.createElement('span');
@@ -62,7 +61,7 @@ function createMapLabel(location, onEnter, onLeave, onSelect) {
     const text = document.createElement('span');
     text.textContent = location.name;
     const fontSize = location.level === 'city-focus' ? 16 : location.level === 'province-name' ? 11 : 10;
-    text.style.cssText = `font-family:"Microsoft YaHei","PingFang SC",sans-serif;font-size:${fontSize}px;font-weight:${location.active || location.selected || location.highlighted ? 800 : 600};letter-spacing:.04em;color:${location.active ? '#fff' : location.color};text-shadow:0 1px 4px #000,0 0 7px rgba(0,0,0,.95);`;
+    text.style.cssText = `font-family:"Microsoft YaHei","PingFang SC",sans-serif;font-size:${fontSize}px;font-weight:${location.selected || location.highlighted ? 800 : 600};letter-spacing:.04em;color:${location.color};text-shadow:0 1px 4px #000,0 0 7px rgba(0,0,0,.95);`;
 
     content.appendChild(text);
     root.appendChild(content);
@@ -85,32 +84,20 @@ function getCityName(feature) {
     return feature?.properties?.name || '';
 }
 
-function signedRingArea(ring) {
-    return ring.reduce((area, point, index) => {
-        const nextPoint = ring[(index + 1) % ring.length];
-        return area + (point[0] * nextPoint[1] - nextPoint[0] * point[1]);
-    }, 0);
-}
+function featureToBoundaryPaths(feature) {
+    const { geometry } = feature || {};
+    if (!geometry) return [];
 
-function rewindPolygon(polygon) {
-    return polygon.map((ring, index) => {
-        const isCounterClockwise = signedRingArea(ring) > 0;
-        const shouldBeCounterClockwise = index === 0;
-        return isCounterClockwise === shouldBeCounterClockwise ? ring : [...ring].reverse();
-    });
-}
-
-function normalizeFeatureWinding(feature) {
-    const { geometry } = feature;
-    if (!geometry) return feature;
-
-    const coordinates = geometry.type === 'Polygon'
-        ? rewindPolygon(geometry.coordinates)
+    const polygons = geometry.type === 'Polygon'
+        ? [geometry.coordinates]
         : geometry.type === 'MultiPolygon'
-            ? geometry.coordinates.map(rewindPolygon)
-            : geometry.coordinates;
+            ? geometry.coordinates
+            : [];
 
-    return { ...feature, geometry: { ...geometry, coordinates } };
+    return polygons.flatMap((polygon) => polygon.map((ring) => ({
+        cityName: getCityName(feature),
+        points: ring.map(([lng, lat]) => ({ lat, lng, altitude: 0.012 })),
+    })));
 }
 
 export default function SatelliteGlobe() {
@@ -131,7 +118,7 @@ export default function SatelliteGlobe() {
                 return response.json();
             })
             .then((data) => {
-                if (!cancelled) setCityPolygons((data.features || []).map(normalizeFeatureWinding));
+                if (!cancelled) setCityPolygons(data.features || []);
             })
             .catch((error) => console.error(error));
 
@@ -162,20 +149,24 @@ export default function SatelliteGlobe() {
         const globe = globeRef.current;
         if (!globe) return;
 
-        globe.pointOfView(LUZHOU_VIEW, 1100);
+        globe.pointOfView(LUZHOU_VIEW, 900);
         const controls = globe.controls();
         controls.enablePan = false;
         controls.enableDamping = true;
         controls.dampingFactor = 0.08;
         controls.rotateSpeed = 0.5;
         controls.zoomSpeed = 0.8;
-        controls.minDistance = 128;
+        controls.minDistance = 110;
         controls.maxDistance = 650;
         controls.autoRotate = false;
     }, []);
 
     const handleZoom = useCallback(({ altitude }) => {
         const nextLevel = levelFromAltitude(altitude);
+        if (nextLevel !== 'province') {
+            setHoveredCity(null);
+            setSelectedCity(null);
+        }
         setGeoLevel((currentLevel) => currentLevel === nextLevel ? currentLevel : nextLevel);
     }, []);
 
@@ -183,16 +174,18 @@ export default function SatelliteGlobe() {
     const visibleLabels = geoLevel === 'country'
         ? CHINA_PROVINCES
         : geoLevel === 'province'
-            ? SICHUAN_CITIES.map((city) => ({ ...city, active: city.geoName === activeCity }))
+            ? SICHUAN_CITIES
             : [LUZHOU_LABEL];
-    const visiblePolygons = geoLevel === 'country'
-        ? []
-        : geoLevel === 'province'
-            ? cityPolygons
-            : cityPolygons.filter((feature) => getCityName(feature) === '泸州市');
+    const visibleBoundaryPaths = geoLevel === 'province' && activeCity
+        ? cityPolygons
+            .filter((feature) => getCityName(feature) === activeCity)
+            .flatMap(featureToBoundaryPaths)
+        : [];
 
     const handleCityLeave = useCallback(() => setHoveredCity(null), []);
-    const handleCitySelect = useCallback((cityName) => setSelectedCity(cityName), []);
+    const handleCitySelect = useCallback((cityName) => {
+        setSelectedCity((currentCity) => currentCity === cityName ? null : cityName);
+    }, []);
     const renderMapLabel = useCallback(
         (location) => createMapLabel(location, setHoveredCity, handleCityLeave, handleCitySelect),
         [handleCityLeave, handleCitySelect],
@@ -201,6 +194,10 @@ export default function SatelliteGlobe() {
     return (
         <div
             ref={containerRef}
+            data-testid="satellite-globe"
+            data-geo-level={geoLevel}
+            data-active-city={activeCity || ''}
+            data-boundary-paths={visibleBoundaryPaths.length}
             className="relative h-full min-h-[390px] w-full overflow-hidden rounded-xl border border-cyan-300/55 bg-[radial-gradient(circle_at_center,#092f50_0%,#030b18_58%,#01040a_100%)] shadow-[0_0_30px_rgba(14,165,233,.3)]"
         >
             <Globe
@@ -222,18 +219,15 @@ export default function SatelliteGlobe() {
                 ringMaxRadius={3.2}
                 ringPropagationSpeed={2.2}
                 ringRepeatPeriod={850}
-                polygonsData={visiblePolygons}
-                polygonCapColor={() => 'rgba(0,0,0,0)'}
-                polygonSideColor={() => 'rgba(0,0,0,0)'}
-                polygonStrokeColor={(feature) => {
-                    const cityName = getCityName(feature);
-                    return cityName === activeCity || (geoLevel === 'city' && cityName === '泸州市')
-                        ? '#67e8f9'
-                        : 'rgba(0,0,0,0)';
-                }}
-                polygonAltitude={(feature) => getCityName(feature) === activeCity ? 0.009 : 0.004}
-                polygonCapCurvatureResolution={2}
-                polygonsTransitionDuration={160}
+                pathsData={visibleBoundaryPaths}
+                pathPoints="points"
+                pathPointLat="lat"
+                pathPointLng="lng"
+                pathPointAlt="altitude"
+                pathColor={() => '#67e8f9'}
+                pathStroke={0.65}
+                pathResolution={0.35}
+                pathTransitionDuration={0}
                 htmlElementsData={visibleLabels}
                 htmlLat="lat"
                 htmlLng="lng"
