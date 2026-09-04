@@ -77,6 +77,16 @@ export function getCurrentUser() {
     return userStr ? JSON.parse(userStr) : null;
 }
 
+// --- Smart Watch Functions ---
+
+export async function loadWatchSnapshot() {
+    const response = await authFetch(`${API_BASE}/watches/latest`);
+    if (!response.ok) {
+        throw new Error(await getErrorMessage(response, '手表数据加载失败'));
+    }
+    return await response.json();
+}
+
 // --- Work Permit Functions ---
 
 export async function loadPermits(status = '', search = '', page = 1, pageSize = 10) {

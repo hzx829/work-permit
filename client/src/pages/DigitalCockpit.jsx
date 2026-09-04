@@ -1,7 +1,7 @@
 import React, { lazy, Suspense, useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { loadPermits } from '../utils/api';
-const SatelliteGlobe = lazy(() => import('../components/SatelliteGlobe'));
+import { loadPermits, loadWatchSnapshot } from '../utils/api';
+const RealtimeWatchMap = lazy(() => import('../components/RealtimeWatchMap'));
 
 class MapLoadBoundary extends React.Component {
     constructor(props) {
@@ -25,6 +25,14 @@ export default function DigitalCockpit() {
     const navigate = useNavigate();
     const [currentTime, setCurrentTime] = useState(new Date());
     const [workPermitStats, setWorkPermitStats] = useState([]);
+    const [watchSnapshot, setWatchSnapshot] = useState({
+        configured: true,
+        watches: [],
+        stats: { total: 0, online: 0, offline: 0, located: 0, withHealthData: 0, alerts: 0 },
+        updatedAt: null,
+    });
+    const [watchLoading, setWatchLoading] = useState(true);
+    const [watchError, setWatchError] = useState('');
     const safeDays = Math.max(1, Math.floor((currentTime.getTime() - new Date('2026-04-25T00:00:00').getTime()) / 86400000));
     const [weatherData, setWeatherData] = useState({
         condition: '多云', temp: 24, windSpeed: '3级', windDirection: '东北风', humidity: 65
@@ -43,6 +51,33 @@ export default function DigitalCockpit() {
         }, 1000);
         return () => clearInterval(timer);
     }, []);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const refreshWatches = async () => {
+            try {
+                const snapshot = await loadWatchSnapshot();
+                if (cancelled) return;
+                setWatchSnapshot(snapshot);
+                setWatchError(snapshot.configured ? '' : '后台尚未配置手表平台账号');
+            } catch (error) {
+                if (cancelled) return;
+                setWatchError(error.message || '手表数据同步失败');
+            } finally {
+                if (!cancelled) setWatchLoading(false);
+            }
+        };
+
+        refreshWatches();
+        const timer = setInterval(refreshWatches, 30 * 1000);
+        return () => {
+            cancelled = true;
+            clearInterval(timer);
+        };
+    }, []);
+
+    const latestHeartRate = watchSnapshot.watches.find((watch) => watch.heartRate)?.heartRate;
 
     useEffect(() => {
         const timer = setInterval(() => {
@@ -302,7 +337,12 @@ export default function DigitalCockpit() {
                     <div className="flex-1 min-h-0 relative">
                         <MapLoadBoundary>
                             <Suspense fallback={<div className="h-full w-full rounded-xl border border-cyan-300/55 bg-[url('/sichuan-satellite-texture.jpg')] bg-cover bg-center shadow-[0_0_30px_rgba(14,165,233,.3)]" />}>
-                                <SatelliteGlobe />
+                                <RealtimeWatchMap
+                                    watches={watchSnapshot.watches}
+                                    loading={watchLoading}
+                                    error={watchError}
+                                    updatedAt={watchSnapshot.updatedAt}
+                                />
                             </Suspense>
                         </MapLoadBoundary>
                     </div>
@@ -312,12 +352,16 @@ export default function DigitalCockpit() {
                             <div className="font-mono text-2xl font-bold text-white">{String(safeDays).padStart(3, '0')}</div>
                         </div>
                         <div className="rounded border border-cyan-400/35 bg-slate-950/75 px-3 py-2 text-center">
-                            <div className="text-[11px] tracking-wider text-cyan-200">四川监测点</div>
-                            <div className="font-mono text-2xl font-bold text-white">04</div>
+                            <div className="text-[11px] tracking-wider text-cyan-200">在线手表</div>
+                            <div className="font-mono text-2xl font-bold text-emerald-300">
+                                {watchSnapshot.stats.online}<span className="text-sm text-slate-400">/{watchSnapshot.stats.total}</span>
+                            </div>
                         </div>
                         <div className="rounded border border-cyan-400/35 bg-slate-950/75 px-3 py-2 text-center">
-                            <div className="text-[11px] tracking-wider text-cyan-200">风险告警</div>
-                            <div className="font-mono text-2xl font-bold text-amber-300">02</div>
+                            <div className="text-[11px] tracking-wider text-cyan-200">实时心率</div>
+                            <div className="font-mono text-2xl font-bold text-rose-300">
+                                {latestHeartRate || '--'}<span className="ml-1 text-xs text-slate-400">BPM</span>
+                            </div>
                         </div>
                     </div>
                 </div>

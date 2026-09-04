@@ -6,6 +6,7 @@ const https = require('https');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const db = require('./database');
+const { getWatchSnapshot } = require('./services/watchPlatform');
 
 const app = express();
 
@@ -95,6 +96,24 @@ app.post('/api/login', (req, res) => {
             sendInternalError(res, 'Login route failed:', loginErr);
         }
     });
+});
+
+// --- External Data Routes ---
+
+// Smart watch data relay. Vendor credentials stay on the server and are read
+// from WATCH_PLATFORM_USERNAME / WATCH_PLATFORM_PASSWORD environment variables.
+app.get('/api/watches/latest', async (req, res) => {
+    try {
+        const snapshot = await getWatchSnapshot();
+        res.set('Cache-Control', 'no-store');
+        res.json(snapshot);
+    } catch (error) {
+        console.error('Watch platform sync failed:', error.message);
+        res.status(502).json({
+            success: false,
+            message: '手表数据暂时无法同步，请稍后重试',
+        });
+    }
 });
 
 // --- Mock Data Routes ---
