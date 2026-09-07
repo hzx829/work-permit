@@ -87,6 +87,79 @@ export async function loadWatchSnapshot() {
     return await response.json();
 }
 
+// --- Emergency Response Functions ---
+
+export async function loadEmergencyMonitoring() {
+    const response = await authFetch(`${API_BASE}/emergency-monitoring`);
+    if (!response.ok) throw new Error(await getErrorMessage(response, '应急联动数据加载失败'));
+    return await response.json();
+}
+
+export async function loadEmergencySimulation() {
+    const response = await authFetch(`${API_BASE}/emergency-simulation`);
+    if (!response.ok) throw new Error(await getErrorMessage(response, '模拟开关状态加载失败'));
+    return await response.json();
+}
+
+export async function setEmergencySimulation(active) {
+    const response = await authFetch(`${API_BASE}/emergency-simulation`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ active }),
+    });
+    if (!response.ok) throw new Error(await getErrorMessage(response, '应急事故模拟开关更新失败'));
+    return await response.json();
+}
+
+export async function loadEmergencyEvents(status = '') {
+    const query = status ? `?status=${encodeURIComponent(status)}` : '';
+    const response = await authFetch(`${API_BASE}/emergency-events${query}`);
+    if (!response.ok) throw new Error(await getErrorMessage(response, '应急事件加载失败'));
+    return await response.json();
+}
+
+export async function getEmergencyEvent(id) {
+    const response = await authFetch(`${API_BASE}/emergency-events/${id}`);
+    if (!response.ok) throw new Error(await getErrorMessage(response, '应急事件加载失败'));
+    return await response.json();
+}
+
+export async function createEmergencyEvent(data) {
+    const response = await authFetch(`${API_BASE}/emergency-events`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+    });
+    if (!response.ok) throw new Error(await getErrorMessage(response, '应急事件建档失败'));
+    return await response.json();
+}
+
+export async function updateEmergencyEvent(id, data) {
+    const response = await authFetch(`${API_BASE}/emergency-events/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+    });
+    if (!response.ok) throw new Error(await getErrorMessage(response, '应急处置保存失败'));
+    return await response.json();
+}
+
+export async function uploadEmergencyAttachment(eventId, kind, file) {
+    const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('附件读取失败'));
+        reader.readAsDataURL(file);
+    });
+    const response = await authFetch(`${API_BASE}/emergency-events/${eventId}/attachments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind, filename: file.name, mimeType: file.type, dataUrl }),
+    });
+    if (!response.ok) throw new Error(await getErrorMessage(response, '附件上传失败'));
+    return await response.json();
+}
+
 // --- Work Permit Functions ---
 
 export async function loadPermits(status = '', search = '', page = 1, pageSize = 10) {

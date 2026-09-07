@@ -1,312 +1,147 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { updateEmergencyEvent, uploadEmergencyAttachment } from '../utils/api';
 
 const INITIAL_PROMPT = '已确认突发险情。系统已匹配企业现有应急预案，请选择本次响应方案。';
 const DEFAULT_BROADCAST = '1号污水井内有人晕倒，无关人员请勿靠近。';
+const RECOVERY_ITEMS = ['现场清理', '污染物处理与环境修复', '生产秩序恢复', '善后处理', '警戒与交通管制已解除'];
 
-const PLAN_LEVELS = {
-    '现场处置方案（推荐）': 'onsite',
-    '受限空间专项应急预案': 'special',
-    '综合应急预案': 'comprehensive',
-};
-
-export default function EmergencyInteraction({ onStepChange }) {
-    const [stage, setStage] = useState('plan');
-    const [messages, setMessages] = useState([{ id: 1, role: 'assistant', text: INITIAL_PROMPT }]);
-    const [responseLevel, setResponseLevel] = useState('onsite');
-    const [rescueMode, setRescueMode] = useState('');
+export default function EmergencyInteraction({ event, onEventChange }) {
+    const initialMessages = event.state?.messages?.length ? event.state.messages : [{ id: 1, role: 'assistant', text: INITIAL_PROMPT }];
+    const [stage, setStage] = useState(event.stage || 'plan');
+    const [messages, setMessages] = useState(initialMessages);
+    const [responseLevel, setResponseLevel] = useState(event.responseLevel || event.state?.responseLevel || '');
+    const [rescueMode, setRescueMode] = useState(event.rescueMode || event.state?.rescueMode || '');
+    const [broadcastText, setBroadcastText] = useState(event.state?.broadcastText || DEFAULT_BROADCAST);
     const [editingBroadcast, setEditingBroadcast] = useState(false);
-    const [broadcastText, setBroadcastText] = useState(DEFAULT_BROADCAST);
-    const [endFileName, setEndFileName] = useState('');
-    const [reviewFileName, setReviewFileName] = useState('');
-    const [isThinking, setIsThinking] = useState(false);
-    const messageIdRef = useRef(1);
+    const [recoveryChecks, setRecoveryChecks] = useState(event.state?.recoveryChecks || {});
+    const [busy, setBusy] = useState(false);
+    const [error, setError] = useState('');
     const scrollRef = useRef(null);
-    const pendingTimerRef = useRef(null);
-
-    const speechSupported = typeof window !== 'undefined' && 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
+    const messageIdRef = useRef(Math.max(...initialMessages.map((message) => Number(message.id) || 0), 1));
+    const speechSupported = typeof window !== 'undefined' && 'speechSynthesis' in window;
+    const endAttachment = event.attachments?.find((item) => item.kind === 'end');
+    const reviewAttachment = event.attachments?.find((item) => item.kind === 'review');
 
     const speak = useCallback((text) => {
         if (!speechSupported || !text) return;
         window.speechSynthesis.cancel();
-        const utterance = new window.SpeechSynthesisUtterance(text.replace(/[“”]/g, ''));
+        const utterance = new SpeechSynthesisUtterance(text.replace(/[“”]/g, ''));
         utterance.lang = 'zh-CN';
         utterance.rate = 0.95;
-        utterance.pitch = 1;
         window.speechSynthesis.speak(utterance);
     }, [speechSupported]);
 
-    useEffect(() => {
-        speak(INITIAL_PROMPT);
-        return () => {
-            if (pendingTimerRef.current) window.clearTimeout(pendingTimerRef.current);
-            if (speechSupported) window.speechSynthesis.cancel();
-        };
-    }, [speak, speechSupported]);
+    useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight }); }, [messages, busy]);
+    useEffect(() => () => { if (speechSupported) window.speechSynthesis.cancel(); }, [speechSupported]);
 
-    useEffect(() => {
-        const container = scrollRef.current;
-        if (container) container.scrollTop = container.scrollHeight;
-    }, [messages, editingBroadcast, isThinking]);
-
-    const appendMessage = useCallback((role, text) => {
-        const messageId = messageIdRef.current + 1;
-        messageIdRef.current = messageId;
-        setMessages((current) => [...current, { id: messageId, role, text }]);
-        if (role === 'assistant') speak(text);
-    }, [speak]);
-
-    const ask = useCallback((userText, assistantText, nextStage, stepIndex) => {
-        appendMessage('user', userText);
-        setIsThinking(true);
-        const responseDelay = 1000 + Math.floor(Math.random() * 1001);
-        pendingTimerRef.current = window.setTimeout(() => {
-            appendMessage('assistant', assistantText);
+    const ask = useCallback(async (userText, assistantText, nextStage, changes = {}) => {
+        if (busy) return;
+        const userMessages = [...messages, { id: ++messageIdRef.current, role: 'user', text: userText }];
+        const nextLevel = changes.responseLevel ?? responseLevel;
+        const nextMode = changes.rescueMode ?? rescueMode;
+        const nextBroadcast = changes.broadcastText ?? broadcastText;
+        const nextRecovery = changes.recoveryChecks ?? recoveryChecks;
+        setMessages(userMessages);
+        setBusy(true);
+        setError('');
+        try {
+            const responseDelay = 850 + Math.floor(Math.random() * 351);
+            await new Promise((resolve) => window.setTimeout(resolve, responseDelay));
+            const nextMessages = [...userMessages, { id: ++messageIdRef.current, role: 'assistant', text: assistantText }];
+            setMessages(nextMessages);
+            const updated = await updateEmergencyEvent(event.id, {
+                stage: nextStage,
+                status: changes.status,
+                responseLevel: nextLevel,
+                selectedPlan: changes.selectedPlan,
+                rescueMode: nextMode,
+                state: { ...(event.state || {}), messages: nextMessages, responseLevel: nextLevel, rescueMode: nextMode, broadcastText: nextBroadcast, recoveryChecks: nextRecovery },
+                timelineEntry: { action: userText },
+            });
             setStage(nextStage);
-            if (typeof stepIndex === 'number') onStepChange?.(stepIndex);
-            setIsThinking(false);
-            pendingTimerRef.current = null;
-        }, responseDelay);
-    }, [appendMessage, onStepChange]);
+            setResponseLevel(nextLevel);
+            setRescueMode(nextMode);
+            setBroadcastText(nextBroadcast);
+            setRecoveryChecks(nextRecovery);
+            onEventChange?.(updated);
+            speak(assistantText);
+        } catch (saveError) {
+            setError(saveError.message || '处置记录保存失败');
+        } finally {
+            setBusy(false);
+        }
+    }, [broadcastText, busy, event.id, event.state, messages, onEventChange, recoveryChecks, rescueMode, responseLevel, speak]);
 
     const choosePlan = (plan) => {
-        const level = PLAN_LEVELS[plan];
-        setResponseLevel(level);
-        if (level === 'onsite') {
-            ask(
-                plan,
-                '已启动现场处置方案。请立即上报，并由现场人员拨打120。完成后请选择下方选项。',
-                'report',
-                1,
-            );
-            return;
-        }
-        ask(
-            plan,
-            `已启动${plan}。请按预案组织救援力量和现场管控。当前事态是否已经得到有效控制？`,
-            'control',
-            5,
-        );
+        const onsite = plan.id === 'onsite';
+        ask(plan.name, onsite ? '已启动现场处置方案。请立即上报，并由现场人员拨打120。平台尚未接入自动拨号能力。' : '已启动' + plan.name + '。请按预案组织救援力量和区域管控，并确认事态是否受控。', onsite ? 'report' : 'control', { responseLevel: plan.id, selectedPlan: plan.name });
     };
 
-    const confirmReport = (completed) => {
-        if (!completed) {
-            ask('暂未完成', '请先完成事故上报，并由现场人员拨打120。平台不会自动拨号。', 'report', 1);
-            return;
-        }
-        ask(
-            '已完成上报并拨打120',
-            `是否在现场10米范围内设置电子围栏，并播报：“${DEFAULT_BROADCAST}”`,
-            'fence',
-            2,
-        );
-    };
-
-    const finishFence = (choice, message) => {
-        ask(choice, `${message}下面开始确认受困人员救援条件。问题一：受困人员是否穿戴全身式安全带？`, 'rescue-q1', 3);
-        setEditingBroadcast(false);
-    };
-
-    const submitCustomBroadcast = () => {
-        const normalized = broadcastText.trim();
-        if (!normalized) return;
-        finishFence(`修改并播报：${normalized}`, `已设置10米电子围栏，并播报：“${normalized}”`);
-    };
-
-    const answerRescueQuestion = (question, answer) => {
-        if (question === 1 && answer) {
-            ask('是', '问题二：安全绳是否连接D型环，且另一端牢固固定在受限空间外部？', 'rescue-q2', 3);
-            return;
-        }
-        if (question === 2 && answer) {
-            ask('是', '问题三：受困人员位置至出入口是否通畅、无阻碍？', 'rescue-q3', 3);
-            return;
-        }
-
+    const answerRescue = (question, answer) => {
+        if (question === 1 && answer) return ask('是', '问题二：安全绳是否连接D型环，且另一端牢固固定在受限空间外部？', 'rescue-q2');
+        if (question === 2 && answer) return ask('是', '问题三：受困人员位置至出入口是否通畅、无阻碍？', 'rescue-q3');
         const mode = question === 3 && answer ? '非进入式救援' : '进入式救援';
-        setRescueMode(mode);
-        ask(
-            answer ? '是' : '否',
-            `根据以上条件，固定处置结果为：采用${mode}。请按现场处置方案组织救援。救援完成后确认事态是否得到有效控制。`,
-            'control',
-            question === 3 && answer ? 4 : 3,
-        );
+        return ask(answer ? '是' : '否', '根据当前条件，采用' + mode + '。请按预案组织救援，完成后确认事态是否受控。', 'control', { rescueMode: mode });
     };
 
     const handleControl = (controlled) => {
-        if (controlled) {
-            ask(
-                '处置完成，事态已控制',
-                '事态已得到有效控制，进入应急恢复。请依次完成现场清理、污染物处理与环境修复、生产秩序恢复和善后处理，并确认警戒及交通管制已经解除。',
-                'recovery',
-                6,
-            );
-            return;
-        }
-
+        if (controlled) return ask('处置完成，事态已控制', '事态已得到有效控制，进入应急恢复。请完成各项恢复措施。', 'recovery', { status: 'recovering' });
         if (responseLevel === 'onsite') {
-            ask('处置未完成或事态仍在扩大', '现场处置未能控制事态，请立即上报单位总指挥，并启动受限空间专项应急预案。', 'escalate-special', 5);
-            return;
+            const special = event.availablePlans?.find((plan) => plan.id === 'special');
+            return special ? ask('事态仍未控制', '请上报单位总指挥，并启动' + special.name + '。', 'escalate-special') : ask('事态仍未控制', '本事件未配置专项预案，请直接启动综合应急预案。', 'escalate-comprehensive');
         }
-        if (responseLevel === 'special') {
-            ask('事态仍未控制', '专项应急响应未能控制事态，请上报单位总指挥并启动综合应急预案。', 'escalate-comprehensive', 5);
-            return;
-        }
-        ask('事态仍未控制', '综合应急响应正在执行，请继续组织全域统一指挥并联动外部救援，事态受控后再进行确认。', 'control', 5);
+        if (responseLevel === 'special') return ask('事态仍未控制', '请上报单位总指挥，启动综合应急预案。', 'escalate-comprehensive');
+        return ask('事态仍未控制', '请继续全域统一指挥并联动外部救援。', 'control');
     };
 
-    const escalate = (level) => {
-        const isSpecial = level === 'special';
-        const planName = isSpecial ? '受限空间专项应急预案' : '综合应急预案';
-        setResponseLevel(level);
-        ask(`确认启动${planName}`, `已启动${planName}。请按预案执行处置，并确认当前事态是否已经得到有效控制。`, 'control', 5);
-    };
-
-    const reset = () => {
-        if (pendingTimerRef.current) {
-            window.clearTimeout(pendingTimerRef.current);
-            pendingTimerRef.current = null;
-        }
-        if (speechSupported) window.speechSynthesis.cancel();
-        messageIdRef.current = 1;
-        setMessages([{ id: 1, role: 'assistant', text: INITIAL_PROMPT }]);
-        setStage('plan');
-        setResponseLevel('onsite');
-        setRescueMode('');
-        setEditingBroadcast(false);
-        setBroadcastText(DEFAULT_BROADCAST);
-        setEndFileName('');
-        setReviewFileName('');
-        setIsThinking(false);
-        onStepChange?.(0);
-        speak(INITIAL_PROMPT);
-    };
-
-    const handleEndFile = (event) => {
-        const file = event.target.files?.[0];
+    const upload = async (kind, file) => {
         if (!file) return;
-        setEndFileName(file.name);
-        appendMessage('user', `已选择应急解除文件：${file.name}`);
+        setBusy(true);
+        setError('');
+        try {
+            await uploadEmergencyAttachment(event.id, kind, file);
+            const updated = await updateEmergencyEvent(event.id, { timelineEntry: { action: '上传' + (kind === 'end' ? '应急解除文件' : '总结评审报告') + '：' + file.name } });
+            onEventChange?.(updated);
+        } catch (uploadError) {
+            setError(uploadError.message || '附件上传失败');
+        } finally {
+            setBusy(false);
+        }
     };
 
-    const handleReviewFile = (event) => {
-        const file = event.target.files?.[0];
-        if (!file) return;
-        setReviewFileName(file.name);
-        appendMessage('user', `已选择总结评审报告：${file.name}`);
-    };
+    const recoveryComplete = RECOVERY_ITEMS.every((item) => recoveryChecks[item]);
+    const plans = event.availablePlans?.length ? event.availablePlans : [{ id: 'comprehensive', name: '综合应急预案' }];
 
-    return (
-        <div className="flex h-full min-h-0 flex-col">
-            <div className="mb-2 flex shrink-0 items-center justify-between gap-2 border border-cyan-400/20 bg-slate-950/35 px-2.5 py-2 text-[11px]">
-                <span className="flex items-center gap-2 text-emerald-200">
-                    <i className="fas fa-volume-up animate-pulse" />
-                    {speechSupported ? '自动语音播报已开启' : '当前浏览器不支持语音播报'}
-                </span>
-                <div className="flex items-center gap-2">
-                    <button type="button" onClick={() => speak(messages.at(-1)?.text)} className="border border-cyan-400/35 px-2 py-1 text-cyan-100 transition hover:bg-cyan-400/15">
-                        <i className="fas fa-redo-alt mr-1" />重播
-                    </button>
-                    <button type="button" onClick={reset} className="border border-slate-500/40 px-2 py-1 text-slate-300 transition hover:bg-slate-500/15">重置</button>
-                </div>
-            </div>
-
-            <div ref={scrollRef} className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
-                {messages.map((message) => (
-                    <div key={message.id} className={`flex gap-2 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        {message.role === 'assistant' && <span className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-cyan-300/40 bg-cyan-400/10 text-xs text-cyan-200"><i className="fas fa-robot" /></span>}
-                        <div className={`max-w-[86%] border px-3 py-2 text-xs leading-5 ${message.role === 'user' ? 'border-blue-400/40 bg-blue-500/15 text-blue-50' : 'border-cyan-400/30 bg-slate-950/50 text-cyan-50'}`}>
-                            {message.text}
-                        </div>
-                    </div>
-                ))}
-                {isThinking && (
-                    <div className="flex gap-2 justify-start" aria-label="正在生成回复">
-                        <span className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-cyan-300/40 bg-cyan-400/10 text-xs text-cyan-200"><i className="fas fa-robot" /></span>
-                        <div className="flex items-center gap-1 border border-cyan-400/30 bg-slate-950/50 px-4 py-3">
-                            {[0, 1, 2].map((dot) => <span key={dot} className="h-1.5 w-1.5 animate-bounce rounded-full bg-cyan-300" style={{ animationDelay: `${dot * 140}ms` }} />)}
-                        </div>
-                    </div>
-                )}
-            </div>
-
-            <div className="mt-2 shrink-0 border-t border-cyan-400/20 pt-2">
-                {isThinking && <div className="flex items-center justify-center gap-2 border border-cyan-400/20 bg-cyan-500/5 px-3 py-2 text-xs text-cyan-200"><i className="fas fa-circle-notch animate-spin" />正在生成处置指令...</div>}
-                {!isThinking && stage === 'plan' && <ChoiceGrid options={Object.keys(PLAN_LEVELS)} onSelect={choosePlan} />}
-                {!isThinking && stage === 'report' && <ChoiceGrid options={['已完成上报并拨打120', '暂未完成']} onSelect={(value) => confirmReport(value.startsWith('已完成'))} />}
-                {!isThinking && stage === 'fence' && !editingBroadcast && (
-                    <ChoiceGrid
-                        options={['设置10米电子围栏并播报', '修改播报内容', '暂不设置电子围栏']}
-                        onSelect={(value) => {
-                            if (value === '修改播报内容') {
-                                setEditingBroadcast(true);
-                                return;
-                            }
-                            if (value.startsWith('设置')) finishFence(value, `已设置10米电子围栏，并播报：“${DEFAULT_BROADCAST}”`);
-                            else finishFence(value, '已记录本次不设置电子围栏。');
-                        }}
-                    />
-                )}
-                {!isThinking && stage === 'fence' && editingBroadcast && (
-                    <div className="flex gap-2">
-                        <input value={broadcastText} onChange={(event) => setBroadcastText(event.target.value)} className="min-w-0 flex-1 border border-cyan-400/40 bg-slate-950/70 px-2 py-2 text-xs text-white outline-none focus:border-cyan-300" aria-label="修改广播内容" />
-                        <button type="button" onClick={submitCustomBroadcast} className="border border-cyan-300/60 bg-cyan-400/15 px-3 text-xs font-semibold text-cyan-50">确认播报</button>
-                        <button type="button" onClick={() => setEditingBroadcast(false)} className="border border-slate-500/40 px-2 text-xs text-slate-300">取消</button>
-                    </div>
-                )}
-                {!isThinking && stage === 'rescue-q1' && <YesNoButtons onSelect={(answer) => answerRescueQuestion(1, answer)} />}
-                {!isThinking && stage === 'rescue-q2' && <YesNoButtons onSelect={(answer) => answerRescueQuestion(2, answer)} />}
-                {!isThinking && stage === 'rescue-q3' && <YesNoButtons onSelect={(answer) => answerRescueQuestion(3, answer)} />}
-                {!isThinking && stage === 'control' && <ChoiceGrid options={['处置完成，事态已控制', '处置未完成或事态仍在扩大']} onSelect={(value) => handleControl(value.startsWith('处置完成'))} />}
-                {!isThinking && stage === 'escalate-special' && <ChoiceGrid options={['确认启动受限空间专项应急预案']} onSelect={() => escalate('special')} />}
-                {!isThinking && stage === 'escalate-comprehensive' && <ChoiceGrid options={['确认启动综合应急预案']} onSelect={() => escalate('comprehensive')} />}
-                {!isThinking && stage === 'recovery' && (
-                    <ChoiceGrid
-                        options={['恢复措施已完成', '恢复措施尚未完成']}
-                        onSelect={(value) => {
-                            if (value === '恢复措施已完成') ask(value, '应急恢复已完成。请确认权威机构已经正式宣布解除应急状态，并上传相关通知或文件。', 'end', 7);
-                            else ask(value, '请继续完成现场清理、环境修复、秩序恢复和善后处理，解除警戒及交通管制后再确认。', 'recovery', 6);
-                        }}
-                    />
-                )}
-                {!isThinking && stage === 'end' && (
-                    <div className="grid grid-cols-2 gap-2">
-                        <label className="cursor-pointer border border-dashed border-cyan-400/50 bg-cyan-400/10 px-3 py-2 text-center text-xs text-cyan-50 hover:bg-cyan-400/15">
-                            <i className="fas fa-upload mr-1" />{endFileName || '选择解除通知文件'}
-                            <input type="file" className="hidden" onChange={handleEndFile} />
-                        </label>
-                        <button type="button" disabled={!endFileName} onClick={() => ask('确认应急结束', '应急状态已经解除，进入总结评审。请上传总结评审报告，完成本次应急处置闭环。', 'review', 8)} className="border border-cyan-300/50 bg-cyan-400/15 px-3 py-2 text-xs font-semibold text-cyan-50 disabled:cursor-not-allowed disabled:opacity-40">确认应急结束</button>
-                    </div>
-                )}
-                {!isThinking && stage === 'review' && (
-                    <div className="grid grid-cols-2 gap-2">
-                        <label className="cursor-pointer border border-dashed border-cyan-400/50 bg-cyan-400/10 px-3 py-2 text-center text-xs text-cyan-50 hover:bg-cyan-400/15">
-                            <i className="fas fa-upload mr-1" />{reviewFileName || '选择总结评审报告'}
-                            <input type="file" className="hidden" onChange={handleReviewFile} />
-                        </label>
-                        <button type="button" disabled={!reviewFileName} onClick={() => ask('完成总结评审', '本次应急处置流程已完成，所有问答、处置结果和上传资料已进入历史记录。', 'complete', 8)} className="border border-emerald-300/50 bg-emerald-400/15 px-3 py-2 text-xs font-semibold text-emerald-50 disabled:cursor-not-allowed disabled:opacity-40">完成总结评审</button>
-                    </div>
-                )}
-                {!isThinking && stage === 'complete' && (
-                    <div className="flex items-center justify-between border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100">
-                        <span><i className="fas fa-check-circle mr-2" />应急处置闭环已完成{rescueMode ? ` · ${rescueMode}` : ''}</span>
-                        <button type="button" onClick={reset} className="border border-emerald-300/40 px-3 py-1 hover:bg-emerald-300/10">重新演示</button>
-                    </div>
-                )}
-            </div>
+    return <div className="flex h-full min-h-0 flex-col">
+        <div className="mb-2 flex shrink-0 items-center justify-between border border-cyan-400/20 bg-slate-950/35 px-2.5 py-2 text-[11px]"><span className="text-emerald-200"><i className="fas fa-volume-up mr-2" />{speechSupported ? '语音播报可用' : '浏览器不支持语音播报'}</span><button onClick={() => speak(messages.at(-1)?.text)} className="border border-cyan-400/35 px-2 py-1">重播</button></div>
+        <div ref={scrollRef} className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">{messages.map((message) => <div key={message.id} className={`flex gap-2 ${message.role === 'user' ? 'justify-end' : ''}`}>{message.role === 'assistant' && <span className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-cyan-300/40 bg-cyan-400/10 text-xs"><i className="fas fa-robot" /></span>}<div className={`max-w-[86%] border px-3 py-2 text-xs leading-5 ${message.role === 'user' ? 'border-blue-400/40 bg-blue-500/15' : 'border-cyan-400/30 bg-slate-950/50'}`}>{message.text}</div></div>)}</div>
+        <div className="mt-2 shrink-0 border-t border-cyan-400/20 pt-2">
+            {error && <p className="mb-2 border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">{error}</p>}
+            {busy && <div className="flex items-center justify-center gap-2 py-2 text-xs text-cyan-200"><i className="fas fa-robot" /><span>AI 正在分析并生成回复</span><span className="flex gap-1">{[0, 1, 2].map((dot) => <i key={dot} className="h-1.5 w-1.5 animate-bounce rounded-full bg-cyan-300" style={{ animationDelay: `${dot * 140}ms` }} />)}</span></div>}
+            {!busy && stage === 'plan' && <ChoiceGrid options={plans.map((plan) => ({ value: plan, label: plan.name + (plan.recommended ? '（建议）' : '') }))} onSelect={choosePlan} />}
+            {!busy && stage === 'report' && <ChoiceGrid options={['已完成上报并拨打120', '暂未完成']} onSelect={(value) => value.startsWith('已完成') ? ask(value, '是否设置10米电子围栏，并播报：“' + DEFAULT_BROADCAST + '”', 'fence') : ask(value, '请先完成事故上报，并由现场人员拨打120。', 'report')} />}
+            {!busy && stage === 'fence' && !editingBroadcast && <ChoiceGrid options={['设置10米电子围栏并播报', '修改播报内容', '暂不设置电子围栏']} onSelect={(value) => value === '修改播报内容' ? setEditingBroadcast(true) : ask(value, '已记录本次围栏操作。问题一：受困人员是否穿戴全身式安全带？', 'rescue-q1')} />}
+            {!busy && stage === 'fence' && editingBroadcast && <div className="flex gap-2"><input value={broadcastText} onChange={(e) => setBroadcastText(e.target.value)} className="min-w-0 flex-1 border border-cyan-400/40 bg-slate-950/70 px-2 py-2 text-xs" /><button onClick={() => { setEditingBroadcast(false); ask('修改并播报：' + broadcastText, '已记录新播报内容。问题一：受困人员是否穿戴全身式安全带？', 'rescue-q1', { broadcastText }); }} className="border border-cyan-300/60 px-3 text-xs">确认</button></div>}
+            {!busy && stage === 'rescue-q1' && <YesNoButtons onSelect={(answer) => answerRescue(1, answer)} />}
+            {!busy && stage === 'rescue-q2' && <YesNoButtons onSelect={(answer) => answerRescue(2, answer)} />}
+            {!busy && stage === 'rescue-q3' && <YesNoButtons onSelect={(answer) => answerRescue(3, answer)} />}
+            {!busy && stage === 'control' && <ChoiceGrid options={['处置完成，事态已控制', '处置未完成或事态仍在扩大']} onSelect={(value) => handleControl(value.startsWith('处置完成'))} />}
+            {!busy && stage === 'escalate-special' && <ChoiceGrid options={['确认启动专项应急预案']} onSelect={(value) => ask(value, '专项应急预案已启动，请确认事态是否受控。', 'control', { responseLevel: 'special' })} />}
+            {!busy && stage === 'escalate-comprehensive' && <ChoiceGrid options={['确认启动综合应急预案']} onSelect={(value) => ask(value, '综合应急预案已启动，请全域统一指挥并联动外部救援。', 'control', { responseLevel: 'comprehensive', selectedPlan: '综合应急预案' })} />}
+            {!busy && stage === 'recovery' && <div className="space-y-2">{RECOVERY_ITEMS.map((item) => <label key={item} className="flex items-center gap-2 border border-cyan-400/25 px-3 py-1.5 text-xs"><input type="checkbox" checked={Boolean(recoveryChecks[item])} onChange={(e) => setRecoveryChecks((current) => ({ ...current, [item]: e.target.checked }))} />{item}</label>)}<button disabled={!recoveryComplete} onClick={() => ask('恢复措施已全部完成', '请确认权威机构已正式宣布解除应急状态，并上传相关文件。', 'end', { recoveryChecks })} className="w-full border border-cyan-300/50 px-3 py-2 text-xs font-bold disabled:opacity-35">确认完成应急恢复</button></div>}
+            {!busy && stage === 'end' && <AttachmentActions label={endAttachment?.filename || '上传应急解除文件'} canConfirm={Boolean(endAttachment)} onFile={(file) => upload('end', file)} onConfirm={() => ask('确认应急结束', '应急状态已解除，进入总结评审。', 'review')} confirmText="确认应急结束" />}
+            {!busy && stage === 'review' && <AttachmentActions label={reviewAttachment?.filename || '上传总结评审报告'} canConfirm={Boolean(reviewAttachment)} onFile={(file) => upload('review', file)} onConfirm={() => ask('完成总结评审', '本次应急处置已闭环，全部记录和附件均已留痕。', 'complete', { status: 'closed' })} confirmText="完成总结评审" />}
+            {!busy && stage === 'complete' && <div className="border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100"><i className="fas fa-check-circle mr-2" />本次应急处置已闭环{rescueMode ? ' · ' + rescueMode : ''}</div>}
         </div>
-    );
+    </div>;
+}
+
+function AttachmentActions({ label, canConfirm, onFile, onConfirm, confirmText }) {
+    return <div className="grid grid-cols-2 gap-2"><label className="cursor-pointer border border-dashed border-cyan-400/50 px-3 py-2 text-center text-xs"><i className="fas fa-upload mr-1" />{label}<input type="file" className="hidden" onChange={(e) => onFile(e.target.files?.[0])} /></label><button disabled={!canConfirm} onClick={onConfirm} className="border border-cyan-300/50 px-3 py-2 text-xs font-bold disabled:opacity-35">{confirmText}</button></div>;
 }
 
 function ChoiceGrid({ options, onSelect }) {
-    return (
-        <div className={`grid gap-2 ${options.length > 1 ? 'sm:grid-cols-2' : 'grid-cols-1'}`}>
-            {options.map((option, index) => (
-                <button key={option} type="button" onClick={() => onSelect(option)} className={`border px-3 py-2 text-left text-xs font-medium transition ${index === 0 ? 'border-cyan-300/60 bg-cyan-400/15 text-cyan-50 hover:bg-cyan-400/25' : 'border-blue-400/35 bg-blue-950/45 text-blue-100 hover:border-cyan-400/60 hover:bg-blue-900/50'}`}>
-                    <i className={`fas ${index === 0 ? 'fa-check-circle text-cyan-300' : 'fa-circle text-blue-400/60'} mr-2`} />{option}
-                </button>
-            ))}
-        </div>
-    );
+    return <div className={`grid gap-2 ${options.length > 1 ? 'sm:grid-cols-2' : 'grid-cols-1'}`}>{options.map((option, index) => { const value = typeof option === 'string' ? option : option.value; const label = typeof option === 'string' ? option : option.label; return <button key={label} type="button" onClick={() => onSelect(value)} className={`border px-3 py-2 text-left text-xs font-medium ${index === 0 ? 'border-cyan-300/60 bg-cyan-400/15' : 'border-blue-400/35 bg-blue-950/45'}`}><i className={`fas ${index === 0 ? 'fa-check-circle text-cyan-300' : 'fa-circle text-blue-400/60'} mr-2`} />{label}</button>; })}</div>;
 }
 
 function YesNoButtons({ onSelect }) {

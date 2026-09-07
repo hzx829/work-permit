@@ -1,6 +1,13 @@
 import React, { lazy, Suspense, useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { loadPermits, loadWatchSnapshot } from '../utils/api';
+import {
+    createEmergencyEvent,
+    loadEmergencyEvents,
+    loadEmergencyMonitoring,
+    setEmergencySimulation,
+    loadPermits,
+    loadWatchSnapshot,
+} from '../utils/api';
 const RealtimeWatchMap = lazy(() => import('../components/RealtimeWatchMap'));
 
 class MapLoadBoundary extends React.Component {
@@ -33,6 +40,12 @@ export default function DigitalCockpit() {
     });
     const [watchLoading, setWatchLoading] = useState(true);
     const [watchError, setWatchError] = useState('');
+    const [emergencyAlarm, setEmergencyAlarm] = useState(null);
+    const [activeEmergencyEvents, setActiveEmergencyEvents] = useState([]);
+    const [alarmSubmitting, setAlarmSubmitting] = useState(false);
+    const [alarmError, setAlarmError] = useState('');
+    const [simulation, setSimulation] = useState({ enabled: false, active: false });
+    const [simulationBusy, setSimulationBusy] = useState(false);
     const safeDays = Math.max(1, Math.floor((currentTime.getTime() - new Date('2026-04-25T00:00:00').getTime()) / 86400000));
     const [weatherData, setWeatherData] = useState({
         condition: '多云', temp: 24, windSpeed: '3级', windDirection: '东北风', humidity: 65
@@ -51,6 +64,74 @@ export default function DigitalCockpit() {
         }, 1000);
         return () => clearInterval(timer);
     }, []);
+
+    useEffect(() => {
+        let cancelled = false;
+        const refreshEmergencyLinkage = async () => {
+            try {
+                const [monitoring, activeResult] = await Promise.all([
+                    loadEmergencyMonitoring(),
+                    loadEmergencyEvents('active'),
+                ]);
+                if (cancelled) return;
+                setActiveEmergencyEvents(activeResult.events || []);
+                setSimulation(monitoring.simulation || { enabled: false, active: false });
+                if (monitoring.alarm) {
+                    const ignoredKey = sessionStorage.getItem('ignored-emergency-alarm-key');
+                    if (ignoredKey !== monitoring.alarm.alarmKey) setEmergencyAlarm(monitoring.alarm);
+                }
+            } catch (error) {
+                console.error('Emergency linkage refresh failed:', error);
+            }
+        };
+        refreshEmergencyLinkage();
+        const timer = setInterval(refreshEmergencyLinkage, 15 * 1000);
+        return () => {
+            cancelled = true;
+            clearInterval(timer);
+        };
+    }, []);
+
+    const submitAlarmDecision = async (alarmDecision, extra = {}) => {
+        if (!emergencyAlarm || alarmSubmitting) return;
+        setAlarmSubmitting(true);
+        setAlarmError('');
+        try {
+            const event = await createEmergencyEvent({ ...emergencyAlarm, alarmDecision, ...extra });
+            if (alarmDecision === 'yes') {
+                navigate(`/emergency?event=${event.id}`);
+                return;
+            }
+            sessionStorage.setItem('ignored-emergency-alarm-key', emergencyAlarm.alarmKey);
+            setEmergencyAlarm(null);
+        } catch (error) {
+            setAlarmError(error.message || '报警处理失败');
+        } finally {
+            setAlarmSubmitting(false);
+        }
+    };
+
+    const toggleEmergencySimulation = async () => {
+        if (simulationBusy) return;
+        setSimulationBusy(true);
+        setAlarmError('');
+        try {
+            const next = await setEmergencySimulation(!simulation.active);
+            setSimulation(next);
+            const monitoring = await loadEmergencyMonitoring();
+            setSimulation(monitoring.simulation || next);
+            if (monitoring.alarm) {
+                sessionStorage.removeItem('ignored-emergency-alarm-key');
+                setEmergencyAlarm(monitoring.alarm);
+            } else if (emergencyAlarm?.simulated) {
+                setEmergencyAlarm(null);
+            }
+        } catch (error) {
+            setAlarmError(error.message || '模拟开关更新失败');
+        } finally {
+            setSimulationBusy(false);
+        }
+    };
 
     useEffect(() => {
         let cancelled = false;
@@ -202,6 +283,17 @@ export default function DigitalCockpit() {
 
     return (
         <div className="h-screen w-screen bg-[#020617] text-white font-sans overflow-hidden relative flex flex-col">
+            {emergencyAlarm && (
+                <EmergencyAlarmDialog
+                    alarm={emergencyAlarm}
+                    activeEvents={activeEmergencyEvents}
+                    submitting={alarmSubmitting}
+                    error={alarmError}
+                    onDecision={submitAlarmDecision}
+                    onStopSimulation={toggleEmergencySimulation}
+                />
+            )}
+            {alarmError && !emergencyAlarm && <div className="absolute right-6 top-24 z-[90] border border-rose-400/50 bg-slate-950/95 px-4 py-3 text-sm text-rose-200 shadow-lg">{alarmError}</div>}
             {/* CSS-only backdrop: avoids loading the previous 7 MB globe image. */}
             <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_at_50%_44%,rgba(8,94,150,.42),transparent_38%),linear-gradient(135deg,#020617_0%,#062452_50%,#020617_100%)]" />
             <div className="absolute inset-0 z-0 opacity-20 [background-image:linear-gradient(rgba(56,189,248,.24)_1px,transparent_1px),linear-gradient(90deg,rgba(56,189,248,.24)_1px,transparent_1px)] [background-size:56px_56px]" />
@@ -223,6 +315,19 @@ export default function DigitalCockpit() {
                 </div>
 
                 <div className="flex items-center gap-6">
+                    {simulation.enabled && (
+                        <button
+                            type="button"
+                            onClick={toggleEmergencySimulation}
+                            disabled={simulationBusy}
+                            className={`flex items-center gap-3 rounded-full border px-4 py-2 text-sm font-bold transition disabled:opacity-50 ${simulation.active ? 'border-rose-400 bg-rose-500/20 text-rose-100 shadow-[0_0_18px_rgba(244,63,94,.45)]' : 'border-amber-400/55 bg-amber-500/10 text-amber-100 hover:bg-amber-500/20'}`}
+                            aria-pressed={simulation.active}
+                            title="仅用于测试应急联动流程"
+                        >
+                            <span className={`h-2.5 w-2.5 rounded-full ${simulation.active ? 'animate-pulse bg-rose-400' : 'bg-amber-300'}`} />
+                            {simulationBusy ? '切换中...' : simulation.active ? '测试事故模拟中' : '启动事故模拟'}
+                        </button>
+                    )}
                     <button 
                         onClick={() => navigate('/comprehensive')}
                         className="px-6 py-2 bg-blue-600/20 hover:bg-blue-600/40 border border-blue-500/50 text-blue-100 rounded-full text-lg transition-all duration-300 flex items-center gap-2 backdrop-blur-sm group font-bold"
@@ -467,6 +572,78 @@ export default function DigitalCockpit() {
 }
 
 // Auto Scroll List Component
+function EmergencyAlarmDialog({ alarm, activeEvents, submitting, error, onDecision, onStopSimulation }) {
+    const [mode, setMode] = useState('choose');
+    const [reason, setReason] = useState('');
+    const [mergeId, setMergeId] = useState(activeEvents[0]?.id || '');
+    const abnormalReadings = (alarm.gas?.readings || []).filter((reading) => {
+        const value = Number(reading.value);
+        if (reading.key === 'oxygen') return value < 19.5 || value > 23.5;
+        if (reading.key === 'co') return value > 20;
+        if (reading.key === 'h2s') return value > 10;
+        if (reading.key === 'combustible') return value > 25;
+        return Number.isFinite(Number(reading.threshold)) && value > Number(reading.threshold);
+    });
+
+    useEffect(() => {
+        let context;
+        try {
+            context = new AudioContext();
+            const oscillator = context.createOscillator();
+            const gain = context.createGain();
+            oscillator.type = 'square';
+            oscillator.frequency.value = 760;
+            gain.gain.setValueAtTime(0.04, context.currentTime);
+            oscillator.connect(gain);
+            gain.connect(context.destination);
+            oscillator.start();
+            oscillator.stop(context.currentTime + 0.25);
+        } catch (audioError) {
+            console.debug('Alarm sound requires browser interaction:', audioError);
+        }
+        return () => context?.close();
+    }, []);
+
+    return (
+        <div className="absolute inset-0 z-[100] flex items-center justify-center bg-slate-950/75 p-4 backdrop-blur-sm" role="alertdialog" aria-modal="true" aria-label="突发险情报警">
+            <div className="w-full max-w-2xl animate-pulse border-2 border-rose-400 bg-[#19060c] p-1 shadow-[0_0_60px_rgba(244,63,94,.7)]">
+                <div className="border border-rose-400/55 bg-slate-950/95 p-6 [animation:none]">
+                    <div className="flex items-start gap-4">
+                        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-rose-500/20 text-3xl text-rose-300"><i className="fas fa-triangle-exclamation" /></div>
+                        <div className="min-w-0 flex-1">
+                            <p className="text-xs font-bold tracking-[.35em] text-rose-300">EMERGENCY ALARM</p>
+                            <div className="mt-1 flex items-center gap-3"><h2 className="text-3xl font-black tracking-wider text-white">{alarm.title}</h2>{alarm.simulated && <span className="border border-amber-300/70 bg-amber-400/15 px-2 py-1 text-xs font-bold text-amber-200">测试模拟数据</span>}</div>
+                            <p className="mt-2 text-sm text-rose-100">{alarm.incidentType} · {alarm.location}</p>
+                        </div>
+                    </div>
+                    <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                        <div className="border border-rose-400/30 bg-rose-500/10 p-3 text-sm">
+                            <p className="mb-2 font-bold text-rose-200">人员体征异常</p>
+                            <p>{alarm.watch?.name || '未知人员'} · 心率 {alarm.watch?.heartRate || '--'} BPM</p>
+                            <p className="mt-1 text-xs text-rose-100/70">血氧 {alarm.watch?.bloodOxygen || '--'}% · 体温 {alarm.watch?.bodyTemperature || '--'}℃</p>
+                        </div>
+                        <div className="border border-amber-400/30 bg-amber-500/10 p-3 text-sm">
+                            <p className="mb-2 font-bold text-amber-200">气体浓度超限</p>
+                            {abnormalReadings.map((reading) => <p key={reading.key}>{reading.label}: {reading.value} {reading.unit}<span className="ml-2 text-xs text-amber-100/60">阈值 {reading.threshold ?? '规范值'}</span></p>)}
+                        </div>
+                    </div>
+                    {mode === 'choose' && (
+                        <div className="mt-5 grid grid-cols-3 gap-3">
+                            <button disabled={submitting} onClick={() => onDecision('yes')} className="bg-rose-600 px-4 py-3 font-bold hover:bg-rose-500 disabled:opacity-50">是 · 启动应急处置</button>
+                            <button disabled={submitting} onClick={() => setMode('reject')} className="border border-slate-500 px-4 py-3 font-bold text-slate-200 hover:bg-slate-800">否 · 排除险情</button>
+                            <button disabled={submitting || !activeEvents.length} onClick={() => setMode('merge')} className="border border-amber-400/60 px-4 py-3 font-bold text-amber-200 hover:bg-amber-500/10 disabled:opacity-40">其他 · 并入事故</button>
+                        </div>
+                    )}
+                    {mode === 'reject' && <div className="mt-5"><textarea autoFocus value={reason} onChange={(event) => setReason(event.target.value)} placeholder="请输入排除原因（必填）" className="h-24 w-full border border-rose-400/40 bg-slate-950 p-3 text-sm outline-none focus:border-rose-300" /><div className="mt-2 flex justify-end gap-2"><button onClick={() => setMode('choose')} className="px-4 py-2 text-sm text-slate-300">返回</button><button disabled={!reason.trim() || submitting} onClick={() => onDecision('no', { rejectionReason: reason.trim() })} className="bg-rose-600 px-4 py-2 text-sm font-bold disabled:opacity-40">确认并停止本次报警</button></div></div>}
+                    {mode === 'merge' && <div className="mt-5"><label className="mb-2 block text-sm text-amber-100">选择需要并入的在处事件</label><select value={mergeId} onChange={(event) => setMergeId(event.target.value)} className="w-full border border-amber-400/40 bg-slate-950 p-3 text-sm">{activeEvents.map((event) => <option key={event.id} value={event.id}>#{event.id} {event.title} · {event.location}</option>)}</select><div className="mt-2 flex justify-end gap-2"><button onClick={() => setMode('choose')} className="px-4 py-2 text-sm text-slate-300">返回</button><button disabled={!mergeId || submitting} onClick={() => onDecision('other', { mergedIntoId: Number(mergeId) })} className="bg-amber-600 px-4 py-2 text-sm font-bold disabled:opacity-40">确认合并</button></div></div>}
+                    {error && <p className="mt-3 text-sm text-rose-300">{error}</p>}
+                    {alarm.simulated && <div className="mt-4 border-t border-amber-400/25 pt-3 text-right"><button type="button" onClick={onStopSimulation} className="border border-amber-300/55 px-3 py-1.5 text-xs font-bold text-amber-200 hover:bg-amber-400/10">停止事故模拟</button></div>}
+                </div>
+            </div>
+        </div>
+    );
+}
+
 function AutoScrollList({ children, className = '', speed = 0.12 }) {
     const scrollRef = useRef(null);
     const scrollTopRef = useRef(0);

@@ -10,11 +10,11 @@ export default function Sidebar() {
     const menuItems = [
         { path: '/comprehensive', icon: 'fa-chart-pie', label: '总体分析' },
         { type: 'divider', label: '安全管理体系' },
+        { path: '/emergency', icon: 'fa-ambulance', label: '应急处置管理' },
         { path: '/occupational-health', icon: 'fa-heartbeat', label: '职业健康检测' },
         { path: '/risk', icon: 'fa-exclamation-triangle', label: '风险分级管控' },
         { path: '/daily-inspection', icon: 'fa-clipboard-check', label: '日常安全检查' },
         { path: '/hazard', icon: 'fa-recycle', label: '隐患闭环整改' },
-        { path: '/emergency', icon: 'fa-ambulance', label: '应急处置管理' },
         { path: '/accident-investigation', icon: 'fa-car-crash', label: '事故调查处理' },
         { type: 'divider', label: '作业许可审批' },
         { path: '/work-permit', icon: 'fa-clipboard-list', label: '工作台' },

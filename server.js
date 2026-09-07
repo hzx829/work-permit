@@ -116,6 +116,427 @@ app.get('/api/watches/latest', async (req, res) => {
     }
 });
 
+// --- Emergency response integration ---
+
+const EMERGENCY_STAGES = new Set([
+    'verification', 'plan', 'report', 'fence', 'rescue-q1', 'rescue-q2',
+    'rescue-q3', 'control', 'escalate-special', 'escalate-comprehensive',
+    'recovery', 'end', 'review', 'complete', 'dismissed', 'merged',
+]);
+const EMERGENCY_STATUSES = new Set(['pending', 'active', 'recovering', 'closed', 'dismissed', 'merged']);
+const DEFAULT_EMERGENCY_PLANS = [
+    { id: 'onsite', name: '现场处置方案', recommended: true },
+    { id: 'special', name: '受限空间专项应急预案' },
+    { id: 'comprehensive', name: '综合应急预案' },
+];
+
+function parseJson(value, fallback) {
+    if (!value) return fallback;
+    try {
+        return JSON.parse(value);
+    } catch (error) {
+        return fallback;
+    }
+}
+
+function dbGetAsync(sql, params = []) {
+    return new Promise((resolve, reject) => {
+        db.get(sql, params, (err, row) => err ? reject(err) : resolve(row));
+    });
+}
+
+function emergencyEventFromRow(row, attachments = []) {
+    if (!row) return null;
+    return {
+        id: row.id,
+        alarmKey: row.alarm_key,
+        title: row.title,
+        incidentType: row.incident_type,
+        location: row.location,
+        status: row.status,
+        stage: row.stage,
+        responseLevel: row.response_level,
+        selectedPlan: row.selected_plan,
+        rescueMode: row.rescue_mode,
+        alarmDecision: row.alarm_decision,
+        rejectionReason: row.rejection_reason,
+        mergedIntoId: row.merged_into_id,
+        watch: parseJson(row.watch_data, null),
+        gas: parseJson(row.gas_data, null),
+        availablePlans: parseJson(row.available_plans, DEFAULT_EMERGENCY_PLANS),
+        state: parseJson(row.state_data, {}),
+        timeline: parseJson(row.timeline, []),
+        attachments,
+        createdBy: row.created_by_name,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+    };
+}
+
+function listEmergencyAttachments(eventId, callback) {
+    db.all(
+        `SELECT id, event_id, kind, filename, mime_type, size, created_at
+         FROM emergency_attachments WHERE event_id = ? ORDER BY created_at`,
+        [eventId],
+        (err, rows) => callback(err, (rows || []).map((row) => ({
+            id: row.id,
+            eventId: row.event_id,
+            kind: row.kind,
+            filename: row.filename,
+            mimeType: row.mime_type,
+            size: row.size,
+            createdAt: row.created_at,
+            downloadUrl: `/api/emergency-attachments/${row.id}`,
+        }))),
+    );
+}
+
+function gasReadingFromRow(row) {
+    if (!row) return null;
+    return {
+        id: row.id,
+        deviceId: row.device_id,
+        deviceName: row.device_name,
+        location: row.location,
+        readings: parseJson(row.readings, []),
+        measuredAt: row.measured_at || row.created_at,
+    };
+}
+
+function gasExceeded(gas) {
+    if (!gas?.readings?.length) return false;
+    return gas.readings.some((reading) => {
+        const value = Number(reading.value);
+        if (!Number.isFinite(value)) return false;
+        if (reading.key === 'oxygen') return value < 19.5 || value > 23.5;
+        if (reading.key === 'co') return value > 20;
+        if (reading.key === 'h2s') return value > 10;
+        if (reading.key === 'combustible') return value > 25;
+        return Number.isFinite(Number(reading.threshold)) && value > Number(reading.threshold);
+    });
+}
+
+function watchAbnormal(watch) {
+    if (!watch) return false;
+    return Boolean(
+        watch.alert
+        || (watch.heartRate && (watch.heartRate < 40 || watch.heartRate > 130))
+        || (watch.bloodOxygen && watch.bloodOxygen < 90)
+        || (watch.bodyTemperature && watch.bodyTemperature > 39),
+    );
+}
+
+function emergencySimulationAllowed() {
+    return process.env.NODE_ENV !== 'production'
+        || String(process.env.ENABLE_EMERGENCY_SIMULATION || '').toLowerCase() === 'true';
+}
+
+function buildEmergencySimulation(activatedAt) {
+    const measuredAt = new Date().toISOString();
+    const watch = {
+        id: 'SIM-WATCH-001',
+        name: '模拟作业人员',
+        code: 'SIM01',
+        online: true,
+        alert: true,
+        heartRate: 148,
+        bloodOxygen: 86,
+        bodyTemperature: 39.2,
+        lastCommunicationAt: measuredAt,
+    };
+    const gas = {
+        id: 'simulation',
+        deviceId: 'SIM-GAS-001',
+        deviceName: '模拟受限空间气体检测仪',
+        location: '1号污水井',
+        measuredAt,
+        readings: [
+            { key: 'oxygen', label: '氧气浓度', value: 17.8, unit: '%VOL', threshold: 19.5 },
+            { key: 'co', label: '一氧化碳浓度', value: 35, unit: 'ppm', threshold: 20 },
+            { key: 'h2s', label: '硫化氢浓度', value: 18, unit: 'ppm', threshold: 10 },
+            { key: 'combustible', label: '可燃气体', value: 32, unit: '%LEL', threshold: 25 },
+        ],
+    };
+    return {
+        watch,
+        gas,
+        watchSnapshot: {
+            configured: true,
+            source: 'simulation',
+            updatedAt: measuredAt,
+            stats: { total: 1, online: 1, offline: 0, located: 0, withHealthData: 1, alerts: 1 },
+            watches: [watch],
+        },
+        alarmKey: `simulation:${activatedAt || measuredAt}`,
+    };
+}
+
+app.get('/api/emergency-simulation', async (req, res) => {
+    try {
+        const row = await dbGetAsync('SELECT * FROM emergency_simulation_state WHERE id = 1');
+        const enabled = emergencySimulationAllowed();
+        res.set('Cache-Control', 'no-store');
+        res.json({
+            enabled,
+            active: enabled && Boolean(row?.active),
+            activatedAt: row?.activated_at || null,
+        });
+    } catch (error) {
+        sendInternalError(res, 'Load emergency simulation state failed:', error);
+    }
+});
+
+app.post('/api/emergency-simulation', async (req, res) => {
+    if (!emergencySimulationAllowed()) {
+        return res.status(403).json({ success: false, message: '生产环境未启用应急事故模拟功能' });
+    }
+    if (typeof req.body?.active !== 'boolean') {
+        return res.status(400).json({ success: false, message: '请提供有效的模拟开关状态' });
+    }
+    const active = req.body.active;
+    const activatedAt = active ? new Date().toISOString() : null;
+    db.run(
+        `UPDATE emergency_simulation_state
+         SET active = ?, activated_at = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP
+         WHERE id = 1`,
+        [active ? 1 : 0, activatedAt, req.user.id],
+        (err) => {
+            if (err) return sendInternalError(res, 'Update emergency simulation state failed:', err);
+            res.json({ success: true, enabled: true, active, activatedAt });
+        },
+    );
+});
+
+app.get('/api/emergency-monitoring', async (req, res) => {
+    try {
+        const simulationRow = await dbGetAsync('SELECT * FROM emergency_simulation_state WHERE id = 1');
+        const simulationActive = emergencySimulationAllowed() && Boolean(simulationRow?.active);
+        let watchSnapshot;
+        let gas;
+        let simulation;
+        if (simulationActive) {
+            simulation = buildEmergencySimulation(simulationRow.activated_at);
+            watchSnapshot = simulation.watchSnapshot;
+            gas = simulation.gas;
+        } else {
+            try {
+                watchSnapshot = await getWatchSnapshot();
+            } catch (watchError) {
+                console.error('Emergency watch linkage failed:', watchError.message);
+                watchSnapshot = {
+                    configured: true,
+                    source: 'aiday',
+                    updatedAt: new Date().toISOString(),
+                    stats: { total: 0, online: 0, offline: 0, located: 0, withHealthData: 0, alerts: 0 },
+                    watches: [],
+                    error: '手表平台暂时无法同步',
+                };
+            }
+            gas = gasReadingFromRow(await dbGetAsync('SELECT * FROM emergency_gas_readings ORDER BY id DESC LIMIT 1'));
+        }
+            const watch = simulation?.watch || watchSnapshot.watches.find(watchAbnormal) || null;
+            const gasTimestamp = gas?.measuredAt ? Date.parse(gas.measuredAt) : NaN;
+            const gasFresh = Number.isFinite(gasTimestamp) && Date.now() - gasTimestamp <= 2 * 60 * 1000;
+            const triggered = Boolean(watch && gasFresh && gasExceeded(gas));
+            const measuredAt = gas?.measuredAt || watchSnapshot.updatedAt;
+            const alarmKey = triggered
+                ? simulation?.alarmKey || `${watch.id}:${gas.deviceId || 'gas'}:${String(measuredAt || '').slice(0, 16)}`
+                : null;
+            res.set('Cache-Control', 'no-store');
+            res.json({
+                watchSnapshot,
+                gas,
+                gasFresh,
+                simulation: {
+                    enabled: emergencySimulationAllowed(),
+                    active: simulationActive,
+                    activatedAt: simulationRow?.activated_at || null,
+                },
+                alarm: triggered ? {
+                    alarmKey,
+                    title: '突发险情',
+                    incidentType: '受限空间人员异常与气体超限',
+                    location: gas.location || watch.name || '现场作业点',
+                    watch,
+                    gas,
+                    availablePlans: DEFAULT_EMERGENCY_PLANS,
+                    simulated: simulationActive,
+                } : null,
+            });
+    } catch (error) {
+        sendInternalError(res, 'Load emergency monitoring failed:', error);
+    }
+});
+
+app.post('/api/emergency-gas-readings', (req, res) => {
+    const { deviceId, deviceName, location, readings, measuredAt } = req.body || {};
+    if (!Array.isArray(readings) || readings.length === 0) {
+        return res.status(400).json({ success: false, message: '气体读数不能为空' });
+    }
+    const normalized = readings.slice(0, 20).map((reading) => ({
+        key: String(reading.key || '').slice(0, 40),
+        label: String(reading.label || reading.key || '').slice(0, 80),
+        value: Number(reading.value),
+        unit: String(reading.unit || '').slice(0, 20),
+        threshold: reading.threshold === undefined ? null : Number(reading.threshold),
+    })).filter((reading) => reading.key && Number.isFinite(reading.value));
+    if (!normalized.length) return res.status(400).json({ success: false, message: '未找到有效气体读数' });
+    db.run(
+        `INSERT INTO emergency_gas_readings (device_id, device_name, location, readings, measured_at)
+         VALUES (?, ?, ?, ?, ?)`,
+        [deviceId || '', deviceName || '', location || '', JSON.stringify(normalized), measuredAt || new Date().toISOString()],
+        function onInserted(err) {
+            if (err) return sendInternalError(res, 'Save emergency gas reading failed:', err);
+            res.status(201).json({ success: true, id: this.lastID });
+        },
+    );
+});
+
+app.get('/api/emergency-events', (req, res) => {
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 30));
+    const status = String(req.query.status || '').trim();
+    const params = [];
+    let sql = 'SELECT * FROM emergency_events';
+    if (status) {
+        sql += ' WHERE status = ?';
+        params.push(status);
+    }
+    sql += ' ORDER BY updated_at DESC, id DESC LIMIT ?';
+    params.push(limit);
+    db.all(sql, params, (err, rows) => {
+        if (err) return sendInternalError(res, 'List emergency events failed:', err);
+        res.json({ events: (rows || []).map((row) => emergencyEventFromRow(row)) });
+    });
+});
+
+app.get('/api/emergency-events/:id', (req, res) => {
+    db.get('SELECT * FROM emergency_events WHERE id = ?', [req.params.id], (err, row) => {
+        if (err) return sendInternalError(res, 'Load emergency event failed:', err);
+        if (!row) return res.status(404).json({ success: false, message: '应急事件不存在' });
+        listEmergencyAttachments(row.id, (attachmentErr, attachments) => {
+            if (attachmentErr) return sendInternalError(res, 'Load emergency attachments failed:', attachmentErr);
+            res.json(emergencyEventFromRow(row, attachments));
+        });
+    });
+});
+
+app.post('/api/emergency-events', (req, res) => {
+    const body = req.body || {};
+    const decision = ['yes', 'no', 'other'].includes(body.alarmDecision) ? body.alarmDecision : 'yes';
+    if (decision === 'no' && !String(body.rejectionReason || '').trim()) {
+        return res.status(400).json({ success: false, message: '请填写排除险情的原因' });
+    }
+    if (decision === 'other' && !Number(body.mergedIntoId)) {
+        return res.status(400).json({ success: false, message: '请选择要合并的应急事件' });
+    }
+    const status = decision === 'yes' ? 'active' : decision === 'no' ? 'dismissed' : 'merged';
+    const stage = decision === 'yes' ? 'plan' : decision === 'no' ? 'dismissed' : 'merged';
+    const timeline = [{
+        at: new Date().toISOString(),
+        stage,
+        action: decision === 'yes' ? '人工确认为突发险情' : decision === 'no' ? '人工排除险情' : '并入已有事故',
+        operator: req.user.full_name || req.user.username,
+    }];
+    const values = [
+        body.alarmKey || null, body.title || '突发险情', body.incidentType || '待确认', body.location || '',
+        status, stage, decision, String(body.rejectionReason || '').trim() || null,
+        Number(body.mergedIntoId) || null, JSON.stringify(body.watch || null), JSON.stringify(body.gas || null),
+        JSON.stringify(Array.isArray(body.availablePlans) && body.availablePlans.length ? body.availablePlans : DEFAULT_EMERGENCY_PLANS),
+        JSON.stringify({ messages: [] }), JSON.stringify(timeline), req.user.id, req.user.full_name || req.user.username,
+    ];
+    db.run(
+        `INSERT INTO emergency_events (
+            alarm_key, title, incident_type, location, status, stage, alarm_decision,
+            rejection_reason, merged_into_id, watch_data, gas_data, available_plans,
+            state_data, timeline, created_by, created_by_name
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        values,
+        function onInserted(err) {
+            if (err && err.code === 'SQLITE_CONSTRAINT') {
+                return db.get('SELECT * FROM emergency_events WHERE alarm_key = ?', [body.alarmKey], (findErr, row) => {
+                    if (findErr) return sendInternalError(res, 'Find existing emergency event failed:', findErr);
+                    res.status(200).json(emergencyEventFromRow(row));
+                });
+            }
+            if (err) return sendInternalError(res, 'Create emergency event failed:', err);
+            db.get('SELECT * FROM emergency_events WHERE id = ?', [this.lastID], (findErr, row) => {
+                if (findErr) return sendInternalError(res, 'Load created emergency event failed:', findErr);
+                res.status(201).json(emergencyEventFromRow(row));
+            });
+        },
+    );
+});
+
+app.patch('/api/emergency-events/:id', (req, res) => {
+    const body = req.body || {};
+    if (body.stage && !EMERGENCY_STAGES.has(body.stage)) return res.status(400).json({ success: false, message: '无效的应急阶段' });
+    if (body.status && !EMERGENCY_STATUSES.has(body.status)) return res.status(400).json({ success: false, message: '无效的应急状态' });
+    db.get('SELECT * FROM emergency_events WHERE id = ?', [req.params.id], (err, row) => {
+        if (err) return sendInternalError(res, 'Load emergency event for update failed:', err);
+        if (!row) return res.status(404).json({ success: false, message: '应急事件不存在' });
+        const timeline = parseJson(row.timeline, []);
+        if (body.timelineEntry?.action) timeline.push({
+            at: new Date().toISOString(),
+            stage: body.stage || row.stage,
+            action: String(body.timelineEntry.action).slice(0, 500),
+            operator: req.user.full_name || req.user.username,
+        });
+        const next = {
+            status: body.status || row.status,
+            stage: body.stage || row.stage,
+            responseLevel: body.responseLevel === undefined ? row.response_level : body.responseLevel,
+            selectedPlan: body.selectedPlan === undefined ? row.selected_plan : body.selectedPlan,
+            rescueMode: body.rescueMode === undefined ? row.rescue_mode : body.rescueMode,
+            state: body.state === undefined ? row.state_data : JSON.stringify(body.state),
+        };
+        db.run(
+            `UPDATE emergency_events SET status = ?, stage = ?, response_level = ?, selected_plan = ?,
+             rescue_mode = ?, state_data = ?, timeline = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+            [next.status, next.stage, next.responseLevel, next.selectedPlan, next.rescueMode, next.state, JSON.stringify(timeline), row.id],
+            (updateErr) => {
+                if (updateErr) return sendInternalError(res, 'Update emergency event failed:', updateErr);
+                db.get('SELECT * FROM emergency_events WHERE id = ?', [row.id], (findErr, updated) => {
+                    if (findErr) return sendInternalError(res, 'Reload emergency event failed:', findErr);
+                    listEmergencyAttachments(row.id, (attachmentErr, attachments) => {
+                        if (attachmentErr) return sendInternalError(res, 'Reload emergency attachments failed:', attachmentErr);
+                        res.json(emergencyEventFromRow(updated, attachments));
+                    });
+                });
+            },
+        );
+    });
+});
+
+app.post('/api/emergency-events/:id/attachments', (req, res) => {
+    const { kind, filename, mimeType, dataUrl } = req.body || {};
+    if (!['end', 'review', 'other'].includes(kind) || !filename || !dataUrl) {
+        return res.status(400).json({ success: false, message: '附件信息不完整' });
+    }
+    const match = String(dataUrl).match(/^data:([^;,]+)?;base64,(.+)$/);
+    if (!match) return res.status(400).json({ success: false, message: '附件格式无效' });
+    const content = Buffer.from(match[2], 'base64');
+    if (content.length > 7 * 1024 * 1024) return res.status(413).json({ success: false, message: '单个附件不能超过7MB' });
+    db.run(
+        `INSERT INTO emergency_attachments (event_id, kind, filename, mime_type, size, content, uploaded_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [req.params.id, kind, String(filename).slice(0, 255), mimeType || match[1] || 'application/octet-stream', content.length, content, req.user.id],
+        function onInserted(err) {
+            if (err) return sendInternalError(res, 'Save emergency attachment failed:', err);
+            res.status(201).json({ id: this.lastID, kind, filename, mimeType: mimeType || match[1], size: content.length, downloadUrl: `/api/emergency-attachments/${this.lastID}` });
+        },
+    );
+});
+
+app.get('/api/emergency-attachments/:id', (req, res) => {
+    db.get('SELECT * FROM emergency_attachments WHERE id = ?', [req.params.id], (err, row) => {
+        if (err) return sendInternalError(res, 'Load emergency attachment failed:', err);
+        if (!row) return res.status(404).json({ success: false, message: '附件不存在' });
+        res.set('Content-Type', row.mime_type || 'application/octet-stream');
+        res.set('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(row.filename)}`);
+        res.send(row.content);
+    });
+});
+
 // --- Mock Data Routes ---
 
 // Comprehensive Management Mock API
