@@ -73,6 +73,7 @@ export default function RealtimeWatchMap({ watches = [], loading = false, error 
     const [boundaryNames, setBoundaryNames] = useState([]);
     const [tileError, setTileError] = useState('');
     const [selectedWatchId, setSelectedWatchId] = useState(null);
+    const [detailsCollapsed, setDetailsCollapsed] = useState(false);
 
     const locatedWatches = useMemo(() => watches.filter((watch) => (
         Number.isFinite(watch.lat) && Number.isFinite(watch.lng)
@@ -241,8 +242,14 @@ export default function RealtimeWatchMap({ watches = [], loading = false, error 
     const focusWatch = useCallback((watchId) => {
         const watch = locatedWatches.find((item) => item.id === watchId);
         setSelectedWatchId(watchId);
-        if (watch && mapRef.current) mapRef.current.flyTo([watch.lat, watch.lng], 19, { duration: 0.8 });
-    }, [locatedWatches]);
+        if (watch && mapRef.current) {
+            const map = mapRef.current;
+            const focusZoom = baseMode === 'satellite' ? 17 : 18;
+            map.stop();
+            map.setView([watch.lat, watch.lng], Math.min(focusZoom, map.getMaxZoom()), { animate: false });
+            map.invalidateSize({ animate: false, pan: false });
+        }
+    }, [baseMode, locatedWatches]);
 
     return (
         <div
@@ -295,40 +302,62 @@ export default function RealtimeWatchMap({ watches = [], loading = false, error 
             )}
 
             {selectedWatch && (
-                <div className="absolute bottom-2 left-2 right-2 z-[900] max-h-[46%] overflow-y-auto rounded-xl border border-cyan-300/45 bg-slate-950/92 p-3 text-xs text-slate-200 shadow-2xl backdrop-blur-md sm:bottom-auto sm:left-auto sm:right-3 sm:top-3 sm:w-[238px] sm:max-h-[calc(100%-1.5rem)]">
-                    <div className="flex items-start justify-between gap-2 border-b border-cyan-400/20 pb-2">
+                <div className={`absolute z-[900] overflow-y-auto rounded-xl border border-cyan-300/45 bg-slate-950/92 text-xs text-slate-200 shadow-2xl backdrop-blur-md ${detailsCollapsed
+                    ? 'right-2 top-2 max-w-[calc(100%-1rem)] p-2 sm:right-3 sm:top-3'
+                    : 'bottom-2 left-2 right-2 max-h-[46%] p-3 sm:bottom-auto sm:left-auto sm:right-3 sm:top-3 sm:w-[238px] sm:max-h-[calc(100%-1.5rem)]'
+                }`}>
+                    <div className={`flex items-start justify-between gap-2 ${detailsCollapsed ? '' : 'border-b border-cyan-400/20 pb-2'}`}>
                         <div>
                             <div className="font-bold text-white">{selectedWatch.name}</div>
-                            <div className="mt-0.5 text-[10px] text-cyan-200/65">设备 {selectedWatch.code}</div>
+                            {!detailsCollapsed && <div className="mt-0.5 text-[10px] text-cyan-200/65">设备 {selectedWatch.code}</div>}
                         </div>
-                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${selectedStatusClass(selectedWatch)}`}>
-                            {selectedWatch.alert ? '告警' : selectedWatch.online ? '在线' : '离线'}
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${selectedStatusClass(selectedWatch)}`}>
+                                {selectedWatch.alert ? '告警' : selectedWatch.online ? '在线' : '离线'}
+                            </span>
+                            <button
+                                type="button"
+                                onClick={() => setDetailsCollapsed((value) => !value)}
+                                aria-expanded={!detailsCollapsed}
+                                aria-controls="watch-details-body"
+                                aria-label={detailsCollapsed ? '展开设备详情' : '收起设备详情'}
+                                title={detailsCollapsed ? '展开设备详情' : '收起设备详情'}
+                                className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-cyan-300/35 bg-cyan-500/10 text-cyan-100 transition hover:bg-cyan-500/25 focus:outline-none focus:ring-2 focus:ring-cyan-300/60"
+                            >
+                                <svg viewBox="0 0 24 24" aria-hidden="true" className={`h-4 w-4 transition-transform ${detailsCollapsed ? 'rotate-180' : ''}`}>
+                                    <path d="m9 5 7 7-7 7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                            </button>
+                        </div>
                     </div>
-                    <label className="mt-2 block text-[9px] tracking-wider text-slate-400">
-                        设备切换
-                        <select
-                            aria-label="切换智能手表"
-                            value={selectedWatch.id}
-                            onChange={(event) => focusWatch(event.target.value)}
-                            className="mt-1 w-full rounded-md border border-cyan-400/25 bg-slate-900 px-2 py-1 text-[11px] font-semibold text-cyan-50 outline-none focus:border-cyan-300"
-                        >
-                            {watches.map((watch) => <option key={watch.id} value={watch.id}>{watch.name} · {watch.online ? '在线' : '离线'}</option>)}
-                        </select>
-                    </label>
-                    <div className="mt-2 rounded-md border border-cyan-400/20 bg-cyan-950/20 px-2 py-2 font-mono text-[10px] text-cyan-100">
-                        <div className="flex justify-between font-sans text-[9px] tracking-wider text-cyan-300/70"><span>精确坐标</span><span>WGS84</span></div>
-                        <div className="mt-1">纬度 {Number.isFinite(selectedWatch.lat) ? selectedWatch.lat.toFixed(6) : '--'}</div>
-                        <div>经度 {Number.isFinite(selectedWatch.lng) ? selectedWatch.lng.toFixed(6) : '--'}</div>
-                        <button type="button" onClick={() => focusWatch(selectedWatch.id)} className="mt-2 w-full rounded border border-cyan-400/30 bg-cyan-500/10 py-1 font-sans text-[10px] font-bold text-cyan-100 hover:bg-cyan-500/20">回到地图针</button>
-                    </div>
-                    <div className="mt-2 grid grid-cols-2 gap-2">
-                        <Metric label="心率" value={formatMetric(selectedWatch.heartRate, ' BPM')} color="text-rose-300" />
-                        <Metric label="血氧" value={formatMetric(selectedWatch.bloodOxygen, '%')} color="text-cyan-200" />
-                        <Metric label="体温" value={formatMetric(selectedWatch.bodyTemperature, '℃')} color="text-amber-200" />
-                        <Metric label="血压" value={selectedWatch.systolicPressure && selectedWatch.diastolicPressure ? `${selectedWatch.systolicPressure}/${selectedWatch.diastolicPressure}` : '--'} color="text-violet-200" />
-                    </div>
-                    <div className="mt-2 border-t border-cyan-400/15 pt-2 text-[10px] text-slate-400">最后通信 {formatTime(selectedWatch.lastCommunicationAt)}</div>
+                    {!detailsCollapsed && (
+                        <div id="watch-details-body">
+                            <label className="mt-2 block text-[9px] tracking-wider text-slate-400">
+                                设备切换
+                                <select
+                                    aria-label="切换智能手表"
+                                    value={selectedWatch.id}
+                                    onChange={(event) => focusWatch(event.target.value)}
+                                    className="mt-1 w-full rounded-md border border-cyan-400/25 bg-slate-900 px-2 py-1 text-[11px] font-semibold text-cyan-50 outline-none focus:border-cyan-300"
+                                >
+                                    {watches.map((watch) => <option key={watch.id} value={watch.id}>{watch.name} · {watch.online ? '在线' : '离线'}</option>)}
+                                </select>
+                            </label>
+                            <div className="mt-2 rounded-md border border-cyan-400/20 bg-cyan-950/20 px-2 py-2 font-mono text-[10px] text-cyan-100">
+                                <div className="flex justify-between font-sans text-[9px] tracking-wider text-cyan-300/70"><span>精确坐标</span><span>WGS84</span></div>
+                                <div className="mt-1">纬度 {Number.isFinite(selectedWatch.lat) ? selectedWatch.lat.toFixed(6) : '--'}</div>
+                                <div>经度 {Number.isFinite(selectedWatch.lng) ? selectedWatch.lng.toFixed(6) : '--'}</div>
+                                <button type="button" onClick={() => focusWatch(selectedWatch.id)} className="mt-2 w-full rounded border border-cyan-400/30 bg-cyan-500/10 py-1 font-sans text-[10px] font-bold text-cyan-100 hover:bg-cyan-500/20">回到地图针</button>
+                            </div>
+                            <div className="mt-2 grid grid-cols-2 gap-2">
+                                <Metric label="心率" value={formatMetric(selectedWatch.heartRate, ' BPM')} color="text-rose-300" />
+                                <Metric label="血氧" value={formatMetric(selectedWatch.bloodOxygen, '%')} color="text-cyan-200" />
+                                <Metric label="体温" value={formatMetric(selectedWatch.bodyTemperature, '℃')} color="text-amber-200" />
+                                <Metric label="血压" value={selectedWatch.systolicPressure && selectedWatch.diastolicPressure ? `${selectedWatch.systolicPressure}/${selectedWatch.diastolicPressure}` : '--'} color="text-violet-200" />
+                            </div>
+                            <div className="mt-2 border-t border-cyan-400/15 pt-2 text-[10px] text-slate-400">最后通信 {formatTime(selectedWatch.lastCommunicationAt)}</div>
+                        </div>
+                    )}
                 </div>
             )}
 

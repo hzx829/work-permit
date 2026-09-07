@@ -241,16 +241,17 @@ export default function DigitalCockpit() {
                     {/* 法律法规 */}
                     <TechPanel 
                         title="法律法规" 
-                        className="flex-none h-[286px] hover:border-blue-400 transition-all hover:shadow-[0_0_30px_rgba(59,130,246,0.4)]"
+                        className="flex-none h-[210px] hover:border-blue-400 transition-all hover:shadow-[0_0_30px_rgba(59,130,246,0.4)]"
+                        compact={true}
                     >
                         <div className="grid grid-cols-3 gap-2 text-center items-center">
                             {['法律法规', '规章制度', '操作规程'].map((label, i) => (
-                                <button type="button" key={i} onClick={() => navigate('/regulation')} className="bg-blue-950/40 p-2 rounded-lg border border-blue-900/40 hover:border-blue-700/60 transition-colors">
-                                    <div className="text-blue-300 text-xs font-bold mb-1 whitespace-nowrap">{label}</div>
-                                    <div className="text-2xl font-bold text-white font-mono mb-0.5">
+                                <button type="button" key={i} onClick={() => navigate('/regulation')} className="rounded-lg border border-blue-900/40 bg-blue-950/40 px-1.5 py-2 transition-colors hover:border-blue-700/60">
+                                    <div className="mb-0.5 whitespace-nowrap text-[11px] font-bold text-blue-300">{label}</div>
+                                    <div className="mb-0.5 font-mono text-xl font-bold text-white">
                                         {[102, 246, 224][i] + (i === 0 ? regulationFiles.length : 0)}
                                     </div>
-                                    <div className="text-[10px] text-blue-400 font-medium whitespace-nowrap">
+                                    <div className="whitespace-nowrap text-[9px] font-medium text-blue-400">
                                         现行: {[91, 223, 214][i]}
                                     </div>
                                 </button>
@@ -268,34 +269,35 @@ export default function DigitalCockpit() {
                     {/* 安全动态 */}
                     <TechPanel 
                         title="安全动态" 
-                        className="flex-none h-[320px]"
+                        className="flex-none h-[295px]"
+                        compact={true}
                     >
                         <AutoScrollList>
                             {safetyDynamics.map((item, i) => (
-                                <div key={i} className="bg-blue-950/40 p-3 rounded-lg border border-blue-900/40 hover:bg-blue-900/50 transition-colors cursor-pointer"
+                                <div key={i} className="cursor-pointer rounded-lg border border-blue-900/40 bg-blue-950/40 p-2.5 transition-colors hover:bg-blue-900/50"
                                     onClick={() => navigate(item.type === '安全员活动' ? '/safety-officer' : item.type === '法规更新' ? '/regulation' : '/emergency')}
                                 >
                                     <div className="flex items-start justify-between gap-3">
                                         <div className="flex-1">
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <span className={`px-2 py-1 text-xs font-bold rounded ${
+                                            <div className="mb-1.5 flex items-center gap-1.5">
+                                                <span className={`rounded px-2 py-0.5 text-[11px] font-bold ${
                                                     item.type === '安全员活动' ? 'bg-blue-600/40 text-blue-200' : item.type === '法规更新' ? 'bg-cyan-600/40 text-cyan-100' : 'bg-orange-600/40 text-orange-200'
                                                 }`}>
                                                     {item.type}
                                                 </span>
-                                                <span className={`px-2 py-1 text-xs font-bold rounded ${
+                                                <span className={`rounded px-2 py-0.5 text-[11px] font-bold ${
                                                     item.status === '已完成' || item.status === '已处置' ? 'bg-green-600/40 text-green-200' : 'bg-yellow-600/40 text-yellow-200'
                                                 }`}>
                                                     {item.status}
                                                 </span>
                                             </div>
-                                            <div className="text-base text-white font-medium leading-snug">
+                                            <div className="text-sm font-medium leading-snug text-white">
                                                 {item.officer && <span className="text-blue-300">{item.officer}：</span>}
                                                 {item.action || item.event || item.fileName}
                                                 {item.level && <span className="text-orange-300 ml-1">【{item.level}】</span>}
                                             </div>
                                         </div>
-                                        <div className="text-sm text-blue-300 font-mono whitespace-nowrap">{item.time}</div>
+                                        <div className="whitespace-nowrap font-mono text-xs text-blue-300">{item.time}</div>
                                     </div>
                                 </div>
                             ))}
@@ -305,22 +307,23 @@ export default function DigitalCockpit() {
                     {/* 通知公告 */}
                     <TechPanel 
                         title="通知公告" 
-                        className="flex-1 min-h-0"
+                        className="flex-1 min-h-[250px]"
+                        compact={true}
                     >
                         <AutoScrollList>
                             {announcements.map((item, i) => (
-                                <div key={i} className="bg-blue-950/40 p-3 rounded-lg border border-blue-900/40 hover:bg-blue-900/50 transition-colors cursor-pointer"
+                                <div key={i} className="cursor-pointer rounded-lg border border-blue-900/40 bg-blue-950/40 p-2.5 transition-colors hover:bg-blue-900/50"
                                     onClick={() => navigate(item.type === '检查通知' ? '/daily-inspection' : '/training')}
                                 >
-                                    <div className="flex items-start gap-3">
-                                        <span className={`px-2 py-1 text-xs font-bold rounded whitespace-nowrap ${
+                                    <div className="flex items-start gap-2">
+                                        <span className={`whitespace-nowrap rounded px-2 py-0.5 text-[11px] font-bold ${
                                             item.type === '检查通知' ? 'bg-orange-600/40 text-orange-200' : 'bg-green-600/40 text-green-200'
                                         }`}>
                                             {item.type}
                                         </span>
                                         <div className="flex-1 min-w-0">
-                                            <div className="text-base text-white font-medium truncate">{item.title}</div>
-                                            <div className="text-sm text-blue-300 mt-1 flex items-center justify-between">
+                                            <div className="truncate text-sm font-medium text-white">{item.title}</div>
+                                            <div className="mt-1 flex items-center justify-between text-xs text-blue-300">
                                                 <span>{item.dept}</span>
                                                 <span className="font-mono">{item.time}</span>
                                             </div>
@@ -346,10 +349,22 @@ export default function DigitalCockpit() {
                             </Suspense>
                         </MapLoadBoundary>
                     </div>
-                    <div className="grid flex-none grid-cols-3 gap-2" aria-label="驾驶舱核心指标">
-                        <div className="rounded border border-cyan-400/35 bg-slate-950/75 px-3 py-2 text-center">
-                            <div className="text-[11px] tracking-wider text-cyan-200">安全运行天数</div>
-                            <div className="font-mono text-2xl font-bold text-white">{String(safeDays).padStart(3, '0')}</div>
+                    <div className="grid flex-none grid-cols-2 gap-2 sm:grid-cols-4" aria-label="驾驶舱核心指标">
+                        <div
+                            className="relative col-span-2 overflow-hidden rounded border border-cyan-400/45 bg-[linear-gradient(90deg,rgba(3,37,83,.9),rgba(8,76,148,.82),rgba(3,37,83,.9))] px-4 py-1.5 shadow-[inset_0_0_24px_rgba(14,165,233,.16),0_0_14px_rgba(14,165,233,.12)]"
+                            aria-label={`安全运行天数 ${safeDays} 天`}
+                        >
+                            <div className="absolute inset-x-[26%] bottom-0 h-[2px] bg-gradient-to-r from-transparent via-yellow-400 to-transparent" />
+                            <div className="flex h-full items-end justify-between gap-3">
+                                <div className="pb-1 text-xs font-bold tracking-[0.18em] text-cyan-100 sm:text-sm">实时监测</div>
+                                <div className="text-center">
+                                    <div className="text-[10px] font-semibold tracking-[0.2em] text-cyan-200">安全运行天数（天）</div>
+                                    <div className="font-mono text-3xl font-bold tracking-[0.26em] text-white drop-shadow-[0_0_10px_rgba(125,211,252,.85)] sm:text-4xl">
+                                        {String(safeDays).padStart(3, '0')}
+                                    </div>
+                                </div>
+                                <div className="pb-1 text-xs font-bold tracking-[0.18em] text-cyan-100 sm:text-sm">行为识别</div>
+                            </div>
                         </div>
                         <div className="rounded border border-cyan-400/35 bg-slate-950/75 px-3 py-2 text-center">
                             <div className="text-[11px] tracking-wider text-cyan-200">在线手表</div>
@@ -400,15 +415,15 @@ export default function DigitalCockpit() {
                     {/* Work Permit Analysis */}
                     <TechPanel 
                         title="作业票分析" 
-                        className="flex-none h-[430px] cursor-pointer hover:border-blue-400 transition-all hover:shadow-[0_0_30px_rgba(59,130,246,0.4)]"
+                        className="flex-none h-[315px] cursor-pointer hover:border-blue-400 transition-all hover:shadow-[0_0_30px_rgba(59,130,246,0.4)]"
                         onClick={() => navigate('/work-permit')}
                         compact={true}
                     >
-                        <div className="flex flex-col h-full justify-between py-1 px-1 overflow-hidden">
+                        <div className="flex h-full flex-col justify-between overflow-hidden px-1 py-0.5">
                             {workPermitStats.map((stat, index) => (
-                                <div key={index} className="relative flex items-center justify-between px-4 py-1 rounded bg-gradient-to-r from-blue-900/30 to-transparent border-l-4 border-blue-600 hover:border-yellow-400 hover:from-blue-800/40 transition-all group">
-                                    <div className="text-lg text-cyan-100 font-bold tracking-wider group-hover:text-white transition-colors">{stat.label}</div>
-                                    <div className="text-3xl font-bold text-yellow-400 font-mono drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] group-hover:scale-110 transition-transform">{stat.value}</div>
+                                <div key={index} className="group relative flex items-center justify-between rounded border-l-4 border-blue-600 bg-gradient-to-r from-blue-900/30 to-transparent px-3 py-0.5 transition-all hover:border-yellow-400 hover:from-blue-800/40">
+                                    <div className="text-sm font-bold tracking-wide text-cyan-100 transition-colors group-hover:text-white">{stat.label}</div>
+                                    <div className="font-mono text-xl font-bold text-yellow-400 drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] transition-transform group-hover:scale-110">{stat.value}</div>
                                 </div>
                             ))}
                         </div>
@@ -417,26 +432,27 @@ export default function DigitalCockpit() {
                     {/* Safety Knowledge */}
                     <TechPanel 
                         title="安全小知识" 
-                        className="flex-1 min-h-0 cursor-pointer hover:border-blue-400 transition-all hover:shadow-[0_0_30px_rgba(59,130,246,0.4)]"
+                        className="flex-1 min-h-[300px] cursor-pointer hover:border-blue-400 transition-all hover:shadow-[0_0_30px_rgba(59,130,246,0.4)]"
                         onClick={() => navigate('/training')}
+                        compact={true}
                     >
                         <AutoScrollList>
                             {safetyKnowledge.map((tip, i) => (
-                                <div key={i} className="bg-gradient-to-br from-blue-950/50 to-blue-900/30 p-4 rounded-lg border border-blue-800/40 hover:border-blue-600/60 transition-all hover:shadow-[0_0_15px_rgba(59,130,246,0.3)]">
-                                    <div className="flex items-start gap-3 mb-2">
-                                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-600/40 flex items-center justify-center">
-                                            <i className="fas fa-lightbulb text-yellow-400 text-sm"></i>
+                                <div key={i} className="rounded-lg border border-blue-800/40 bg-gradient-to-br from-blue-950/50 to-blue-900/30 p-3 transition-all hover:border-blue-600/60 hover:shadow-[0_0_15px_rgba(59,130,246,0.3)]">
+                                    <div className="mb-1.5 flex items-start gap-2">
+                                        <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-blue-600/40">
+                                            <i className="fas fa-lightbulb text-xs text-yellow-400"></i>
                                         </div>
-                                        <div className="text-base font-bold text-blue-100 pt-1">{tip.title}</div>
+                                        <div className="pt-1 text-sm font-bold text-blue-100">{tip.title}</div>
                                     </div>
-                                    <div className="text-sm text-blue-200 leading-relaxed pl-11 font-medium">
+                                    <div className="pl-9 text-xs font-medium leading-relaxed text-blue-200">
                                         {tip.content}
                                     </div>
-                                    <div className="flex items-center gap-3 mt-3 pl-11">
-                                        <span className="px-2 py-1 text-xs font-bold rounded bg-blue-700/40 text-blue-200">
+                                    <div className="mt-2 flex items-center gap-3 pl-9">
+                                        <span className="rounded bg-blue-700/40 px-2 py-0.5 text-[10px] font-bold text-blue-200">
                                             {tip.category || '安全常识'}
                                         </span>
-                                        <span className="text-xs text-blue-400 font-medium">
+                                        <span className="text-[10px] font-medium text-blue-400">
                                             阅读: {tip.views || '99+'}
                                         </span>
                                     </div>
@@ -451,7 +467,7 @@ export default function DigitalCockpit() {
 }
 
 // Auto Scroll List Component
-function AutoScrollList({ children, className = '', speed = 0.2 }) {
+function AutoScrollList({ children, className = '', speed = 0.12 }) {
     const scrollRef = useRef(null);
     const scrollTopRef = useRef(0);
     const [isHovered, setIsHovered] = useState(false);
@@ -493,10 +509,10 @@ function AutoScrollList({ children, className = '', speed = 0.2 }) {
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
         >
-            <div className="space-y-3 pb-3">
+            <div className="space-y-2.5 pb-2.5">
                 {children}
             </div>
-            <div className="space-y-3">
+            <div className="space-y-2.5">
                 {children}
             </div>
         </div>
