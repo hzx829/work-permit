@@ -219,6 +219,52 @@ export async function updatePermitExtraData(id, data) {
     return await response.json();
 }
 
+export async function loadRelatedPermits(numbers, applyTime = '') {
+    const query = new URLSearchParams({
+        numbers: Array.isArray(numbers) ? numbers.join(',') : String(numbers || ''),
+        applyTime: String(applyTime || '')
+    });
+    const response = await authFetch(`${API_BASE}/work-permits/related?${query}`);
+    if (!response.ok) throw new Error(await getErrorMessage(response, '关联票证查询失败'));
+    return await response.json();
+}
+
+export async function loadRegulations() {
+    const response = await authFetch(`${API_BASE}/regulation`);
+    if (!response.ok) throw new Error(await getErrorMessage(response, '法律法规加载失败'));
+    return await response.json();
+}
+
+export async function uploadRegulationDocument(category, file) {
+    const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('标准文件读取失败'));
+        reader.readAsDataURL(file);
+    });
+    const response = await authFetch(`${API_BASE}/regulation/documents`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category, filename: file.name, mimeType: file.type, size: file.size, dataUrl })
+    });
+    if (!response.ok) throw new Error(await getErrorMessage(response, '标准文件上传失败'));
+    return await response.json();
+}
+
+export async function downloadRegulationDocument(id, filename) {
+    const response = await authFetch(`${API_BASE}/regulation/documents/${id}/download`);
+    if (!response.ok) throw new Error(await getErrorMessage(response, '标准文件下载失败'));
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename || '标准文件';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+}
+
 // --- UI Helpers ---
 
 export function formatDate(dateString) {

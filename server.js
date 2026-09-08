@@ -10,8 +10,8 @@ const { getWatchSnapshot } = require('./services/watchPlatform');
 
 const app = express();
 
-app.use(express.json({ limit: '10mb' })); // Increased limit for base64 images
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '12mb' })); // Supports compressed images and standard files encoded as data URLs.
+app.use(express.urlencoded({ extended: true, limit: '12mb' }));
 
 // JWT 密钥：生产环境必须通过环境变量 JWT_SECRET 设置固定值，否则重启后 Token 失效
 if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
@@ -663,9 +663,10 @@ app.get('/api/training', (req, res) => {
     res.json(mockData);
 });
 
-// Regulation Management Mock API
-app.get('/api/regulation', (req, res) => {
-    const mockData = {
+const REGULATION_CATEGORIES = new Set(['law', 'regulation', 'procedure']);
+
+function getRegulationBaseData() {
+    return {
         stats: {
             laws: 102,
             lawsActive: 91,
@@ -693,7 +694,73 @@ app.get('/api/regulation', (req, res) => {
             { id: 4, name: '高处作业安全规程', code: 'PROC-004', publishDate: '2023-04-10', effectiveDate: '2023-05-01', status: '现行' },
         ]
     };
-    res.json(mockData);
+}
+
+// Regulation management data is persisted so the management center and the
+// cockpit always show the same uploaded documents.
+app.get('/api/regulation', (req, res) => {
+    const data = getRegulationBaseData();
+    db.all(`SELECT id, category, name, mime_type AS mimeType, size, uploaded_by_name AS uploadedBy,
+                  created_at AS createdAt
+           FROM regulation_documents ORDER BY datetime(created_at) DESC, id DESC`, [], (err, rows) => {
+        if (err) return sendInternalError(res, 'Load regulation documents failed:', err);
+        const uploaded = rows || [];
+        const listByCategory = { law: 'laws', regulation: 'regulations', procedure: 'procedures' };
+        const countByCategory = { law: 'laws', regulation: 'regulations', procedure: 'procedures' };
+        [...uploaded].reverse().forEach((document) => {
+            const listName = listByCategory[document.category];
+            if (!listName) return;
+            data[listName].unshift({
+                ...document,
+                id: `uploaded-${document.id}`,
+                documentId: document.id,
+                code: '上传文件',
+                publishDate: String(document.createdAt || '').slice(0, 10),
+                effectiveDate: '-',
+                status: '已上传',
+                uploaded: true,
+            });
+            data.stats[countByCategory[document.category]] += 1;
+            data.stats[`${countByCategory[document.category]}Active`] += 1;
+        });
+        data.uploadedDocuments = uploaded;
+        res.json(data);
+    });
+});
+
+app.post('/api/regulation/documents', (req, res) => {
+    const { category, filename, mimeType = 'application/octet-stream', size = 0, dataUrl } = req.body || {};
+    if (!REGULATION_CATEGORIES.has(category)) {
+        return res.status(400).json({ success: false, message: '标准文件分类无效' });
+    }
+    if (!filename || !dataUrl || !String(dataUrl).includes(',')) {
+        return res.status(400).json({ success: false, message: '请选择需要上传的标准文件' });
+    }
+    if (!/\.(pdf|doc|docx|png|jpe?g|gif|webp|bmp)$/i.test(String(filename))) {
+        return res.status(400).json({ success: false, message: '仅支持图片、Word 或 PDF 文件' });
+    }
+    const content = Buffer.from(String(dataUrl).split(',').pop(), 'base64');
+    if (!content.length || content.length > 8 * 1024 * 1024) {
+        return res.status(400).json({ success: false, message: '单个标准文件必须小于 8MB' });
+    }
+    db.run(`INSERT INTO regulation_documents
+            (category, name, mime_type, size, content, uploaded_by, uploaded_by_name)
+            VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [category, String(filename).slice(0, 255), mimeType, Number(size) || content.length, content, req.user?.id || null, req.user?.full_name || req.user?.username || '当前用户'],
+        function(err) {
+            if (err) return sendInternalError(res, 'Upload regulation document failed:', err);
+            res.json({ success: true, id: this.lastID });
+        });
+});
+
+app.get('/api/regulation/documents/:id/download', (req, res) => {
+    db.get('SELECT name, mime_type, content FROM regulation_documents WHERE id = ?', [req.params.id], (err, row) => {
+        if (err) return sendInternalError(res, 'Download regulation document failed:', err);
+        if (!row) return res.status(404).json({ success: false, message: '标准文件不存在' });
+        res.type(row.mime_type || 'application/octet-stream');
+        res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(row.name)}`);
+        res.send(row.content);
+    });
 });
 
 // Video Monitoring Mock API (Updated with AI alarm info)
@@ -1004,6 +1071,52 @@ app.get('/api/fire-safety', (req, res) => {
 });
 
 // --- Work Permit Routes ---
+
+// Batch lookup used by the confined-space permit review. Keep this route above
+// /:id so Express does not interpret "related" as a permit id.
+app.get('/api/work-permits/related', (req, res) => {
+    const numbers = String(req.query.numbers || '')
+        .split(/[\s,，、;；]+/)
+        .map((value) => value.trim().toUpperCase())
+        .filter(Boolean)
+        .filter((value, index, values) => values.indexOf(value) === index)
+        .slice(0, 20);
+    if (!numbers.length) return res.json({ data: [] });
+
+    // This prototype query intentionally returns demonstration data. The typed
+    // identifiers are preserved: the first two represent blind-plate permits
+    // and the third represents a temporary-electricity permit.
+    const requestedApplyTime = new Date(req.query.applyTime || '');
+    const applyTime = Number.isNaN(requestedApplyTime.getTime()) ? new Date() : requestedApplyTime;
+    const timeSlots = [
+        { daysBefore: 2, hour: 9, minute: 18 },
+        { daysBefore: 2, hour: 15, minute: 42 },
+        { daysBefore: 1, hour: 10, minute: 36 },
+        { daysBefore: 1, hour: 16, minute: 8 },
+    ];
+    const formatMockTime = (value) => {
+        const pad = (part) => String(part).padStart(2, '0');
+        return `${value.getFullYear()}/${value.getMonth() + 1}/${value.getDate()} ${pad(value.getHours())}:${pad(value.getMinutes())}:00`;
+    };
+    const data = numbers.map((number, index) => {
+        const type = index < 2 ? '盲板抽堵作业' : '临时用电作业';
+        const slot = timeSlots[index % timeSlots.length];
+        const completedAt = new Date(applyTime);
+        completedAt.setDate(completedAt.getDate() - slot.daysBefore);
+        completedAt.setHours(slot.hour, slot.minute + Math.floor(index / timeSlots.length) * 3, 0, 0);
+        return {
+            found: true,
+            simulated: true,
+            permitNumber: number,
+            type,
+            status: `${type}已完成`,
+            completionTime: formatMockTime(completedAt),
+            workers: index < 2 ? '赵六' : '孙七',
+            reviewers: '王五',
+        };
+    });
+    res.json({ data });
+});
 
 // Get all permits (with optional filtering)
 app.get('/api/work-permits', (req, res) => {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { authFetch } from '../utils/api';
+import { downloadRegulationDocument, loadRegulations, uploadRegulationDocument } from '../utils/api';
 import { useNavigate } from 'react-router-dom';
 
 export default function Regulation() {
@@ -7,6 +7,8 @@ export default function Regulation() {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('law');
+    const [uploading, setUploading] = useState(false);
+    const [notice, setNotice] = useState('');
 
     useEffect(() => {
         fetchData();
@@ -14,8 +16,7 @@ export default function Regulation() {
 
     const fetchData = async () => {
         try {
-            const response = await authFetch('/api/regulation');
-            const result = await response.json();
+            const result = await loadRegulations();
             setData(result);
         } catch (error) {
             console.error('Failed to fetch regulation data:', error);
@@ -36,6 +37,34 @@ export default function Regulation() {
         return data?.procedures || [];
     };
 
+    const categoryName = { law: '法律法规', regulation: '规章制度', procedure: '操作规程' }[activeTab];
+
+    const handleUpload = async (event) => {
+        const files = Array.from(event.target.files || []);
+        event.target.value = '';
+        if (!files.length) return;
+        setUploading(true);
+        setNotice('');
+        try {
+            for (const file of files) await uploadRegulationDocument(activeTab, file);
+            await fetchData();
+            setNotice(`已上传 ${files.length} 个文件，并同步到法律法规库和数字驾驶舱。`);
+        } catch (error) {
+            setNotice(error.message || '上传失败，请重试');
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const handleDownload = async (item) => {
+        if (!item.uploaded) return;
+        try {
+            await downloadRegulationDocument(item.documentId, item.name);
+        } catch (error) {
+            setNotice(error.message || '下载失败，请重试');
+        }
+    };
+
     return (
         <div className="flex-1 overflow-auto p-6">
             <div className="mb-6 flex justify-between items-end">
@@ -50,6 +79,21 @@ export default function Regulation() {
                     <i className="fas fa-chart-line"></i>
                     进入数字驾驶舱
                 </button>
+            </div>
+
+            <div className="mb-6 rounded-xl border border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-5 shadow-sm">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                    <div>
+                        <h3 className="font-bold text-gray-800"><i className="fas fa-cloud-upload-alt mr-2 text-blue-600" />上传标准文件</h3>
+                        <p className="mt-1 text-sm text-gray-500">当前上传到“{categoryName}”；上传后会同步显示在本页资料库和数字驾驶舱。</p>
+                    </div>
+                    <label className={`inline-flex min-w-44 cursor-pointer items-center justify-center rounded-lg bg-blue-600 px-5 py-3 font-medium text-white shadow hover:bg-blue-700 ${uploading ? 'pointer-events-none opacity-60' : ''}`}>
+                        <i className={`fas ${uploading ? 'fa-spinner fa-spin' : 'fa-upload'} mr-2`} />
+                        {uploading ? '正在上传...' : '选择并上传文件'}
+                        <input type="file" className="hidden" multiple accept="image/*,.doc,.docx,.pdf" onChange={handleUpload} disabled={uploading} />
+                    </label>
+                </div>
+                {notice && <div className={`mt-3 rounded px-3 py-2 text-sm ${notice.includes('失败') || notice.includes('错误') ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-700'}`}>{notice}</div>}
             </div>
 
             {/* Stats */}
@@ -167,11 +211,11 @@ export default function Regulation() {
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 hover:text-blue-900">
-                                            <button className="mr-3">查看</button>
-                                            <button>下载</button>
+                                            {item.uploaded ? <button onClick={() => handleDownload(item)}>下载</button> : <span className="text-gray-400">系统资料</span>}
                                         </td>
                                     </tr>
                                 ))}
+                                {getCurrentList().length === 0 && <tr><td colSpan="6" className="px-6 py-10 text-center text-gray-400">暂无资料</td></tr>}
                             </tbody>
                         </table>
                     </div>

@@ -6,6 +6,7 @@ import {
     loadEmergencyMonitoring,
     setEmergencySimulation,
     loadPermits,
+    loadRegulations,
     loadWatchSnapshot,
 } from '../utils/api';
 const RealtimeWatchMap = lazy(() => import('../components/RealtimeWatchMap'));
@@ -50,7 +51,10 @@ export default function DigitalCockpit() {
     const [weatherData, setWeatherData] = useState({
         condition: '多云', temp: 24, windSpeed: '3级', windDirection: '东北风', humidity: 65
     });
-    const [regulationFiles, setRegulationFiles] = useState([]);
+    const [regulationData, setRegulationData] = useState({
+        stats: { laws: 102, lawsActive: 91, regulations: 246, regulationsActive: 223, procedures: 224, proceduresActive: 214 },
+        uploadedDocuments: []
+    });
     const [safetyDynamics, setSafetyDynamics] = useState([
         { type: '安全员活动', officer: '张三', action: '化工1#车间安全检查', time: '14:30', status: '已完成' },
         { type: '应急事件', event: '化工2#车间设备故障', level: '一般', time: '13:45', status: '已处置' },
@@ -172,23 +176,21 @@ export default function DigitalCockpit() {
         return () => clearInterval(timer);
     }, []);
 
-    const handleRegulationUpload = (event) => {
-        const selectedFiles = Array.from(event.target.files || []);
-        if (!selectedFiles.length) return;
-        const now = new Date();
-        const uploaded = selectedFiles.map((file, index) => ({
-            id: `${file.name}-${file.lastModified}-${index}`,
-            name: file.name,
-            type: file.type || '文件',
-            time: now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
-        }));
-        setRegulationFiles((current) => [...uploaded, ...current]);
-        setSafetyDynamics((current) => [
-            ...uploaded.map((file) => ({ type: '法规更新', fileName: file.name, time: file.time, status: '已上传' })),
-            ...current
-        ]);
-        event.target.value = '';
-    };
+    useEffect(() => {
+        let cancelled = false;
+        loadRegulations().then((result) => {
+            if (cancelled) return;
+            setRegulationData(result);
+            const updates = (result.uploadedDocuments || []).slice(0, 10).map((file) => ({
+                type: '法规更新',
+                fileName: file.name,
+                time: new Date(file.createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+                status: '已同步'
+            }));
+            if (updates.length) setSafetyDynamics((current) => [...updates, ...current.filter((item) => item.type !== '法规更新')]);
+        }).catch((error) => console.error('Regulation data refresh failed:', error));
+        return () => { cancelled = true; };
+    }, []);
 
     // 加载作业票统计数据
     useEffect(() => {
@@ -350,25 +352,26 @@ export default function DigitalCockpit() {
                         compact={true}
                     >
                         <div className="grid grid-cols-3 gap-2 text-center items-center">
-                            {['法律法规', '规章制度', '操作规程'].map((label, i) => (
+                            {[
+                                ['法律法规', regulationData.stats?.laws, regulationData.stats?.lawsActive],
+                                ['规章制度', regulationData.stats?.regulations, regulationData.stats?.regulationsActive],
+                                ['操作规程', regulationData.stats?.procedures, regulationData.stats?.proceduresActive]
+                            ].map(([label, total, active], i) => (
                                 <button type="button" key={i} onClick={() => navigate('/regulation')} className="rounded-lg border border-blue-900/40 bg-blue-950/40 px-1.5 py-2 transition-colors hover:border-blue-700/60">
                                     <div className="mb-0.5 whitespace-nowrap text-[11px] font-bold text-blue-300">{label}</div>
                                     <div className="mb-0.5 font-mono text-xl font-bold text-white">
-                                        {[102, 246, 224][i] + (i === 0 ? regulationFiles.length : 0)}
+                                        {total ?? 0}
                                     </div>
                                     <div className="whitespace-nowrap text-[9px] font-medium text-blue-400">
-                                        现行: {[91, 223, 214][i]}
+                                        现行: {active ?? 0}
                                     </div>
                                 </button>
                             ))}
                         </div>
-                        <label className="mt-2 flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-cyan-400/60 bg-cyan-500/10 px-2 py-1.5 text-xs font-medium text-cyan-100 hover:bg-cyan-500/20">
-                            <i className="fas fa-cloud-upload-alt" /> 上传标准文件
-                            <input type="file" className="hidden" multiple accept="image/*,.doc,.docx,.pdf" onChange={handleRegulationUpload} />
-                        </label>
-                        <div className="mt-1 truncate text-[10px] text-blue-300">
-                            {regulationFiles.length ? `最新：${regulationFiles[0].name}` : '支持图片、Word、PDF'}
-                        </div>
+                        <button type="button" onClick={() => navigate('/regulation')} className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-cyan-400/40 bg-cyan-500/10 px-2 py-1.5 text-xs font-medium text-cyan-100 hover:bg-cyan-500/20">
+                            <i className="fas fa-folder-open" /> 进入法律法规库
+                        </button>
+                        <div className="mt-1 truncate text-[10px] text-blue-300">{regulationData.uploadedDocuments?.length ? `最新：${regulationData.uploadedDocuments[0].name}` : '资料由管理中心统一维护'}</div>
                     </TechPanel>
 
                     {/* 安全动态 */}

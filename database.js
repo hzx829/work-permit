@@ -49,6 +49,21 @@ function initDb() {
             // Ignore error if column already exists
         });
 
+        // Uploaded laws, regulations and operating procedures are shared by the
+        // management center and the digital cockpit.
+        db.run(`CREATE TABLE IF NOT EXISTS regulation_documents (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            category TEXT NOT NULL,
+            name TEXT NOT NULL,
+            mime_type TEXT,
+            size INTEGER DEFAULT 0,
+            content BLOB NOT NULL,
+            uploaded_by INTEGER,
+            uploaded_by_name TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`);
+        db.run('CREATE INDEX IF NOT EXISTS idx_regulation_documents_category_created ON regulation_documents(category, created_at)');
+
         // Create Camera URLs table for AI monitoring jump links
         db.run(`CREATE TABLE IF NOT EXISTS camera_urls (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

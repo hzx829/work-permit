@@ -1,6 +1,7 @@
 ﻿import React from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import SignaturePad from './SignaturePad';
+import { loadRelatedPermits } from '../utils/api';
 
 const FormField = ({ label, required = false, children, className = "" }) => (
     <div className={`flex flex-col ${className}`}>
@@ -133,7 +134,7 @@ const parseRelatedPermitNumbers = (raw) => {
     if (!raw) return [];
     return String(raw)
         .split(/[\s,，、;；]+/g)
-        .map((s) => s.trim())
+        .map((s) => s.trim().toUpperCase())
         .filter(Boolean)
         .filter((value, index, arr) => arr.indexOf(value) === index);
 };
@@ -144,9 +145,8 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
     const [detectionFailed, setDetectionFailed] = React.useState(false);
     const [detectionRetrySeed, setDetectionRetrySeed] = React.useState(0);
     const [relatedPermitLoading, setRelatedPermitLoading] = React.useState(false);
-    const [relatedPermitInfo, setRelatedPermitInfo] = React.useState(null);
+    const [relatedPermitInfo, setRelatedPermitInfo] = React.useState([]);
     const [hasQueriedRelatedPermit, setHasQueriedRelatedPermit] = React.useState(false);
-    const relatedPermitQueryTimerRef = React.useRef(null);
     const [ventilationSeconds, setVentilationSeconds] = React.useState(DEFAULT_VENTILATION_SECONDS);
     const [ventilationStartTime] = React.useState(() => Date.now());
 
@@ -283,73 +283,36 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
         onChange('related_blind_plate_completion_time', '');
         onChange('related_blind_plate_workers', '');
         onChange('related_blind_plate_reviewers', '');
-        setRelatedPermitInfo(null);
+        setRelatedPermitInfo([]);
+        setHasQueriedRelatedPermit(false);
     }, [readOnly, data.related_permits, onChange]);
 
     const handleRelatedPermitQuery = React.useCallback(async () => {
         if (!canQueryRelatedPermits) return;
         const numbers = parseRelatedPermitNumbers(data.related_permits);
-        const permitNumber = (data.related_blind_plate_permit_number || numbers[0] || '').trim();
-        if (!permitNumber) {
-            setRelatedPermitInfo(null);
+        if (!numbers.length) {
+            setRelatedPermitInfo([]);
             return;
         }
-
-        setHasQueriedRelatedPermit(true);
-
         if (relatedPermitLoading) return;
-
-        if (relatedPermitQueryTimerRef.current) {
-            clearTimeout(relatedPermitQueryTimerRef.current);
-        }
-
         setRelatedPermitLoading(true);
-        setRelatedPermitInfo(null);
-        // 按你的要求：结果可随机/模拟，但编号必须与作业端输入一致
-        relatedPermitQueryTimerRef.current = setTimeout(() => {
-            // 计算盲板作业完成时间：如果存在作业申请时间，则设置为申请时间的前一天；否则使用当前时间
-            let blindPlateCompletionTime;
-            if (data.apply_time) {
-                const applyDate = new Date(data.apply_time);
-                // 设置为前一天，保持相同的时分秒
-                applyDate.setDate(applyDate.getDate() - 1);
-                blindPlateCompletionTime = applyDate.toLocaleString();
-            } else {
-                blindPlateCompletionTime = new Date().toLocaleString();
-            }
-            
-            const result = {
-                progress: '堵盲板作业已完成',
-                completionTime: blindPlateCompletionTime,
-                workers: '赵六',
-                reviewers: '王五',
-                permitNumber
-            };
-            setRelatedPermitInfo(result);
-            onChange('related_blind_plate_permit_number', result.permitNumber);
-            onChange('related_blind_plate_progress', result.progress);
-            onChange('related_blind_plate_completion_time', result.completionTime);
-            onChange('related_blind_plate_workers', result.workers);
-            onChange('related_blind_plate_reviewers', result.reviewers);
+        setRelatedPermitInfo([]);
+        setHasQueriedRelatedPermit(true);
+        try {
+            const result = await loadRelatedPermits(numbers, data.apply_time);
+            setRelatedPermitInfo(result.data || []);
+        } catch (error) {
+            console.error('关联票证查询失败:', error);
+            window.alert(error.message || '关联票证查询失败，请重试');
+        } finally {
             setRelatedPermitLoading(false);
-        }, 5000);
-    }, [canQueryRelatedPermits, data.related_permits, data.related_blind_plate_permit_number, data.apply_time, relatedPermitLoading, onChange]);
-
-    React.useEffect(() => {
-        return () => {
-            if (relatedPermitQueryTimerRef.current) {
-                clearTimeout(relatedPermitQueryTimerRef.current);
-            }
-        };
-    }, []);
+        }
+    }, [canQueryRelatedPermits, data.related_permits, data.apply_time, relatedPermitLoading]);
 
     React.useEffect(() => {
         if (!readOnly) return;
-        if (relatedPermitQueryTimerRef.current) {
-            clearTimeout(relatedPermitQueryTimerRef.current);
-        }
         setRelatedPermitLoading(false);
-        setRelatedPermitInfo(null);
+        setRelatedPermitInfo([]);
         setHasQueriedRelatedPermit(false);
     }, [readOnly, data?.permit_code]);
 
@@ -427,10 +390,13 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                             readOnly={readOnly}
                         />
                     </FormField>
-                    <div className="md:col-span-2 rounded-lg border border-blue-100 bg-blue-50/50 p-4">
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                            <div className="font-semibold text-blue-800"><i className="fas fa-file-alt mr-2" />JSA 分析</div>
-                            {!readOnly && <label className="cursor-pointer rounded bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"><i className="fas fa-upload mr-1" />上传文件<input type="file" className="hidden" multiple accept="image/*,.doc,.docx,.pdf" onChange={handleJsaFileChange} /></label>}
+                    <div className="md:col-span-2 rounded-xl border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-5 shadow-sm">
+                        <div className="flex flex-wrap items-center justify-between gap-4">
+                            <div>
+                                <div className="text-base font-bold text-blue-800"><i className="fas fa-file-shield mr-2" />JSA 作业安全分析资料</div>
+                                <p className="mt-1 text-xs text-blue-600">请上传本次作业对应的 JSA 分析表或作业方案，支持图片、Word、PDF。</p>
+                            </div>
+                            {!readOnly && <label className="cursor-pointer rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow hover:bg-blue-700"><i className="fas fa-cloud-upload-alt mr-2" />上传 JSA 文件<input type="file" className="hidden" multiple accept="image/*,.doc,.docx,.pdf" onChange={handleJsaFileChange} /></label>}
                         </div>
                         {(data.jsa_files || []).length > 0 && <div className="mt-3 space-y-2">{data.jsa_files.map((file, index) => <div key={`${file.name}-${index}`} className="flex items-center justify-between rounded border border-blue-100 bg-white px-3 py-2 text-sm text-gray-700"><span className="truncate"><i className="fas fa-paperclip mr-2 text-blue-500" />{file.name}</span>{!readOnly && <button type="button" onClick={() => onChange('jsa_files', data.jsa_files.filter((_, fileIndex) => fileIndex !== index))} className="ml-3 text-red-500 hover:text-red-700"><i className="fas fa-times" /></button>}</div>)}</div>}
                     </div>
@@ -629,7 +595,7 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                                         name="related_permits"
                                         value={data.related_permits || ''}
                                         onChange={handleChange}
-                                        placeholder="请输入要关联的作业票编号（可用逗号/顿号分隔）"
+                                        placeholder="输入多个关联编号，用中文或英文逗号分隔"
                                         readOnly={false}
                                         className="md:flex-1"
                                     />
@@ -642,7 +608,7 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                                     </button>
                                 </div>
                                 <div className="text-xs text-gray-400">
-                                    作业人员端仅记录关联编号；关联票证详情由安全员在审批/查看界面查询。
+                                    可一次关联多张票证，例如 2 张盲板抽堵票和 1 张临时用电票；中文逗号、英文逗号、顿号均可分隔。
                                 </div>
                             </div>
                         ) : (
@@ -677,40 +643,46 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                                     </div>
                                 )}
 
-                                {!relatedPermitLoading && canQueryRelatedPermits && hasQueriedRelatedPermit && relatedPermitInfo && (
-                                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 animate-fadeIn">
+                                {!relatedPermitLoading && canQueryRelatedPermits && hasQueriedRelatedPermit && relatedPermitInfo.length > 0 && (
+                                    <div className="space-y-3 animate-fadeIn">
                                         <div className="flex items-center gap-2 mb-2">
                                             <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                             </svg>
-                                            <span className="font-bold text-blue-800 text-sm">关联作业信息自动获取成功</span>
+                                            <span className="font-bold text-blue-800 text-sm">已统一查询 {relatedPermitInfo.length} 张关联票证</span>
                                         </div>
+                                        {relatedPermitInfo.map((item) => item.found ? (
+                                        <div key={item.permitNumber} className="rounded-lg border border-blue-200 bg-blue-50 p-4">
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 text-sm">
                                             <div className="flex items-center gap-2">
                                                 <span className="text-gray-500 w-24">作业类型：</span>
-                                                <span className="font-medium text-gray-800">盲板抽堵作业</span>
+                                                <span className="font-medium text-gray-800">{item.type}</span>
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 <span className="text-gray-500 w-24">作业进度：</span>
-                                                <span className="font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded">{relatedPermitInfo.progress}</span>
+                                                <span className="font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded">{item.status}</span>
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 <span className="text-gray-500 w-24">完成时间：</span>
-                                                <span className="font-medium text-gray-800">{relatedPermitInfo.completionTime}</span>
+                                                <span className="font-medium text-gray-800">{item.completionTime}</span>
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 <span className="text-gray-500 w-24">作业人员：</span>
-                                                <span className="font-medium text-gray-800">{relatedPermitInfo.workers}</span>
+                                                <span className="font-medium text-gray-800">{item.workers}</span>
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 <span className="text-gray-500 w-24">票证编号：</span>
-                                                <span className="font-medium text-gray-800">{relatedPermitInfo.permitNumber}</span>
+                                                <span className="font-medium text-gray-800">{item.permitNumber}</span>
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 <span className="text-gray-500 w-24">审核人员：</span>
-                                                <span className="font-medium text-gray-800">{relatedPermitInfo.reviewers}</span>
+                                                <span className="font-medium text-gray-800">{item.reviewers}</span>
                                             </div>
                                         </div>
+                                        </div>
+                                        ) : (
+                                            <div key={item.permitNumber} className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700"><i className="fas fa-exclamation-circle mr-2" />未查询到票证：<span className="font-mono font-bold">{item.permitNumber}</span></div>
+                                        ))}
                                     </div>
                                 )}
 
