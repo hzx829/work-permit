@@ -267,6 +267,18 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
         event.target.value = '';
     }, [data.jsa_files, onChange, readOnly]);
 
+    const handleWorkPlanFileChange = React.useCallback((event) => {
+        if (readOnly) return;
+        const files = Array.from(event.target.files || []).map((file) => ({
+            name: file.name,
+            type: file.type || '文件',
+            size: file.size,
+            uploadedAt: new Date().toLocaleString('zh-CN')
+        }));
+        if (files.length) onChange('work_plan_files', [...(data.work_plan_files || []), ...files]);
+        event.target.value = '';
+    }, [data.work_plan_files, onChange, readOnly]);
+
     const handleRelatedPermitAssociate = React.useCallback(() => {
         if (readOnly) return;
         const numbers = parseRelatedPermitNumbers(data.related_permits);
@@ -327,13 +339,38 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
     <>
         <div className="w-full max-w-7xl mx-auto bg-white p-8">
             {/* Header */}
-            <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center justify-between mb-5">
                 <div className="flex items-center gap-3">
                     <div className="w-1.5 h-6 bg-blue-600 rounded-full"></div>
                     <h1 className="text-xl font-bold text-gray-800">受限空间安全作业票申请表</h1>
                 </div>
                 <div className="text-sm text-gray-500 bg-gray-50 px-3 py-1 rounded border border-gray-200">
                     编号：{data.permit_code || '系统自动生成'}
+                </div>
+            </div>
+
+            {/* Application attachments */}
+            <div className="mb-8 grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+                <div className="rounded-xl border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-5 shadow-sm">
+                    <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                        <div className="min-w-0">
+                            <div className="text-base font-bold text-blue-800"><i className="fas fa-file-shield mr-2" />JSA 作业安全分析资料</div>
+                            <p className="mt-1 text-xs text-blue-600">请上传本次作业对应的 JSA 分析表，支持图片、Word、PDF。</p>
+                        </div>
+                        {!readOnly && <label className="shrink-0 cursor-pointer rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow hover:bg-blue-700"><i className="fas fa-cloud-upload-alt mr-2" />上传 JSA 文件<input type="file" className="hidden" multiple accept="image/*,.doc,.docx,.pdf" onChange={handleJsaFileChange} /></label>}
+                    </div>
+                    {(data.jsa_files || []).length > 0 && <div className="mt-3 space-y-2">{data.jsa_files.map((file, index) => <div key={`${file.name}-${index}`} className="flex items-center justify-between rounded border border-blue-100 bg-white px-3 py-2 text-sm text-gray-700"><span className="truncate"><i className="fas fa-paperclip mr-2 text-blue-500" />{file.name}</span>{!readOnly && <button type="button" onClick={() => onChange('jsa_files', data.jsa_files.filter((_, fileIndex) => fileIndex !== index))} className="ml-3 text-red-500 hover:text-red-700"><i className="fas fa-times" /></button>}</div>)}</div>}
+                </div>
+
+                <div className="rounded-xl border-2 border-cyan-200 bg-gradient-to-r from-cyan-50 to-blue-50 p-5 shadow-sm">
+                    <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                        <div className="min-w-0">
+                            <div className="text-base font-bold text-cyan-800"><i className="fas fa-file-alt mr-2" />作业方案</div>
+                            <p className="mt-1 text-xs text-cyan-700">请上传本次作业对应的作业方案，支持图片、Word、PDF。</p>
+                        </div>
+                        {!readOnly && <label className="shrink-0 cursor-pointer rounded-lg bg-cyan-600 px-5 py-2.5 text-sm font-bold text-white shadow hover:bg-cyan-700"><i className="fas fa-cloud-upload-alt mr-2" />上传作业方案<input type="file" className="hidden" multiple accept="image/*,.doc,.docx,.pdf" onChange={handleWorkPlanFileChange} /></label>}
+                    </div>
+                    {(data.work_plan_files || []).length > 0 && <div className="mt-3 space-y-2">{data.work_plan_files.map((file, index) => <div key={`${file.name}-${index}`} className="flex items-center justify-between rounded border border-cyan-100 bg-white px-3 py-2 text-sm text-gray-700"><span className="truncate"><i className="fas fa-paperclip mr-2 text-cyan-600" />{file.name}</span>{!readOnly && <button type="button" onClick={() => onChange('work_plan_files', data.work_plan_files.filter((_, fileIndex) => fileIndex !== index))} className="ml-3 text-red-500 hover:text-red-700"><i className="fas fa-times" /></button>}</div>)}</div>}
                 </div>
             </div>
 
@@ -390,17 +427,6 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                             readOnly={readOnly}
                         />
                     </FormField>
-                    <div className="md:col-span-2 rounded-xl border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-5 shadow-sm">
-                        <div className="flex flex-wrap items-center justify-between gap-4">
-                            <div>
-                                <div className="text-base font-bold text-blue-800"><i className="fas fa-file-shield mr-2" />JSA 作业安全分析资料</div>
-                                <p className="mt-1 text-xs text-blue-600">请上传本次作业对应的 JSA 分析表或作业方案，支持图片、Word、PDF。</p>
-                            </div>
-                            {!readOnly && <label className="cursor-pointer rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow hover:bg-blue-700"><i className="fas fa-cloud-upload-alt mr-2" />上传 JSA 文件<input type="file" className="hidden" multiple accept="image/*,.doc,.docx,.pdf" onChange={handleJsaFileChange} /></label>}
-                        </div>
-                        {(data.jsa_files || []).length > 0 && <div className="mt-3 space-y-2">{data.jsa_files.map((file, index) => <div key={`${file.name}-${index}`} className="flex items-center justify-between rounded border border-blue-100 bg-white px-3 py-2 text-sm text-gray-700"><span className="truncate"><i className="fas fa-paperclip mr-2 text-blue-500" />{file.name}</span>{!readOnly && <button type="button" onClick={() => onChange('jsa_files', data.jsa_files.filter((_, fileIndex) => fileIndex !== index))} className="ml-3 text-red-500 hover:text-red-700"><i className="fas fa-times" /></button>}</div>)}</div>}
-                    </div>
-
                     {/* 仅在非创建模式（即审批/详情查看）时显示现场安全条件确认 */}
                     {!isCreating && (
                         <div className="md:col-span-2 mt-2 mb-4">

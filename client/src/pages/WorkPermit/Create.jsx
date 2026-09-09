@@ -60,6 +60,8 @@ export default function Create() {
         // Confined Space specific fields
         original_media: '',
         workers: '',
+        jsa_files: [],
+        work_plan_files: [],
         // Blind Plate specific fields
         blind_plate_work_type: '',
         equipment_pipeline_name: '',

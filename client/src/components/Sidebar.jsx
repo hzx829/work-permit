@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
-export default function Sidebar() {
+export default function Sidebar({ hidden = false, onToggle }) {
     const location = useLocation();
     const { user, logout } = useAuth();
 
@@ -34,8 +34,13 @@ export default function Sidebar() {
         { path: '/fire-safety', icon: 'fa-fire-extinguisher', label: '消防安全管理' },
     ];
 
+    if (hidden) {
+        return <button type="button" onClick={onToggle} title="展开菜单" aria-label="展开菜单" className="fixed left-0 top-1/2 z-50 hidden -translate-y-1/2 rounded-r-md border border-l-0 border-cyan-400/50 bg-slate-900/95 px-2 py-5 text-cyan-200 shadow-[0_0_18px_rgba(34,211,238,.22)] transition hover:bg-slate-800 md:block"><i className="fas fa-angles-right" /></button>;
+    }
+
     return (
-        <aside className="w-64 bg-slate-800 text-white flex flex-col hidden md:flex shadow-xl">
+        <aside className="relative w-64 shrink-0 bg-slate-800 text-white flex flex-col hidden md:flex shadow-xl">
+            <button type="button" onClick={onToggle} title="隐藏菜单" aria-label="隐藏菜单" className="absolute -right-3 top-20 z-50 flex h-8 w-6 items-center justify-center rounded-r border border-l-0 border-slate-600 bg-slate-800 text-xs text-slate-300 transition hover:text-white"><i className="fas fa-angles-left" /></button>
             <div className="h-16 flex items-center justify-center border-b border-slate-700">
                 <h1 className="text-xl font-bold">
                     <i className="fas fa-shield-halved mr-2"></i>

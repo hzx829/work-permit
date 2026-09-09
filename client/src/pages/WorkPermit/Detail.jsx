@@ -155,7 +155,13 @@ export default function Detail() {
     }, []);
 
     const isConfinedSpace = permit?.type === '受限空间作业';
-    const gasReady = Boolean(permit?.gas_detection_guardian_sign);
+    const gasDetectionRecords = permit?.gas_detection_records || [];
+    const gasReady = gasDetectionRecords.length > 0 && gasDetectionRecords.every((record) => (
+        Boolean(record.guardian_signature) || (
+            !Object.prototype.hasOwnProperty.call(record, 'guardian_signature')
+            && Boolean(permit?.gas_detection_guardian_signature)
+        )
+    ));
     const safetyMeasuresReady = Boolean(permit?.safety_measures_sign);
     const approvalReady = gasReady && safetyMeasuresReady;
     const briefingReady = Boolean(permit?.approver_sign || permit?.status === '已批准');
@@ -309,9 +315,9 @@ export default function Detail() {
             <main className="flex-1 overflow-auto p-4 md:p-8">
                 <div className="max-w-6xl mx-auto w-full grid grid-cols-1 lg:grid-cols-3 gap-8">
                     {/* Left: Content Details */}
-                    <div className="lg:col-span-2 space-y-6">
+                    <div className="min-w-0 space-y-6 lg:col-span-2">
                         {/* Tab Navigation */}
-                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                        <div className="h-full min-w-0 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
                             <div className="flex overflow-x-auto border-b border-gray-200">
                                 <button
                                     onClick={() => selectTab('basic')}
@@ -560,7 +566,7 @@ export default function Detail() {
                                             derivedStage === 2 ? 'fa-clipboard-check' :
                                             'fa-clock'
                                         } text-xl`}></i>
-                                        {permit.status === '已驳回' ? permit.status : stages[derivedStage - 1]}
+                                        票证智能校验
                                     </span>
                                 </div>
                                 
