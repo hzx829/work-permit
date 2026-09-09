@@ -93,10 +93,6 @@ export default function EmergencyFlowChart({ event }) {
                 return <g key={`${from}-${to}`}><path d={d} fill="none" stroke={done ? '#34d399' : '#2563eb'} strokeWidth={done ? 3 : 2} opacity={done ? 1 : .55} markerEnd={`url(#${done ? 'arrowDone' : 'arrowIdle'})`} />{label && <EdgeLabel text={label} x={lx} y={ly} done={done} />}</g>;
             })}
             {Object.entries(NODES).map(([id, node]) => <FlowNode key={id} node={node} state={id === current ? 'current' : visited.has(id) ? 'done' : 'idle'} />)}
-            <g transform="translate(325 805)">
-                <rect width="180" height="118" rx="5" fill="#061b3b" stroke={visited.has('recovery') ? '#34d399' : '#2563eb'} opacity=".95" />
-                {['现场清理', '警戒解除', '善后处理', '事故调查'].map((text, index) => <text key={text} x="90" y={22 + index * 26} fill={visited.has('recovery') ? '#a7f3d0' : '#93c5fd'} fontSize="14" fontWeight="500" textAnchor="middle" dominantBaseline="middle">{text}</text>)}
-            </g>
         </svg>
         </div>
     </div>;
