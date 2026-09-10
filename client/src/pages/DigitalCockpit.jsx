@@ -4,12 +4,36 @@ import {
     createEmergencyEvent,
     loadEmergencyEvents,
     loadEmergencyMonitoring,
+    loadCurrentWeather,
     setEmergencySimulation,
     loadPermits,
     loadRegulations,
     loadWatchSnapshot,
 } from '../utils/api';
+import { playEmergencyAlarm } from '../utils/emergencyAlarm';
 const RealtimeWatchMap = lazy(() => import('../components/RealtimeWatchMap'));
+const PLATFORM_RESEARCH_STARTED_AT = Date.UTC(2025, 10, 27);
+const INITIAL_SAFE_DAYS = 138;
+const COCKPIT_PERMIT_COUNTER_STARTED_AT = '2026-09-10 03:26:49';
+
+const COCKPIT_PERMIT_BASELINES = [
+    { label: '动火作业', value: 18, aliases: ['动火作业', '动火'] },
+    { label: '临时用电作业', value: 12, aliases: ['临时用电作业', '临时用电'] },
+    { label: '受限空间作业', value: 43, aliases: ['受限空间作业', '受限空间'] },
+    { label: '高处作业', value: 16, aliases: ['高处作业'] },
+    { label: '盲板抽堵作业', value: 11, aliases: ['盲板抽堵作业', '盲板抽堵'] },
+    { label: '动土作业', value: 13, aliases: ['动土作业', '动土'] },
+    { label: '吊装作业', value: 14, aliases: ['吊装作业', '吊装'] },
+    { label: '断路作业', value: 10, aliases: ['断路作业', '断路'] },
+];
+
+const buildCockpitPermitStats = (permits = []) => COCKPIT_PERMIT_BASELINES.map((baseline) => ({
+    label: baseline.label,
+    value: baseline.value + permits.filter((permit) => (
+        baseline.aliases.includes(permit.type)
+        && String(permit.created_at || '') > COCKPIT_PERMIT_COUNTER_STARTED_AT
+    )).length,
+}));
 
 class MapLoadBoundary extends React.Component {
     constructor(props) {
@@ -41,16 +65,19 @@ export default function DigitalCockpit() {
     });
     const [watchLoading, setWatchLoading] = useState(true);
     const [watchError, setWatchError] = useState('');
+    const [selectedWatchId, setSelectedWatchId] = useState('');
     const [emergencyAlarm, setEmergencyAlarm] = useState(null);
     const [activeEmergencyEvents, setActiveEmergencyEvents] = useState([]);
     const [alarmSubmitting, setAlarmSubmitting] = useState(false);
     const [alarmError, setAlarmError] = useState('');
     const [simulation, setSimulation] = useState({ enabled: false, active: false });
     const [simulationBusy, setSimulationBusy] = useState(false);
-    const safeDays = Math.max(1, Math.floor((currentTime.getTime() - new Date('2026-04-25T00:00:00').getTime()) / 86400000));
+    const today = Date.UTC(currentTime.getFullYear(), currentTime.getMonth(), currentTime.getDate());
+    const safeDays = INITIAL_SAFE_DAYS + Math.max(0, Math.floor((today - PLATFORM_RESEARCH_STARTED_AT) / 86400000));
     const [weatherData, setWeatherData] = useState({
-        condition: '多云', temp: 24, windSpeed: '3级', windDirection: '东北风', humidity: 65
+        condition: '--', temperature: null, windLevel: null, windDirection: '--', humidity: null
     });
+    const [weatherError, setWeatherError] = useState('');
     const [regulationData, setRegulationData] = useState({
         stats: { laws: 102, lawsActive: 91, regulations: 246, regulationsActive: 223, procedures: 224, proceduresActive: 214 },
         uploadedDocuments: []
@@ -103,6 +130,7 @@ export default function DigitalCockpit() {
         try {
             const event = await createEmergencyEvent({ ...emergencyAlarm, alarmDecision, ...extra });
             if (alarmDecision === 'yes') {
+                sessionStorage.setItem('ignored-emergency-alarm-key', emergencyAlarm.alarmKey);
                 navigate(`/emergency?event=${event.id}`);
                 return;
             }
@@ -162,18 +190,45 @@ export default function DigitalCockpit() {
         };
     }, []);
 
-    const latestHeartRate = watchSnapshot.watches.find((watch) => watch.heartRate)?.heartRate;
+    const selectedWatch = watchSnapshot.watches.find((watch) => watch.id === selectedWatchId)
+        || watchSnapshot.watches.find((watch) => watch.online)
+        || watchSnapshot.watches[0]
+        || null;
 
     useEffect(() => {
-        const timer = setInterval(() => {
-            setWeatherData((current) => ({
-                ...current,
-                temp: Number((current.temp + (Math.random() - 0.48) * 0.4).toFixed(1)),
-                humidity: Math.max(45, Math.min(85, Math.round(current.humidity + (Math.random() - 0.5) * 2))),
-                windSpeed: `${Math.max(1, Math.min(5, Math.round(3 + (Math.random() - 0.5) * 2)))}级`
-            }));
-        }, 3000);
-        return () => clearInterval(timer);
+        if (!watchSnapshot.watches.length) {
+            setSelectedWatchId('');
+            return;
+        }
+        if (!watchSnapshot.watches.some((watch) => watch.id === selectedWatchId)) {
+            setSelectedWatchId(
+                watchSnapshot.watches.find((watch) => watch.online)?.id
+                || watchSnapshot.watches[0].id,
+            );
+        }
+    }, [selectedWatchId, watchSnapshot.watches]);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const refreshWeather = async () => {
+            try {
+                const weather = await loadCurrentWeather();
+                if (cancelled) return;
+                setWeatherData(weather);
+                setWeatherError(weather.stale ? '显示最近一次同步数据' : '');
+            } catch (error) {
+                if (cancelled) return;
+                setWeatherError(error.message || '实时气象数据同步失败');
+            }
+        };
+
+        refreshWeather();
+        const timer = setInterval(refreshWeather, 10 * 60 * 1000);
+        return () => {
+            cancelled = true;
+            clearInterval(timer);
+        };
     }, []);
 
     useEffect(() => {
@@ -194,69 +249,29 @@ export default function DigitalCockpit() {
 
     // 加载作业票统计数据
     useEffect(() => {
+        let cancelled = false;
+
         async function fetchWorkPermitStats() {
             try {
                 // 获取所有作业票（设置较大的 pageSize 以获取全部数据用于统计）
                 const response = await loadPermits('', '', 1, 1000);
-                console.log('数字驾驶舱 - 加载的作业票数据:', response);
-                
                 // API 返回的是分页格式: { data: [...], total, page, pageSize, totalPages }
                 const permits = response?.data || [];
-                
-                if (permits.length > 0) {
-                    // 按作业类型统计
-                    const typeCount = {};
-                    permits.forEach(permit => {
-                        const type = permit.type || '其他';
-                        console.log('作业票类型:', type);
-                        typeCount[type] = (typeCount[type] || 0) + 1;
-                    });
-                    
-                    console.log('类型统计:', typeCount);
-                    
-                    // 转换为显示格式 - 注意这里要匹配数据库中的实际值
-                    const stats = [
-                        { label: '动火作业', value: typeCount['动火作业'] || typeCount['动火'] || 0 },
-                        { label: '临时用电作业', value: typeCount['临时用电作业'] || typeCount['临时用电'] || 0 },
-                        { label: '受限空间作业', value: typeCount['受限空间作业'] || typeCount['受限空间'] || 0 },
-                        { label: '高处作业', value: typeCount['高处作业'] || 0 },
-                        { label: '盲板抽堵作业', value: typeCount['盲板抽堵作业'] || typeCount['盲板抽堵'] || 0 },
-                        { label: '动土作业', value: typeCount['动土作业'] || typeCount['动土'] || 0 },
-                        { label: '吊装作业', value: typeCount['吊装作业'] || typeCount['吊装'] || 0 },
-                        { label: '断路作业', value: typeCount['断路作业'] || typeCount['断路'] || 0 },
-                    ];
-                    console.log('最终统计数据:', stats);
-                    setWorkPermitStats(stats);
-                } else {
-                    console.log('没有作业票数据');
-                    // 如果没有数据，使用默认值
-                    setWorkPermitStats([
-                        { label: '动火作业', value: 0 },
-                        { label: '临时用电作业', value: 0 },
-                        { label: '受限空间作业', value: 0 },
-                        { label: '高处作业', value: 0 },
-                        { label: '盲板抽堵作业', value: 0 },
-                        { label: '动土作业', value: 0 },
-                        { label: '吊装作业', value: 0 },
-                        { label: '断路作业', value: 0 },
-                    ]);
-                }
+                if (!cancelled) setWorkPermitStats(buildCockpitPermitStats(permits));
             } catch (error) {
                 console.error('Failed to load work permit stats:', error);
-                // 出错时使用默认值
-                setWorkPermitStats([
-                    { label: '动火作业', value: 0 },
-                    { label: '临时用电作业', value: 0 },
-                    { label: '受限空间作业', value: 0 },
-                    { label: '高处作业', value: 0 },
-                    { label: '盲板抽堵作业', value: 0 },
-                    { label: '动土作业', value: 0 },
-                    { label: '吊装作业', value: 0 },
-                    { label: '断路作业', value: 0 },
-                ]);
+                if (!cancelled) setWorkPermitStats(buildCockpitPermitStats());
             }
         }
+
         fetchWorkPermitStats();
+        const timer = setInterval(fetchWorkPermitStats, 30 * 1000);
+        window.addEventListener('focus', fetchWorkPermitStats);
+        return () => {
+            cancelled = true;
+            clearInterval(timer);
+            window.removeEventListener('focus', fetchWorkPermitStats);
+        };
     }, []);
 
     const formatDate = (date) => {
@@ -348,7 +363,7 @@ export default function DigitalCockpit() {
                     {/* 法律法规 */}
                     <TechPanel 
                         title="法律法规" 
-                        className="flex-none h-[210px] hover:border-blue-400 transition-all hover:shadow-[0_0_30px_rgba(59,130,246,0.4)]"
+                        className="h-[150px] flex-none transition-all hover:border-blue-400 hover:shadow-[0_0_30px_rgba(59,130,246,0.4)]"
                         compact={true}
                     >
                         <div className="grid grid-cols-3 gap-2 text-center items-center">
@@ -368,16 +383,12 @@ export default function DigitalCockpit() {
                                 </button>
                             ))}
                         </div>
-                        <button type="button" onClick={() => navigate('/regulation')} className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-cyan-400/40 bg-cyan-500/10 px-2 py-1.5 text-xs font-medium text-cyan-100 hover:bg-cyan-500/20">
-                            <i className="fas fa-folder-open" /> 进入法律法规库
-                        </button>
-                        <div className="mt-1 truncate text-[10px] text-blue-300">{regulationData.uploadedDocuments?.length ? `最新：${regulationData.uploadedDocuments[0].name}` : '资料由管理中心统一维护'}</div>
                     </TechPanel>
 
                     {/* 安全动态 */}
                     <TechPanel 
                         title="安全动态" 
-                        className="flex-none h-[295px]"
+                        className="min-h-0 flex-1"
                         compact={true}
                     >
                         <AutoScrollList>
@@ -415,7 +426,7 @@ export default function DigitalCockpit() {
                     {/* 通知公告 */}
                     <TechPanel 
                         title="通知公告" 
-                        className="flex-1 min-h-[250px]"
+                        className="min-h-0 flex-1"
                         compact={true}
                     >
                         <AutoScrollList>
@@ -453,6 +464,8 @@ export default function DigitalCockpit() {
                                     loading={watchLoading}
                                     error={watchError}
                                     updatedAt={watchSnapshot.updatedAt}
+                                    selectedWatchId={selectedWatch?.id || ''}
+                                    onSelectWatch={setSelectedWatchId}
                                 />
                             </Suspense>
                         </MapLoadBoundary>
@@ -474,16 +487,38 @@ export default function DigitalCockpit() {
                                 <div className="pb-1 text-xs font-bold tracking-[0.18em] text-cyan-100 sm:text-sm">行为识别</div>
                             </div>
                         </div>
-                        <div className="rounded border border-cyan-400/35 bg-slate-950/75 px-3 py-2 text-center">
-                            <div className="text-[11px] tracking-wider text-cyan-200">在线手表</div>
-                            <div className="font-mono text-2xl font-bold text-emerald-300">
-                                {watchSnapshot.stats.online}<span className="text-sm text-slate-400">/{watchSnapshot.stats.total}</span>
+                        <div className="rounded border border-cyan-400/35 bg-slate-950/75 px-2 py-1.5">
+                            <div className="flex items-center justify-between gap-2 text-[10px] tracking-wider text-cyan-200">
+                                <label htmlFor="cockpit-watch-selector">选择手表</label>
+                                <span className="whitespace-nowrap text-emerald-300">在线 {watchSnapshot.stats.online}/{watchSnapshot.stats.total}</span>
                             </div>
+                            <select
+                                id="cockpit-watch-selector"
+                                value={selectedWatch?.id || ''}
+                                onChange={(event) => setSelectedWatchId(event.target.value)}
+                                disabled={!watchSnapshot.watches.length}
+                                className="mt-1 w-full rounded border border-cyan-400/30 bg-slate-950 px-1.5 py-1 text-[11px] font-bold text-cyan-100 outline-none hover:border-cyan-300 focus:border-cyan-300 disabled:cursor-not-allowed disabled:text-slate-500"
+                            >
+                                {!watchSnapshot.watches.length && <option value="">暂无手表</option>}
+                                {watchSnapshot.watches.map((watch) => (
+                                    <option key={watch.id} value={watch.id}>
+                                        {watch.name} · {watch.online ? '在线' : '离线'}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
-                        <div className="rounded border border-cyan-400/35 bg-slate-950/75 px-3 py-2 text-center">
-                            <div className="text-[11px] tracking-wider text-cyan-200">实时心率</div>
-                            <div className="font-mono text-2xl font-bold text-rose-300">
-                                {latestHeartRate || '--'}<span className="ml-1 text-xs text-slate-400">BPM</span>
+                        <div className="rounded border border-cyan-400/35 bg-slate-950/75 px-2 py-1.5 text-center">
+                            <div className="flex items-center justify-between gap-2 text-[10px] tracking-wider text-cyan-200">
+                                <span>实时心率</span>
+                                <span className={`h-1.5 w-1.5 rounded-full ${selectedWatch?.online ? 'bg-emerald-400' : 'bg-slate-500'}`} />
+                            </div>
+                            <div className="font-mono text-xl font-bold leading-tight text-rose-300">
+                                {selectedWatch?.heartRate ?? '--'}<span className="ml-1 text-[10px] text-slate-400">BPM</span>
+                            </div>
+                            <div className="truncate text-[9px] text-slate-400">
+                                {selectedWatch
+                                    ? `${selectedWatch.name} · 血氧 ${selectedWatch.bloodOxygen ?? '--'}% · 体温 ${selectedWatch.bodyTemperature ?? '--'}℃`
+                                    : '请选择需要查看的手表'}
                             </div>
                         </div>
                     </div>
@@ -497,27 +532,39 @@ export default function DigitalCockpit() {
                         className="flex-none h-[110px] cursor-pointer hover:border-blue-400 transition-all hover:shadow-[0_0_30px_rgba(59,130,246,0.4)]"
                         onClick={() => navigate('/risk')}
                         compact={true}
+                        meta={(
+                            <a
+                                href={weatherData.attributionUrl || 'https://open-meteo.com/'}
+                                target="_blank"
+                                rel="noreferrer"
+                                onClick={(event) => event.stopPropagation()}
+                                className="whitespace-nowrap text-[9px] font-normal text-blue-400/80 hover:text-cyan-200"
+                            >
+                                实时 · Open-Meteo
+                            </a>
+                        )}
                     >
-                        <div className="flex items-center justify-between px-2 h-full">
-                            <div className="flex items-center gap-2">
-                                <i className="fas fa-cloud text-3xl text-blue-400"></i>
-                                <span className="text-2xl font-bold text-white">{weatherData.temp}°C</span>
+                        <div className="grid h-full grid-cols-[auto_minmax(0,1fr)] items-center gap-2 px-1">
+                            <div className="flex items-center gap-1 whitespace-nowrap">
+                                <i className="fas fa-cloud text-2xl text-blue-400"></i>
+                                <span className="text-xl font-bold text-white">{weatherData.temperature ?? '--'}°C</span>
                             </div>
-                            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-blue-200 font-medium">
-                                <div className="flex items-center gap-2">
+                            <div className="grid min-w-0 grid-cols-2 gap-x-2 gap-y-1 text-[10px] font-medium text-blue-200">
+                                <div className="flex min-w-0 items-center gap-1">
                                     <span className="text-blue-400 font-bold">天气</span>
-                                    <span>{weatherData.condition}</span>
+                                    <span className="truncate">{weatherData.condition}</span>
                                 </div>
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-1 whitespace-nowrap">
                                     <span className="text-blue-400 font-bold">湿度</span>
-                                    <span>{weatherData.humidity}%</span>
+                                    <span>{weatherData.humidity ?? '--'}%</span>
                                 </div>
-                                <div className="flex items-center gap-2 col-span-2">
-                                    <span className="text-blue-400 font-bold">风向</span>
-                                    <span>{weatherData.windDirection} {weatherData.windSpeed}</span>
+                                <div className="col-span-2 flex items-center gap-1 whitespace-nowrap">
+                                    <span className="font-bold text-blue-400">风向</span>
+                                    <span>{weatherData.windDirection} {weatherData.windLevel == null ? '--' : `${weatherData.windLevel}级`}</span>
                                 </div>
                             </div>
                         </div>
+                        {weatherError && <div className="absolute bottom-1 right-3 text-[9px] text-amber-300">{weatherError}</div>}
                     </TechPanel>
 
                     {/* Work Permit Analysis */}
@@ -589,22 +636,8 @@ function EmergencyAlarmDialog({ alarm, activeEvents, submitting, error, onDecisi
     });
 
     useEffect(() => {
-        let context;
-        try {
-            context = new AudioContext();
-            const oscillator = context.createOscillator();
-            const gain = context.createGain();
-            oscillator.type = 'square';
-            oscillator.frequency.value = 760;
-            gain.gain.setValueAtTime(0.04, context.currentTime);
-            oscillator.connect(gain);
-            gain.connect(context.destination);
-            oscillator.start();
-            oscillator.stop(context.currentTime + 0.25);
-        } catch (audioError) {
-            console.debug('Alarm sound requires browser interaction:', audioError);
-        }
-        return () => context?.close();
+        const stopAlarm = playEmergencyAlarm();
+        return stopAlarm;
     }, []);
 
     return (
@@ -700,7 +733,7 @@ function AutoScrollList({ children, className = '', speed = 0.12 }) {
 }
 
 // Enhanced Tech Panel Component
-function TechPanel({ title, children, className = '', onClick, compact = false }) {
+function TechPanel({ title, children, className = '', onClick, compact = false, meta = null }) {
     return (
         <div 
             className={`bg-[#0f172a]/60 border border-blue-500/30 rounded-xl ${compact ? 'p-3' : 'p-6'} flex flex-col relative overflow-hidden backdrop-blur-md shadow-lg ${className}`}
@@ -718,10 +751,13 @@ function TechPanel({ title, children, className = '', onClick, compact = false }
                     <i className="fas fa-caret-right text-blue-500 text-lg"></i>
                     {title}
                 </h3>
-                <div className="flex gap-2">
-                    <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse"></div>
-                    <div className="w-1.5 h-1.5 bg-blue-500/50 rounded-full"></div>
-                    <div className="w-1.5 h-1.5 bg-blue-500/30 rounded-full"></div>
+                <div className="flex items-center gap-3">
+                    {meta}
+                    <div className="flex gap-2">
+                        <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse"></div>
+                        <div className="w-1.5 h-1.5 bg-blue-500/50 rounded-full"></div>
+                        <div className="w-1.5 h-1.5 bg-blue-500/30 rounded-full"></div>
+                    </div>
                 </div>
                 <div className="absolute bottom-0 left-0 w-1/3 h-[2px] bg-gradient-to-r from-blue-500 to-transparent"></div>
             </div>

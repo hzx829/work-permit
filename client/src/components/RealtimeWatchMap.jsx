@@ -59,7 +59,14 @@ function selectedStatusClass(watch) {
     return 'bg-slate-500/25 text-slate-300';
 }
 
-export default function RealtimeWatchMap({ watches = [], loading = false, error = '', updatedAt = null }) {
+export default function RealtimeWatchMap({
+    watches = [],
+    loading = false,
+    error = '',
+    updatedAt = null,
+    selectedWatchId: controlledSelectedWatchId = '',
+    onSelectWatch = null,
+}) {
     const containerRef = useRef(null);
     const mapRef = useRef(null);
     const tileLayersRef = useRef(null);
@@ -72,8 +79,9 @@ export default function RealtimeWatchMap({ watches = [], loading = false, error 
     const [showBoundaries, setShowBoundaries] = useState(true);
     const [boundaryNames, setBoundaryNames] = useState([]);
     const [tileError, setTileError] = useState('');
-    const [selectedWatchId, setSelectedWatchId] = useState(null);
+    const [internalSelectedWatchId, setInternalSelectedWatchId] = useState('');
     const [detailsCollapsed, setDetailsCollapsed] = useState(false);
+    const selectedWatchId = controlledSelectedWatchId || internalSelectedWatchId;
 
     const locatedWatches = useMemo(() => watches.filter((watch) => (
         Number.isFinite(watch.lat) && Number.isFinite(watch.lng)
@@ -82,6 +90,11 @@ export default function RealtimeWatchMap({ watches = [], loading = false, error 
         || watches.find((watch) => watch.online && Number.isFinite(watch.lat))
         || watches[0]
         || null;
+
+    const selectWatch = useCallback((watchId) => {
+        setInternalSelectedWatchId(watchId);
+        onSelectWatch?.(watchId);
+    }, [onSelectWatch]);
 
     useEffect(() => {
         if (!containerRef.current || mapRef.current) return undefined;
@@ -227,7 +240,7 @@ export default function RealtimeWatchMap({ watches = [], loading = false, error 
                 title: `${watch.name} ${watch.lat.toFixed(6)}, ${watch.lng.toFixed(6)}`,
                 keyboard: true,
             });
-            marker.on('click', () => setSelectedWatchId(watch.id));
+            marker.on('click', () => selectWatch(watch.id));
             cluster.addLayer(marker);
         });
 
@@ -237,11 +250,11 @@ export default function RealtimeWatchMap({ watches = [], loading = false, error 
             map.setView([selectedWatch?.lat || locatedWatches[0].lat, selectedWatch?.lng || locatedWatches[0].lng], 17);
             hasCenteredRef.current = true;
         }
-    }, [locatedWatches, mapReady, selectedWatch?.id, selectedWatch?.lat, selectedWatch?.lng]);
+    }, [locatedWatches, mapReady, selectWatch, selectedWatch?.id, selectedWatch?.lat, selectedWatch?.lng]);
 
     const focusWatch = useCallback((watchId) => {
         const watch = locatedWatches.find((item) => item.id === watchId);
-        setSelectedWatchId(watchId);
+        selectWatch(watchId);
         if (watch && mapRef.current) {
             const map = mapRef.current;
             const focusZoom = baseMode === 'satellite' ? 17 : 18;
@@ -249,7 +262,7 @@ export default function RealtimeWatchMap({ watches = [], loading = false, error 
             map.setView([watch.lat, watch.lng], Math.min(focusZoom, map.getMaxZoom()), { animate: false });
             map.invalidateSize({ animate: false, pan: false });
         }
-    }, [baseMode, locatedWatches]);
+    }, [baseMode, locatedWatches, selectWatch]);
 
     return (
         <div

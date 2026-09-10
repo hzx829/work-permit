@@ -4,7 +4,7 @@
  */
 import SignaturePad from '../SignaturePad';
 
-export default function InspectionModule({ data, onChange, readOnly, currentUser, onSave, saving, requireStrictSignAndPhotos = false }) {
+export default function InspectionModule({ data, onChange, readOnly, currentUser, onSave, requireStrictSignAndPhotos = false }) {
     const canEdit = !readOnly && currentUser?.role === 'safety';
     const entryExitRecords = data?.entry_exit_records || [];
 
@@ -77,24 +77,11 @@ export default function InspectionModule({ data, onChange, readOnly, currentUser
         if (!data?.post_inspection_time) onChange('post_inspection_time', getNowDateTimeLocal());
     };
 
-    // 检查所有前置签字是否完成
-    const checkAllPreviousSignaturesComplete = () => {
-        const requiredSignatures = [
-            { field: 'gas_detection_guardian_sign', name: '气体浓度检测' },
-            { field: 'safety_measures_sign', name: '现场安全措施确认' },
-            { field: 'approver_sign', name: '票证审批' },
-            { field: 'safety_briefing_sign', name: '安全交底' },
-            { field: 'pre_inspection_signature', name: '作业前验票' }
-        ];
-
-        const missing = requiredSignatures.filter(sig => !data?.[sig.field]);
-        return {
-            allComplete: missing.length === 0,
-            missingSignatures: missing
-        };
-    };
-
-    const { allComplete: canSignPostInspection } = checkAllPreviousSignaturesComplete();
+    // 进入本模块前，页面已按气体检测、安全措施、审批和交底逐级校验。
+    // 作业后验收只依赖本模块的作业前验票，避免旧版气体签字字段将签字板误锁。
+    const canSignPostInspection = Boolean(
+        data?.pre_inspection_signature || data?.pre_inspection_signature_image
+    );
 
     const inspectionPayload = (overrides = {}) => ({
         pre_inspection_person: data?.pre_inspection_signature || data?.pre_inspection_person || '',
@@ -334,7 +321,7 @@ export default function InspectionModule({ data, onChange, readOnly, currentUser
                         </h4>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-                            <div title={!canSignPostInspection ? '请先完成前置模块的签字' : ''}>
+                            <div title={!canSignPostInspection ? '请先完成作业前验票' : ''}>
                                 <span className="text-sm text-gray-500 block mb-1">签名处：</span>
                                 <SignaturePad
                                     value={data?.post_inspection_signature_image || ''}

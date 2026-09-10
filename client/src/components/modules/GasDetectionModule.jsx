@@ -82,7 +82,7 @@ export default function GasDetectionModule({ data, onChange, readOnly, currentUs
         {showingRecordDetails ? <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
             <button type="button" onClick={() => setSelectedRecordIndex(null)} className="mb-5 text-sm text-blue-600 hover:text-blue-800"><i className="fas fa-arrow-left mr-2" />返回检测记录列表</button>
             <div className="mb-6 flex items-center justify-between border-b border-gray-100 pb-4">
-                <div><h3 className="text-lg font-semibold text-gray-800">首次气体浓度检测记录</h3><p className="mt-1 text-sm text-gray-500">按检测点分别上传仪器读数或纸质记录照片，并确认检测结果。</p></div>
+                <div><h3 className="text-lg font-semibold text-gray-800">连续气体浓度检测记录</h3><p className="mt-1 text-sm text-gray-500">按检测点分别上传仪器读数或纸质记录照片，并确认检测结果。</p></div>
                 {canEdit && <button type="button" onClick={addRecord} className="text-sm font-medium text-blue-600 hover:text-blue-800"><i className="fas fa-plus mr-1" />添加记录</button>}
             </div>
             <div className="space-y-5">

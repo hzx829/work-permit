@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import EmergencyInteraction from '../components/EmergencyInteraction';
 import EmergencyFlowChart from '../components/EmergencyFlowChart';
 import { createEmergencyEvent, getEmergencyEvent, loadEmergencyEvents, loadEmergencyMonitoring } from '../utils/api';
+import { playEmergencyAlarm } from '../utils/emergencyAlarm';
 
 const STATUS_LABELS = { pending: '待确认', active: '处置中', recovering: '恢复中', closed: '已闭环', dismissed: '已排除', merged: '已合并' };
 
@@ -161,36 +162,4 @@ function NewConversationDialog({ value, onChange, creating, onSubmit, onClose })
 
 function Field({ label, value, onChange, placeholder = '', required = false }) {
     return <label className="block text-xs text-cyan-100/70"><span className="mb-1 block">{label}{required && <b className="ml-1 text-rose-300">*</b>}</span><input required={required} value={value} onChange={(inputEvent) => onChange(inputEvent.target.value)} placeholder={placeholder} className="w-full border border-cyan-400/35 bg-slate-950/60 px-3 py-2 text-sm text-white outline-none transition placeholder:text-cyan-100/25 focus:border-cyan-300" /></label>;
-}
-
-function playEmergencyAlarm() {
-    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContextClass) return () => {};
-    let stopped = false;
-    const context = new AudioContextClass();
-    const oscillator = context.createOscillator();
-    const gain = context.createGain();
-    oscillator.type = 'sawtooth';
-    oscillator.connect(gain);
-    gain.connect(context.destination);
-    const start = context.currentTime;
-    gain.gain.setValueAtTime(0.0001, start);
-    gain.gain.exponentialRampToValueAtTime(0.12, start + 0.08);
-    for (let offset = 0; offset < 8; offset += 0.55) {
-        oscillator.frequency.setValueAtTime(620, start + offset);
-        oscillator.frequency.linearRampToValueAtTime(920, start + offset + 0.42);
-    }
-    gain.gain.setValueAtTime(0.12, start + 7.7);
-    gain.gain.exponentialRampToValueAtTime(0.0001, start + 8);
-    oscillator.start(start);
-    oscillator.stop(start + 8.05);
-    const stop = () => {
-        if (stopped) return;
-        stopped = true;
-        try { oscillator.stop(); } catch { /* oscillator already stopped */ }
-        context.close().catch(() => {});
-    };
-    oscillator.addEventListener('ended', stop, { once: true });
-    context.resume().catch(stop);
-    return stop;
 }

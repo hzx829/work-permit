@@ -7,6 +7,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const db = require('./database');
 const { getWatchSnapshot } = require('./services/watchPlatform');
+const { getCurrentWeather } = require('./services/weatherService');
 
 const app = express();
 
@@ -112,6 +113,22 @@ app.get('/api/watches/latest', async (req, res) => {
         res.status(502).json({
             success: false,
             message: '手表数据暂时无法同步，请稍后重试',
+        });
+    }
+});
+
+// Current conditions for Luzhou. The server keeps the external provider and
+// short-lived cache behind the authenticated application API.
+app.get('/api/weather/current', async (req, res) => {
+    try {
+        const weather = await getCurrentWeather();
+        res.set('Cache-Control', 'no-store');
+        res.json(weather);
+    } catch (error) {
+        console.error('Weather sync failed:', error.message);
+        res.status(502).json({
+            success: false,
+            message: '实时气象数据暂时无法同步，请稍后重试',
         });
     }
 });
@@ -342,6 +359,10 @@ app.get('/api/emergency-monitoring', async (req, res) => {
             const alarmKey = triggered
                 ? simulation?.alarmKey || `${watch.id}:${gas.deviceId || 'gas'}:${String(measuredAt || '').slice(0, 16)}`
                 : null;
+            const handledEvent = alarmKey
+                ? await dbGetAsync('SELECT id FROM emergency_events WHERE alarm_key = ? LIMIT 1', [alarmKey])
+                : null;
+            const shouldRaiseAlarm = triggered && !handledEvent;
             res.set('Cache-Control', 'no-store');
             res.json({
                 watchSnapshot,
@@ -352,7 +373,7 @@ app.get('/api/emergency-monitoring', async (req, res) => {
                     active: simulationActive,
                     activatedAt: simulationRow?.activated_at || null,
                 },
-                alarm: triggered ? {
+                alarm: shouldRaiseAlarm ? {
                     alarmKey,
                     title: '突发险情',
                     incidentType: '受限空间人员异常与气体超限',

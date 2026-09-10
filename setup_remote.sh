@@ -5,6 +5,7 @@ APP_DIR="/root/work-permit"
 ZIP_FILE="/root/deploy.zip"
 APP_NAME="work-permit-system"
 APP_ENTRY="server.js"
+BACKUP_DIR="/root/work-permit-backups"
 
 echo "=== Work Permit System Setup ==="
 
@@ -136,6 +137,16 @@ deploy_app() {
   fi
 
   mkdir -p "$APP_DIR"
+
+  if [ -f "$APP_DIR/work_permits.db" ]; then
+    mkdir -p "$BACKUP_DIR"
+    BACKUP_FILE="$BACKUP_DIR/work_permits-$(date +%Y%m%d-%H%M%S).db"
+    echo "部署前备份生产数据库到 $BACKUP_FILE..."
+    cp -p "$APP_DIR/work_permits.db" "$BACKUP_FILE"
+  else
+    echo "未发现已有生产数据库，跳过备份。"
+  fi
+
   cd "$APP_DIR"
 
   echo "解压 $ZIP_FILE 到 $APP_DIR..."
@@ -154,10 +165,8 @@ deploy_app() {
   echo "使用 PM2 启动 / 重启应用..."
   JWT_SECRET='e5242c8938c3be63896667a55b126d8e5ed6677b6dfc6bdb9671412a07c1f9f5b367c58f23d1be10592d482d731866b8519f75eb439dd29a43a97be01055a7d0'
   if pm2 list | grep -q "$APP_NAME"; then
-    echo "检测到已有进程 $APP_NAME，执行停止并重启（保留 NODE_ENV）..."
-    pm2 stop "$APP_NAME" || true
-    pm2 delete "$APP_NAME" || true
-    NODE_ENV=production JWT_SECRET="$JWT_SECRET" pm2 start "$APP_ENTRY" --name "$APP_NAME"
+    echo "检测到已有进程 $APP_NAME，就地重启并保留现有厂家平台等环境变量..."
+    NODE_ENV=production JWT_SECRET="$JWT_SECRET" pm2 restart "$APP_NAME" --update-env
   else
     echo "首次启动 $APP_NAME..."
     NODE_ENV=production JWT_SECRET="$JWT_SECRET" pm2 start "$APP_ENTRY" --name "$APP_NAME"

@@ -5,8 +5,15 @@ const INITIAL_PROMPT = '已确认突发险情。系统已匹配企业现有应�
 const DEFAULT_BROADCAST = '1号污水井内有人晕倒，无关人员请勿靠近。';
 const RECOVERY_ITEMS = ['现场清理', '污染物处理与环境修复', '生产秩序恢复', '善后处理', '警戒与交通管制已解除'];
 
+const normalizeAssistantText = (text) => text.replace(/问题[一二三]：/g, '判断：');
+
+const normalizeSpeechText = (text) => normalizeAssistantText(text)
+    .replace(/[“”]/g, '')
+    .replace(/120/g, '幺二零');
+
 export default function EmergencyInteraction({ event, onEventChange }) {
-    const initialMessages = event.state?.messages?.length ? event.state.messages : [{ id: 1, role: 'assistant', text: INITIAL_PROMPT }];
+    const initialMessages = (event.state?.messages?.length ? event.state.messages : [{ id: 1, role: 'assistant', text: INITIAL_PROMPT }])
+        .map((message) => message.role === 'assistant' ? { ...message, text: normalizeAssistantText(message.text) } : message);
     const [stage, setStage] = useState(event.stage || 'plan');
     const [messages, setMessages] = useState(initialMessages);
     const [responseLevel, setResponseLevel] = useState(event.responseLevel || event.state?.responseLevel || '');
@@ -25,7 +32,7 @@ export default function EmergencyInteraction({ event, onEventChange }) {
     const speak = useCallback((text) => {
         if (!speechSupported || !text) return;
         window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(text.replace(/[“”]/g, ''));
+        const utterance = new SpeechSynthesisUtterance(normalizeSpeechText(text));
         utterance.lang = 'zh-CN';
         utterance.rate = 0.95;
         window.speechSynthesis.speak(utterance);
@@ -78,8 +85,8 @@ export default function EmergencyInteraction({ event, onEventChange }) {
     };
 
     const answerRescue = (question, answer) => {
-        if (question === 1 && answer) return ask('是', '问题二：安全绳是否连接D型环，且另一端牢固固定在受限空间外部？', 'rescue-q2');
-        if (question === 2 && answer) return ask('是', '问题三：受困人员位置至出入口是否通畅、无阻碍？', 'rescue-q3');
+        if (question === 1 && answer) return ask('是', '判断：安全绳是否连接D型环，且另一端牢固固定在受限空间外部？', 'rescue-q2');
+        if (question === 2 && answer) return ask('是', '判断：受困人员位置至出入口是否通畅、无阻碍？', 'rescue-q3');
         const mode = question === 3 && answer ? '非进入式救援' : '进入式救援';
         return ask(answer ? '是' : '否', '根据当前条件，采用' + mode + '。请按预案组织救援，完成后确认事态是否受控。', 'control', { rescueMode: mode });
     };
@@ -120,8 +127,8 @@ export default function EmergencyInteraction({ event, onEventChange }) {
             {!busy && stage !== 'complete' && <AssistantActionBubble>
                 {stage === 'plan' && <ChoiceGrid options={plans.map((plan) => ({ value: plan, label: plan.name + (plan.recommended ? '（建议）' : '') }))} onSelect={choosePlan} />}
                 {stage === 'report' && <ChoiceGrid options={['已完成上报并拨打120', '暂未完成']} onSelect={(value) => value.startsWith('已完成') ? ask(value, '是否设置10米电子围栏，并播报：“' + DEFAULT_BROADCAST + '”', 'fence') : ask(value, '请先完成事故上报，并由现场人员拨打120。', 'report')} />}
-                {stage === 'fence' && !editingBroadcast && <ChoiceGrid options={['设置10米电子围栏并播报', '修改播报内容', '暂不设置电子围栏']} onSelect={(value) => value === '修改播报内容' ? setEditingBroadcast(true) : ask(value, '已记录本次围栏操作。问题一：受困人员是否穿戴全身式安全带？', 'rescue-q1')} />}
-                {stage === 'fence' && editingBroadcast && <div className="flex gap-2"><input value={broadcastText} onChange={(e) => setBroadcastText(e.target.value)} className="min-w-0 flex-1 border border-cyan-300/50 bg-blue-950/60 px-3 py-2 text-[13px] text-white" /><button onClick={() => { setEditingBroadcast(false); ask('修改并播报：' + broadcastText, '已记录新播报内容。问题一：受困人员是否穿戴全身式安全带？', 'rescue-q1', { broadcastText }); }} className="border border-cyan-200/70 bg-cyan-400/15 px-4 text-[13px] font-bold">确认</button></div>}
+                {stage === 'fence' && !editingBroadcast && <ChoiceGrid options={['设置10米电子围栏并播报', '修改播报内容', '暂不设置电子围栏']} onSelect={(value) => value === '修改播报内容' ? setEditingBroadcast(true) : ask(value, '已记录本次围栏操作。判断：受困人员是否穿戴全身式安全带？', 'rescue-q1')} />}
+                {stage === 'fence' && editingBroadcast && <div className="flex gap-2"><input value={broadcastText} onChange={(e) => setBroadcastText(e.target.value)} className="min-w-0 flex-1 border border-cyan-300/50 bg-blue-950/60 px-3 py-2 text-[13px] text-white" /><button onClick={() => { setEditingBroadcast(false); ask('修改并播报：' + broadcastText, '已记录新播报内容。判断：受困人员是否穿戴全身式安全带？', 'rescue-q1', { broadcastText }); }} className="border border-cyan-200/70 bg-cyan-400/15 px-4 text-[13px] font-bold">确认</button></div>}
                 {stage === 'rescue-q1' && <YesNoButtons onSelect={(answer) => answerRescue(1, answer)} />}
                 {stage === 'rescue-q2' && <YesNoButtons onSelect={(answer) => answerRescue(2, answer)} />}
                 {stage === 'rescue-q3' && <YesNoButtons onSelect={(answer) => answerRescue(3, answer)} />}

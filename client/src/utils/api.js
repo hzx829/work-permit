@@ -87,6 +87,14 @@ export async function loadWatchSnapshot() {
     return await response.json();
 }
 
+export async function loadCurrentWeather() {
+    const response = await authFetch(`${API_BASE}/weather/current`);
+    if (!response.ok) {
+        throw new Error(await getErrorMessage(response, '实时气象数据加载失败'));
+    }
+    return await response.json();
+}
+
 // --- Emergency Response Functions ---
 
 export async function loadEmergencyMonitoring() {

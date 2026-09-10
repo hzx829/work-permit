@@ -33,6 +33,16 @@ if (-not (Test-Path $obfuscator)) {
 & $obfuscator server.js   --output deploy_temp/server.js   --compact true --string-array true --string-array-encoding base64 --control-flow-flattening false --identifier-names-generator mangled
 & $obfuscator database.js --output deploy_temp/database.js --compact true --string-array true --string-array-encoding base64 --control-flow-flattening false --identifier-names-generator mangled
 
+if (Test-Path services) {
+    $servicesRoot = (Resolve-Path services).Path
+    Get-ChildItem -LiteralPath $servicesRoot -Recurse -File -Filter *.js | ForEach-Object {
+        $relativePath = $_.FullName.Substring($servicesRoot.Length).TrimStart([IO.Path]::DirectorySeparatorChar)
+        $destination = Join-Path "deploy_temp/services" $relativePath
+        New-Item -ItemType Directory -Path (Split-Path $destination -Parent) -Force | Out-Null
+        & $obfuscator $_.FullName --output $destination --compact true --string-array true --string-array-encoding base64 --control-flow-flattening false --identifier-names-generator mangled
+    }
+}
+
 Write-Host "3. Copying package files..."
 Copy-Item package.json -Destination deploy_temp
 if (Test-Path package-lock.json) { Copy-Item package-lock.json -Destination deploy_temp }
