@@ -1,4 +1,14 @@
+let activeAlarmStop = null;
+
+export function stopEmergencyAlarm() {
+    if (!activeAlarmStop) return;
+    const stop = activeAlarmStop;
+    activeAlarmStop = null;
+    stop();
+}
+
 export function playEmergencyAlarm() {
+    stopEmergencyAlarm();
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
     if (!AudioContextClass) return () => {};
 
@@ -45,11 +55,13 @@ export function playEmergencyAlarm() {
     const stop = () => {
         if (stopped) return;
         stopped = true;
+        if (activeAlarmStop === stop) activeAlarmStop = null;
         try { primary.stop(); } catch { /* oscillator already stopped */ }
         try { harmonic.stop(); } catch { /* oscillator already stopped */ }
         context.close().catch(() => {});
     };
 
+    activeAlarmStop = stop;
     primary.addEventListener('ended', stop, { once: true });
     context.resume().catch(stop);
     return stop;

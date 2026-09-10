@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import EmergencyInteraction from '../components/EmergencyInteraction';
 import EmergencyFlowChart from '../components/EmergencyFlowChart';
 import { createEmergencyEvent, getEmergencyEvent, loadEmergencyEvents, loadEmergencyMonitoring } from '../utils/api';
-import { playEmergencyAlarm } from '../utils/emergencyAlarm';
+import { stopEmergencyAlarm } from '../utils/emergencyAlarm';
 
 const STATUS_LABELS = { pending: '待确认', active: '处置中', recovering: '恢复中', closed: '已闭环', dismissed: '已排除', merged: '已合并' };
 
@@ -20,7 +20,6 @@ export default function Emergency() {
     const [showNewConversation, setShowNewConversation] = useState(false);
     const [creating, setCreating] = useState(false);
     const [newIncident, setNewIncident] = useState({ title: '突发险情', incidentType: '', location: '' });
-    const alarmStopRef = useRef(null);
 
     const loadData = useCallback(async (preferredId) => {
         setError('');
@@ -45,6 +44,10 @@ export default function Emergency() {
         }
     }, [searchParams, setSearchParams]);
 
+    useEffect(() => {
+        stopEmergencyAlarm();
+        return stopEmergencyAlarm;
+    }, []);
     useEffect(() => { loadData(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
     useEffect(() => {
         const timer = setInterval(() => setNow(new Date()), 1000);
@@ -56,16 +59,6 @@ export default function Emergency() {
         }, 15000);
         return () => clearInterval(timer);
     }, []);
-    useEffect(() => () => alarmStopRef.current?.(), []);
-    useEffect(() => {
-        if (!event?.id || event.stage !== 'plan' || event.status !== 'active') return;
-        const alarmKey = `emergency-alarm-played-${event.id}`;
-        if (sessionStorage.getItem(alarmKey)) return;
-        sessionStorage.setItem(alarmKey, 'true');
-        alarmStopRef.current?.();
-        alarmStopRef.current = playEmergencyAlarm();
-    }, [event?.id, event?.stage, event?.status]);
-
     const gas = event?.gas || monitoring?.gas;
     const readings = gas?.readings || [];
 
@@ -77,8 +70,6 @@ export default function Emergency() {
     const startNewConversation = async (submitEvent) => {
         submitEvent.preventDefault();
         if (creating) return;
-        alarmStopRef.current?.();
-        alarmStopRef.current = playEmergencyAlarm();
         setCreating(true);
         setError('');
         try {
@@ -88,13 +79,11 @@ export default function Emergency() {
                 incidentType: newIncident.incidentType.trim() || '待研判',
                 location: newIncident.location.trim(),
             });
-            sessionStorage.setItem(`emergency-alarm-played-${created.id}`, 'true');
             setShowNewConversation(false);
             setNewIncident({ title: '突发险情', incidentType: '', location: '' });
             setLoading(true);
             await loadData(created.id);
         } catch (createError) {
-            alarmStopRef.current?.();
             setError(createError.message || '新增事故对话失败');
         } finally {
             setCreating(false);

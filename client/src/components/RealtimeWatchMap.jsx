@@ -269,7 +269,7 @@ export default function RealtimeWatchMap({
             data-testid="realtime-watch-map"
             className="relative h-full min-h-[390px] w-full overflow-hidden rounded-xl border border-cyan-300/55 bg-slate-950 shadow-[0_0_30px_rgba(14,165,233,.3)]"
         >
-            <div ref={containerRef} className="absolute inset-0 z-0" aria-label="化院手表实时定位地图" />
+            <div ref={containerRef} className="absolute inset-0 z-0" aria-label="手表实时定位地图" />
 
             <style>{`
                 .watch-pin-wrapper { background: transparent; border: 0; }
@@ -293,7 +293,7 @@ export default function RealtimeWatchMap({
 
             <div className="pointer-events-none absolute left-3 top-3 z-[800] rounded-lg border border-cyan-300/35 bg-slate-950/88 px-3 py-2 text-xs text-cyan-100 shadow-lg backdrop-blur-md">
                 <div className="flex items-center gap-3">
-                    <span className="font-bold tracking-wider text-white">化院实时定位</span>
+                    <span className="font-bold tracking-wider text-white">手表实时定位</span>
                     <span className="text-emerald-300">在线 {watches.filter((watch) => watch.online).length}</span>
                     <span className="text-slate-300">定位 {locatedWatches.length}/{watches.length}</span>
                 </div>

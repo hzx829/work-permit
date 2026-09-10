@@ -10,7 +10,7 @@ import {
     loadRegulations,
     loadWatchSnapshot,
 } from '../utils/api';
-import { playEmergencyAlarm } from '../utils/emergencyAlarm';
+import { playEmergencyAlarm, stopEmergencyAlarm } from '../utils/emergencyAlarm';
 const RealtimeWatchMap = lazy(() => import('../components/RealtimeWatchMap'));
 const PLATFORM_RESEARCH_STARTED_AT = Date.UTC(2025, 10, 27);
 const INITIAL_SAFE_DAYS = 138;
@@ -125,6 +125,7 @@ export default function DigitalCockpit() {
 
     const submitAlarmDecision = async (alarmDecision, extra = {}) => {
         if (!emergencyAlarm || alarmSubmitting) return;
+        if (alarmDecision === 'yes') stopEmergencyAlarm();
         setAlarmSubmitting(true);
         setAlarmError('');
         try {
