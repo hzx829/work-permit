@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import EmergencyInteraction from '../components/EmergencyInteraction';
 import EmergencyFlowChart from '../components/EmergencyFlowChart';
+import CompetitionLivePlayer from '../components/CompetitionLivePlayer';
+import useCompetitionGasReadings from '../hooks/useCompetitionGasReadings';
 import { createEmergencyEvent, getEmergencyEvent, loadEmergencyEvents, loadEmergencyMonitoring } from '../utils/api';
 import { stopEmergencyAlarm } from '../utils/emergencyAlarm';
 
@@ -16,10 +18,12 @@ export default function Emergency() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [videoSource, setVideoSource] = useState('fixed');
+    const [selectedFieldDeviceId, setSelectedFieldDeviceId] = useState('');
     const [now, setNow] = useState(new Date());
     const [showNewConversation, setShowNewConversation] = useState(false);
     const [creating, setCreating] = useState(false);
     const [newIncident, setNewIncident] = useState({ title: '突发险情', incidentType: '', location: '' });
+    const { devices: fieldDevices, error: fieldDeviceError } = useCompetitionGasReadings();
 
     const loadData = useCallback(async (preferredId) => {
         setError('');
@@ -59,7 +63,27 @@ export default function Emergency() {
         }, 15000);
         return () => clearInterval(timer);
     }, []);
-    const gas = event?.gas || monitoring?.gas;
+    const linkedDeviceId = event?.gas?.deviceId || monitoring?.gas?.deviceId || selectedFieldDeviceId;
+    const fieldDevice = fieldDevices.find((device) => device.deviceId === linkedDeviceId)
+        || fieldDevices.find((device) => device.deviceId === selectedFieldDeviceId)
+        || fieldDevices[0]
+        || null;
+    const liveGas = fieldDevice && !fieldDeviceError ? {
+        deviceId: fieldDevice.deviceId,
+        deviceName: fieldDevice.deviceName || '智能气体检测仪',
+        location: event?.location || '',
+        measuredAt: fieldDevice.sampledAt || fieldDevice.receivedAt,
+        dataStatus: fieldDevice.dataStatus,
+        readings: Object.entries(fieldDevice.gasData || {}).map(([key, reading]) => ({
+            key,
+            label: ({ CH4: '甲烷', CO2: '二氧化碳', O2: '氧气', CO: '一氧化碳' })[key] || key,
+            value: reading.value,
+            unit: reading.unit,
+        })),
+    } : null;
+    const gas = monitoring?.simulation?.active
+        ? (event?.gas || monitoring?.gas)
+        : (liveGas || event?.gas || monitoring?.gas);
     const readings = gas?.readings || [];
 
     const selectEvent = async (id) => {
@@ -108,12 +132,12 @@ export default function Emergency() {
                     </div>
 
                     <div className="grid min-h-[680px] min-w-0 grid-rows-[1fr_1.05fr] gap-3 xl:min-h-0">
-                        <TechFrame title="现场实时画面" icon="fa-video"><div className="flex h-full min-h-0 flex-col"><div className="mb-2 flex gap-2">{[['fixed', '现场视频'], ['drone', '无人机视频']].map(([key, label]) => <button key={key} onClick={() => setVideoSource(key)} className={`border px-4 py-1.5 text-[13px] font-semibold transition ${videoSource === key ? 'border-cyan-200 bg-cyan-400/25 text-white shadow-[0_0_12px_rgba(34,211,238,.18)]' : 'border-blue-300/35 bg-blue-900/20 text-cyan-100/75 hover:border-cyan-300/60'}`}>{label}</button>)}</div><VideoPlaceholder source={videoSource} /></div></TechFrame>
+                        <TechFrame title="现场实时画面" icon="fa-video"><div className="flex h-full min-h-0 flex-col"><div className="mb-2 flex items-center gap-2">{[['fixed', '现场视频'], ['drone', '无人机视频']].map(([key, label]) => <button key={key} onClick={() => setVideoSource(key)} className={`border px-4 py-1.5 text-[13px] font-semibold transition ${videoSource === key ? 'border-cyan-200 bg-cyan-400/25 text-white shadow-[0_0_12px_rgba(34,211,238,.18)]' : 'border-blue-300/35 bg-blue-900/20 text-cyan-100/75 hover:border-cyan-300/60'}`}>{label}</button>)}{videoSource === 'fixed' && fieldDevices.length > 1 && <select value={fieldDevice?.deviceId || ''} onChange={(inputEvent) => setSelectedFieldDeviceId(inputEvent.target.value)} className="ml-auto min-w-40 border border-cyan-300/35 bg-blue-950/70 px-2 py-1.5 text-xs text-cyan-50 outline-none"><option value="">选择记录仪</option>{fieldDevices.map((device) => <option key={device.deviceId} value={device.deviceId}>{device.deviceName || device.deviceId}{device.primary ? '（默认）' : ''}</option>)}</select>}</div>{videoSource === 'fixed' && fieldDevice && !fieldDeviceError ? <div className="min-h-0 flex-1 border border-cyan-300/35"><CompetitionLivePlayer deviceId={fieldDevice.deviceId} /></div> : <VideoPlaceholder source={videoSource} message={videoSource === 'fixed' && fieldDeviceError ? fieldDeviceError.message : ''} />}</div></TechFrame>
                         <TechFrame title="AI 智能交互与处置指引" icon="fa-comments">{loading ? <EmptyState icon="fa-spinner fa-spin" text="正在加载应急事件" /> : event && ['active', 'recovering', 'closed'].includes(event.status) ? <EmergencyInteraction key={event.id} event={event} onEventChange={(updated) => { setEvent(updated); loadEmergencyEvents().then((result) => setEvents(result.events || [])); }} /> : <EmptyState icon="fa-shield-halved" text={event?.status === 'dismissed' ? `本次险情已排除：${event.rejectionReason}` : event?.status === 'merged' ? `本次报警已并入事件 #${event.mergedIntoId}` : '等待驾驶舱确认突发险情'} />}</TechFrame>
                     </div>
 
                     <div className="grid min-h-[760px] grid-rows-[1.25fr_.75fr] gap-3 xl:min-h-0">
-                        <TechFrame title="现场实时气体检测" icon="fa-wave-square"><div className="space-y-3 overflow-auto pr-1">{readings.length ? readings.map((reading) => <GasReading key={reading.key} reading={reading} />) : <EmptyState icon="fa-plug-circle-xmark" text="暂无气体检测仪数据，请通过应急监测接口接入设备" />}{gas && <div className="border border-cyan-300/35 bg-blue-950/45 p-3 text-[13px] leading-5 text-cyan-50/80"><p className="font-semibold">{gas.deviceName || '气体检测仪'} · {gas.location || '未标注点位'}</p><p className="mt-1 text-cyan-100/60">数据时间：{new Date(gas.measuredAt).toLocaleString('zh-CN', { hour12: false })}</p></div>}</div></TechFrame>
+                        <TechFrame title="现场实时气体检测" icon="fa-wave-square"><div className="space-y-3 overflow-auto pr-1">{fieldDeviceError && !monitoring?.simulation?.active ? <EmptyState icon="fa-link-slash" text={`气体检测仪连接中断：${fieldDeviceError.message}`} /> : readings.length ? readings.map((reading) => <GasReading key={reading.key} reading={reading} dataStatus={gas?.dataStatus} />) : <EmptyState icon="fa-plug-circle-xmark" text={gas?.dataStatus === 'no_data' ? '设备在线，暂未上报气体数据' : '暂无气体检测仪数据，请先将记录仪接入授权组织'} />}{gas && <div className="border border-cyan-300/35 bg-blue-950/45 p-3 text-[13px] leading-5 text-cyan-50/80"><div className="flex items-center justify-between gap-2"><p className="font-semibold">{gas.deviceName || '气体检测仪'} · {gas.location || '未标注点位'}</p>{gas.dataStatus && <span className={`border px-2 py-0.5 text-[11px] font-bold ${gas.dataStatus === 'fresh' ? 'border-emerald-300/50 text-emerald-200' : gas.dataStatus === 'stale' ? 'border-amber-300/50 text-amber-200' : 'border-slate-300/40 text-slate-300'}`}>{gas.dataStatus === 'fresh' ? '实时' : gas.dataStatus === 'stale' ? '数据过期' : '暂无数据'}</span>}</div><p className="mt-1 text-cyan-100/60">设备：{gas.deviceId || '--'} · 数据时间：{gas.measuredAt ? new Date(gas.measuredAt).toLocaleString('zh-CN', { hour12: false }) : '--'}</p></div>}</div></TechFrame>
                         <TechFrame title="事故对话与历史" icon="fa-clock-rotate-left"><div className="space-y-2 overflow-auto pr-1">{events.length ? events.map((item) => { const unfinished = ['active', 'recovering'].includes(item.status); return <button key={item.id} onClick={() => selectEvent(item.id)} className={`w-full border p-2.5 text-left text-[13px] transition ${event?.id === item.id ? 'border-cyan-200/75 bg-cyan-400/20 shadow-[inset_3px_0_0_#67e8f9]' : unfinished ? 'border-amber-300/45 bg-amber-400/10 hover:border-amber-200/70' : 'border-blue-300/35 bg-blue-950/35 hover:border-cyan-300/60'}`}><div className="flex items-center justify-between gap-2"><strong className="truncate text-[14px] text-white">#{item.id} {item.title}</strong><span className={unfinished ? 'shrink-0 font-semibold text-amber-100' : 'shrink-0 text-cyan-200/80'}>{STATUS_LABELS[item.status] || item.status}</span></div><div className="mt-1.5 flex items-center justify-between gap-2 text-cyan-50/65"><p className="truncate">{item.location || '未标注位置'} · {new Date(item.createdAt).toLocaleString('zh-CN', { hour12: false })}</p>{unfinished && <span className="shrink-0 font-semibold text-cyan-200">继续处置 <i className="fas fa-angle-right" /></span>}</div></button>; }) : <EmptyState text="暂无应急事件，请新建事故对话或从驾驶舱启动" />}</div></TechFrame>
                     </div>
                 </main>
@@ -123,13 +147,19 @@ export default function Emergency() {
     );
 }
 
-function GasReading({ reading }) {
-    const ranges = { oxygen: [0, 25], co: [0, 100], h2s: [0, 50], combustible: [0, 100] };
-    const [min, max] = ranges[reading.key] || [0, Math.max(Number(reading.threshold) || 100, Number(reading.value) || 0)];
+function GasReading({ reading, dataStatus }) {
+    const key = String(reading.key || '').toUpperCase();
+    const ranges = { OXYGEN: [0, 25], O2: [0, 25], CO: [0, 100], CH4: [0, 5], CO2: [0, 5], H2S: [0, 50], COMBUSTIBLE: [0, 100] };
+    const [min, max] = ranges[key] || [0, Math.max(Number(reading.threshold) || 100, Number(reading.value) || 0)];
     const value = Number(reading.value);
-    const abnormal = reading.key === 'oxygen' ? value < 19.5 || value > 23.5 : Number.isFinite(Number(reading.threshold)) && value > Number(reading.threshold);
+    const thresholdValue = reading.threshold === null || reading.threshold === undefined ? null : Number(reading.threshold);
+    const hasThreshold = Number.isFinite(thresholdValue);
+    const abnormal = hasThreshold && (key === 'OXYGEN' || key === 'O2'
+        ? value < thresholdValue || value > Number(reading.upperThreshold ?? 23.5)
+        : value > thresholdValue);
     const percent = Math.max(2, Math.min(100, ((value - min) / (max - min || 1)) * 100));
-    return <div className={`border p-3.5 shadow-[inset_0_0_18px_rgba(59,130,246,.08)] ${abnormal ? 'border-rose-300/65 bg-rose-500/15' : 'border-cyan-300/35 bg-blue-950/40'}`}><div className="mb-2.5 flex items-center justify-between"><span className="text-[15px] font-black tracking-wide text-white">{reading.label}</span><span className={`font-mono text-base font-bold ${abnormal ? 'text-rose-100' : 'text-white'}`}>{reading.value}<small className="ml-1 text-[11px] font-semibold text-cyan-200">{reading.unit}</small></span></div><div className="h-2.5 overflow-hidden bg-blue-950/80"><div className={`h-full transition-all ${abnormal ? 'bg-gradient-to-r from-rose-500 to-pink-400 shadow-[0_0_12px_#fb7185]' : 'bg-gradient-to-r from-cyan-300 to-blue-400'}`} style={{ width: `${percent}%` }} /></div><div className="mt-2 flex justify-between text-[11px] font-medium text-cyan-100/65"><span>{min}</span><span>{abnormal ? '已超限' : '正常'}</span><span>{max}</span></div></div>;
+    const statusLabel = dataStatus === 'stale' ? '数据过期' : dataStatus === 'no_data' ? '暂无数据' : hasThreshold ? (abnormal ? '已超限' : '正常') : '实时读数';
+    return <div className={`border p-3.5 shadow-[inset_0_0_18px_rgba(59,130,246,.08)] ${abnormal ? 'border-rose-300/65 bg-rose-500/15' : dataStatus === 'stale' ? 'border-amber-300/55 bg-amber-500/10' : 'border-cyan-300/35 bg-blue-950/40'}`}><div className="mb-2.5 flex items-center justify-between"><span className="text-[15px] font-black tracking-wide text-white">{reading.label}</span><span className={`font-mono text-base font-bold ${abnormal ? 'text-rose-100' : 'text-white'}`}>{reading.value}<small className="ml-1 text-[11px] font-semibold text-cyan-200">{reading.unit}</small></span></div><div className="h-2.5 overflow-hidden bg-blue-950/80"><div className={`h-full transition-all ${abnormal ? 'bg-gradient-to-r from-rose-500 to-pink-400 shadow-[0_0_12px_#fb7185]' : 'bg-gradient-to-r from-cyan-300 to-blue-400'}`} style={{ width: `${percent}%` }} /></div><div className="mt-2 flex justify-between text-[11px] font-medium text-cyan-100/65"><span>{min}</span><span>{statusLabel}</span><span>{max}</span></div></div>;
 }
 
 function EmptyState({ icon = 'fa-circle-info', text }) {
@@ -140,9 +170,9 @@ function TechFrame({ title, icon, children }) {
     return <section className="relative flex h-full min-h-0 flex-col overflow-hidden border border-cyan-300/55 bg-[linear-gradient(145deg,rgba(9,55,104,.9),rgba(6,35,76,.86))] p-3.5 shadow-[inset_0_0_32px_rgba(34,211,238,.12),0_0_16px_rgba(14,165,233,.08)]"><div className="pointer-events-none absolute inset-x-12 top-0 h-px bg-gradient-to-r from-transparent via-cyan-200 to-transparent shadow-[0_0_9px_#67e8f9]" /><div className="absolute left-0 top-0 h-4 w-4 border-l-[3px] border-t-[3px] border-cyan-100 drop-shadow-[0_0_5px_#22d3ee]" /><div className="absolute bottom-0 right-0 h-4 w-4 border-b-[3px] border-r-[3px] border-cyan-100 drop-shadow-[0_0_5px_#22d3ee]" /><div className="mb-3 flex shrink-0 items-center gap-2.5 border-b border-cyan-300/35 pb-2.5 text-[15px] font-black tracking-wider text-white"><span className="flex h-7 w-7 items-center justify-center rounded-sm bg-cyan-400/15 text-cyan-100 shadow-[inset_0_0_10px_rgba(34,211,238,.18)]"><i className={`fas ${icon}`} /></span>{title}<span className="ml-auto h-2 w-2 animate-pulse rounded-full bg-cyan-200 shadow-[0_0_10px_#67e8f9]" /></div><div className="relative min-h-0 flex-1">{children}</div></section>;
 }
 
-function VideoPlaceholder({ source }) {
+function VideoPlaceholder({ source, message = '' }) {
     const label = source === 'fixed' ? '现场摄像头' : '无人机';
-    return <div className="relative flex min-h-0 flex-1 overflow-hidden border border-cyan-300/35 bg-[linear-gradient(145deg,rgba(7,38,82,.56),rgba(8,63,112,.32))] text-center shadow-[inset_0_0_45px_rgba(14,165,233,.12)]"><div className="absolute inset-0 opacity-25 [background-image:linear-gradient(rgba(103,232,249,.14)_1px,transparent_1px),linear-gradient(90deg,rgba(103,232,249,.14)_1px,transparent_1px)] [background-size:32px_32px]" /><div className="absolute left-1/2 top-1/2 h-56 w-56 -translate-x-1/2 -translate-y-1/2 rounded-full border border-cyan-300/15 shadow-[0_0_45px_rgba(34,211,238,.1)]" /><div className="relative m-auto flex max-w-lg flex-col items-center p-6"><span className="mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-cyan-200/60 bg-cyan-400/15 text-3xl text-cyan-100 shadow-[0_0_25px_rgba(34,211,238,.3)]"><i className={`fas ${source === 'fixed' ? 'fa-video' : 'fa-helicopter'}`} /></span><h3 className="text-lg font-black tracking-widest text-white">视频信号待接入</h3><p className="mt-2 text-[14px] font-medium leading-6 text-cyan-50/70">{label}尚未配置视频流，完成接入后将在此自动显示实时画面</p><div className="mt-5 flex items-center gap-2 border border-cyan-300/30 bg-blue-950/35 px-4 py-2 text-xs font-semibold text-cyan-100/75"><i className="fas fa-link text-cyan-200" />等待设备配置</div></div></div>;
+    return <div className="relative flex min-h-0 flex-1 overflow-hidden border border-cyan-300/35 bg-[linear-gradient(145deg,rgba(7,38,82,.56),rgba(8,63,112,.32))] text-center shadow-[inset_0_0_45px_rgba(14,165,233,.12)]"><div className="absolute inset-0 opacity-25 [background-image:linear-gradient(rgba(103,232,249,.14)_1px,transparent_1px),linear-gradient(90deg,rgba(103,232,249,.14)_1px,transparent_1px)] [background-size:32px_32px]" /><div className="absolute left-1/2 top-1/2 h-56 w-56 -translate-x-1/2 -translate-y-1/2 rounded-full border border-cyan-300/15 shadow-[0_0_45px_rgba(34,211,238,.1)]" /><div className="relative m-auto flex max-w-lg flex-col items-center p-6"><span className="mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-cyan-200/60 bg-cyan-400/15 text-3xl text-cyan-100 shadow-[0_0_25px_rgba(34,211,238,.3)]"><i className={`fas ${source === 'fixed' ? 'fa-video' : 'fa-helicopter'}`} /></span><h3 className="text-lg font-black tracking-widest text-white">视频信号待接入</h3><p className="mt-2 text-[14px] font-medium leading-6 text-cyan-50/70">{message || `${label}尚未配置视频流，完成接入后将在此自动显示实时画面`}</p><div className="mt-5 flex items-center gap-2 border border-cyan-300/30 bg-blue-950/35 px-4 py-2 text-xs font-semibold text-cyan-100/75"><i className="fas fa-link text-cyan-200" />等待设备配置</div></div></div>;
 }
 
 function NewConversationDialog({ value, onChange, creating, onSubmit, onClose }) {

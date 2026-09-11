@@ -629,10 +629,11 @@ function EmergencyAlarmDialog({ alarm, activeEvents, submitting, error, onDecisi
     const [mergeId, setMergeId] = useState(activeEvents[0]?.id || '');
     const abnormalReadings = (alarm.gas?.readings || []).filter((reading) => {
         const value = Number(reading.value);
-        if (reading.key === 'oxygen') return value < 19.5 || value > 23.5;
-        if (reading.key === 'co') return value > 20;
-        if (reading.key === 'h2s') return value > 10;
-        if (reading.key === 'combustible') return value > 25;
+        const key = String(reading.key || '').toUpperCase();
+        if (key === 'OXYGEN' || key === 'O2') return value < 19.5 || value > 23.5;
+        if (key === 'CO') return value > 20;
+        if (key === 'H2S') return value > 10;
+        if (key === 'COMBUSTIBLE') return value > 25;
         return Number.isFinite(Number(reading.threshold)) && value > Number(reading.threshold);
     });
 

@@ -95,6 +95,36 @@ export async function loadCurrentWeather() {
     return await response.json();
 }
 
+// --- Competition field devices ---
+
+async function competitionError(response, fallback) {
+    const body = await response.json().catch(() => null);
+    const error = new Error(body?.message || `${fallback} HTTP ${response.status}`);
+    error.status = response.status;
+    error.upstreamStatus = body?.upstreamStatus || response.status;
+    error.code = body?.code || '';
+    return error;
+}
+
+export async function loadCompetitionGasReadings() {
+    const response = await authFetch(`${API_BASE}/competition/gas-readings/latest`, { cache: 'no-store' });
+    if (!response.ok) throw await competitionError(response, '气体检测仪数据加载失败');
+    return await response.json();
+}
+
+export async function loadCompetitionPlayInfo(deviceId, protocol = 'flv') {
+    const response = await authFetch(
+        `${API_BASE}/competition/devices/${encodeURIComponent(deviceId)}/play-info?protocol=${encodeURIComponent(protocol)}`,
+        { cache: 'no-store' },
+    );
+    if (!response.ok) throw await competitionError(response, '视频播放信息加载失败');
+    return await response.json();
+}
+
+export function competitionLiveUrl(deviceId) {
+    return `${API_BASE}/competition/devices/${encodeURIComponent(deviceId)}/live.flv`;
+}
+
 // --- Emergency Response Functions ---
 
 export async function loadEmergencyMonitoring() {

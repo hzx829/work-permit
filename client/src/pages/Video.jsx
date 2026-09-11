@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authFetch } from '../utils/api';
+import CompetitionDevicePanel from '../components/CompetitionDevicePanel';
 
 export default function Video() {
     const navigate = useNavigate();
@@ -8,7 +9,7 @@ export default function Video() {
     const [aiAlarms, setAiAlarms] = useState([]);
     const [stats, setStats] = useState({});
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState('cameras');
+    const [activeTab, setActiveTab] = useState('devices');
     
     // URL配置管理状态
     const [showConfigModal, setShowConfigModal] = useState(false);
@@ -204,6 +205,17 @@ export default function Video() {
                 <div className="mt-8 bg-white shadow rounded-lg mb-8">
                     <div className="border-b border-gray-200">
                         <nav className="-mb-px flex">
+                            <button
+                                onClick={() => setActiveTab('devices')}
+                                className={`py-4 px-6 text-sm font-medium ${
+                                    activeTab === 'devices'
+                                    ? 'border-b-2 border-blue-500 text-blue-600'
+                                    : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                }`}
+                            >
+                                <i className="fas fa-satellite-dish mr-1"></i>
+                                现场设备接入
+                            </button>
                             <button 
                                 onClick={() => setActiveTab('cameras')}
                                 className={`py-4 px-6 text-sm font-medium ${
@@ -238,6 +250,8 @@ export default function Video() {
                         </nav>
                     </div>
                 </div>
+
+                {activeTab === 'devices' && <CompetitionDevicePanel />}
 
                 {/* Camera Grid */}
                 {activeTab === 'cameras' && (

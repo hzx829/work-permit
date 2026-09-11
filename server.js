@@ -8,6 +8,11 @@ const bcrypt = require('bcryptjs');
 const db = require('./database');
 const { getWatchSnapshot } = require('./services/watchPlatform');
 const { getCurrentWeather } = require('./services/weatherService');
+const {
+    CompetitionApiError,
+    getLatestGasReadings,
+    getPlayInfo: getCompetitionPlayInfo,
+} = require('./services/competitionPlatform');
 
 const app = express();
 
@@ -133,6 +138,82 @@ app.get('/api/weather/current', async (req, res) => {
     }
 });
 
+function sendCompetitionError(res, error) {
+    const upstreamStatus = error instanceof CompetitionApiError ? error.status : 502;
+    // An upstream 401 must not be returned as this application's 401, otherwise
+    // the browser would discard the user's valid work-permit session.
+    const responseStatus = upstreamStatus === 401 ? 502 : upstreamStatus;
+    res.status(responseStatus).json({
+        success: false,
+        message: error?.message || '比赛设备服务暂时不可用',
+        code: upstreamStatus === 401 ? 'COMPETITION_AUTH_FAILED' : 'COMPETITION_API_ERROR',
+        upstreamStatus,
+    });
+}
+
+// Competition device relay. COMPETITION_TOKEN stays in the server environment;
+// browser clients only use the work-permit application's own authenticated API.
+app.get('/api/competition/gas-readings/latest', async (req, res) => {
+    try {
+        const result = await getLatestGasReadings();
+        res.set('Cache-Control', 'no-store');
+        res.json(result);
+    } catch (error) {
+        console.error('Competition gas readings sync failed:', error.message);
+        sendCompetitionError(res, error);
+    }
+});
+
+app.get('/api/competition/devices/:deviceId/play-info', async (req, res) => {
+    try {
+        const result = await getCompetitionPlayInfo(req.params.deviceId, req.query.protocol || 'flv');
+        res.set('Cache-Control', 'no-store');
+        res.json(result);
+    } catch (error) {
+        console.error('Competition play info sync failed:', error.message);
+        sendCompetitionError(res, error);
+    }
+});
+
+app.get('/api/competition/devices/:deviceId/live.flv', async (req, res) => {
+    let upstream;
+    try {
+        const playInfo = await getCompetitionPlayInfo(req.params.deviceId, 'flv');
+        const target = new URL(playInfo.url);
+        if (!['http:', 'https:'].includes(target.protocol)
+            || target.hostname !== 'live.lysafe.tech'
+            || target.port || target.username || target.password
+            || !target.pathname.endsWith('.flv')) {
+            throw new CompetitionApiError('视频服务返回了不受支持的媒体地址', 502);
+        }
+
+        upstream = (target.protocol === 'https:' ? https : http).get(target, (stream) => {
+            if (stream.statusCode !== 200) {
+                stream.resume();
+                res.status(502).json({ success: false, message: '记录仪当前无可用视频流' });
+                return;
+            }
+            res.writeHead(200, {
+                'Cache-Control': 'no-store',
+                'Content-Type': 'video/x-flv',
+                'X-Accel-Buffering': 'no',
+            });
+            stream.pipe(res);
+        });
+        upstream.setTimeout(15000, () => upstream.destroy(new Error('Media timeout')));
+        upstream.on('error', (error) => {
+            console.error('Competition live stream proxy failed:', error.message);
+            if (!res.headersSent) res.status(502).json({ success: false, message: '记录仪视频流连接失败' });
+            else res.destroy();
+        });
+        res.on('close', () => upstream?.destroy());
+    } catch (error) {
+        console.error('Competition live stream setup failed:', error.message);
+        if (!res.headersSent) sendCompetitionError(res, error);
+        else res.destroy();
+    }
+});
+
 // --- Emergency response integration ---
 
 const EMERGENCY_STAGES = new Set([
@@ -225,10 +306,11 @@ function gasExceeded(gas) {
     return gas.readings.some((reading) => {
         const value = Number(reading.value);
         if (!Number.isFinite(value)) return false;
-        if (reading.key === 'oxygen') return value < 19.5 || value > 23.5;
-        if (reading.key === 'co') return value > 20;
-        if (reading.key === 'h2s') return value > 10;
-        if (reading.key === 'combustible') return value > 25;
+        const key = String(reading.key || '').toUpperCase();
+        if (key === 'OXYGEN' || key === 'O2') return value < 19.5 || value > 23.5;
+        if (key === 'CO') return value > 20;
+        if (key === 'H2S') return value > 10;
+        if (key === 'COMBUSTIBLE') return value > 25;
         return Number.isFinite(Number(reading.threshold)) && value > Number(reading.threshold);
     });
 }
@@ -268,10 +350,10 @@ function buildEmergencySimulation(activatedAt) {
         location: '1号污水井',
         measuredAt,
         readings: [
-            { key: 'oxygen', label: '氧气浓度', value: 17.8, unit: '%VOL', threshold: 19.5 },
-            { key: 'co', label: '一氧化碳浓度', value: 35, unit: 'ppm', threshold: 20 },
-            { key: 'h2s', label: '硫化氢浓度', value: 18, unit: 'ppm', threshold: 10 },
-            { key: 'combustible', label: '可燃气体', value: 32, unit: '%LEL', threshold: 25 },
+            { key: 'CH4', label: '甲烷浓度', value: 0, unit: 'Vol' },
+            { key: 'CO2', label: '二氧化碳浓度', value: 0.04, unit: 'Vol' },
+            { key: 'O2', label: '氧气浓度', value: 17.8, unit: 'Vol', threshold: 19.5, upperThreshold: 23.5 },
+            { key: 'CO', label: '一氧化碳浓度', value: 35, unit: 'ppm', threshold: 20 },
         ],
     };
     return {
