@@ -156,12 +156,11 @@ export default function Detail() {
 
     const isConfinedSpace = permit?.type === '受限空间作业';
     const gasDetectionRecords = permit?.gas_detection_records || [];
-    const gasReady = gasDetectionRecords.length > 0 && gasDetectionRecords.every((record) => (
-        Boolean(record.guardian_signature) || (
-            !Object.prototype.hasOwnProperty.call(record, 'guardian_signature')
-            && Boolean(permit?.gas_detection_guardian_signature)
-        )
-    ));
+    const hasGasSignatureField = Object.prototype.hasOwnProperty.call(permit || {}, 'gas_detection_guardian_signature');
+    const gasSignature = hasGasSignatureField
+        ? permit?.gas_detection_guardian_signature
+        : gasDetectionRecords.find((record) => record.guardian_signature)?.guardian_signature;
+    const gasReady = gasDetectionRecords.length > 0 && Boolean(gasSignature);
     const safetyMeasuresReady = Boolean(permit?.safety_measures_sign);
     const approvalReady = gasReady && safetyMeasuresReady;
     const briefingReady = Boolean(permit?.approver_sign || permit?.status === '已批准');

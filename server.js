@@ -200,6 +200,7 @@ app.get('/api/competition/devices/:deviceId/live.flv', async (req, res) => {
             });
             stream.pipe(res);
         });
+        upstream.on('socket', (socket) => socket.setNoDelay(true));
         upstream.setTimeout(15000, () => upstream.destroy(new Error('Media timeout')));
         upstream.on('error', (error) => {
             console.error('Competition live stream proxy failed:', error.message);

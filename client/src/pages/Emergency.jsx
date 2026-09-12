@@ -8,6 +8,12 @@ import { createEmergencyEvent, getEmergencyEvent, loadEmergencyEvents, loadEmerg
 import { stopEmergencyAlarm } from '../utils/emergencyAlarm';
 
 const STATUS_LABELS = { pending: '待确认', active: '处置中', recovering: '恢复中', closed: '已闭环', dismissed: '已排除', merged: '已合并' };
+const FIELD_GAS_SPECS = [
+    { key: 'CH4', label: '甲烷浓度', defaultUnit: 'Vol' },
+    { key: 'CO2', label: '二氧化碳浓度', defaultUnit: 'Vol' },
+    { key: 'O2', label: '氧气浓度', defaultUnit: 'Vol' },
+    { key: 'CO', label: '一氧化碳浓度', defaultUnit: 'ppm' },
+];
 
 export default function Emergency() {
     const navigate = useNavigate();
@@ -74,12 +80,16 @@ export default function Emergency() {
         location: event?.location || '',
         measuredAt: fieldDevice.sampledAt || fieldDevice.receivedAt,
         dataStatus: fieldDevice.dataStatus,
-        readings: Object.entries(fieldDevice.gasData || {}).map(([key, reading]) => ({
-            key,
-            label: ({ CH4: '甲烷', CO2: '二氧化碳', O2: '氧气', CO: '一氧化碳' })[key] || key,
-            value: reading.value,
-            unit: reading.unit,
-        })),
+        readings: FIELD_GAS_SPECS.map(({ key, label, defaultUnit }) => {
+            const reading = fieldDevice.gasData?.[key];
+            return {
+                key,
+                label,
+                value: reading?.value ?? null,
+                unit: reading?.unit || defaultUnit,
+                available: Boolean(reading),
+            };
+        }),
     } : null;
     const gas = monitoring?.simulation?.active
         ? (event?.gas || monitoring?.gas)
@@ -152,14 +162,19 @@ function GasReading({ reading, dataStatus }) {
     const ranges = { OXYGEN: [0, 25], O2: [0, 25], CO: [0, 100], CH4: [0, 5], CO2: [0, 5], H2S: [0, 50], COMBUSTIBLE: [0, 100] };
     const [min, max] = ranges[key] || [0, Math.max(Number(reading.threshold) || 100, Number(reading.value) || 0)];
     const value = Number(reading.value);
+    const hasValue = reading.available !== false
+        && reading.value !== null
+        && reading.value !== undefined
+        && Number.isFinite(value);
+    const displayValue = (hasValue ? value : 0).toFixed(2);
     const thresholdValue = reading.threshold === null || reading.threshold === undefined ? null : Number(reading.threshold);
     const hasThreshold = Number.isFinite(thresholdValue);
-    const abnormal = hasThreshold && (key === 'OXYGEN' || key === 'O2'
+    const abnormal = hasValue && hasThreshold && (key === 'OXYGEN' || key === 'O2'
         ? value < thresholdValue || value > Number(reading.upperThreshold ?? 23.5)
         : value > thresholdValue);
-    const percent = Math.max(2, Math.min(100, ((value - min) / (max - min || 1)) * 100));
-    const statusLabel = dataStatus === 'stale' ? '数据过期' : dataStatus === 'no_data' ? '暂无数据' : hasThreshold ? (abnormal ? '已超限' : '正常') : '实时读数';
-    return <div className={`border p-3.5 shadow-[inset_0_0_18px_rgba(59,130,246,.08)] ${abnormal ? 'border-rose-300/65 bg-rose-500/15' : dataStatus === 'stale' ? 'border-amber-300/55 bg-amber-500/10' : 'border-cyan-300/35 bg-blue-950/40'}`}><div className="mb-2.5 flex items-center justify-between"><span className="text-[15px] font-black tracking-wide text-white">{reading.label}</span><span className={`font-mono text-base font-bold ${abnormal ? 'text-rose-100' : 'text-white'}`}>{reading.value}<small className="ml-1 text-[11px] font-semibold text-cyan-200">{reading.unit}</small></span></div><div className="h-2.5 overflow-hidden bg-blue-950/80"><div className={`h-full transition-all ${abnormal ? 'bg-gradient-to-r from-rose-500 to-pink-400 shadow-[0_0_12px_#fb7185]' : 'bg-gradient-to-r from-cyan-300 to-blue-400'}`} style={{ width: `${percent}%` }} /></div><div className="mt-2 flex justify-between text-[11px] font-medium text-cyan-100/65"><span>{min}</span><span>{statusLabel}</span><span>{max}</span></div></div>;
+    const percent = hasValue ? Math.max(2, Math.min(100, ((value - min) / (max - min || 1)) * 100)) : 0;
+    const statusLabel = !hasValue ? '暂未上报' : dataStatus === 'stale' ? '数据过期' : dataStatus === 'no_data' ? '暂无数据' : hasThreshold ? (abnormal ? '已超限' : '正常') : '实时读数';
+    return <div className={`border p-3.5 shadow-[inset_0_0_18px_rgba(59,130,246,.08)] ${abnormal ? 'border-rose-300/65 bg-rose-500/15' : dataStatus === 'stale' && hasValue ? 'border-amber-300/55 bg-amber-500/10' : 'border-cyan-300/35 bg-blue-950/40'}`}><div className="mb-2.5 flex items-center justify-between"><span className="text-[15px] font-black tracking-wide text-white">{reading.label}</span><span className={`font-mono text-base font-bold ${abnormal ? 'text-rose-100' : hasValue ? 'text-white' : 'text-cyan-100/45'}`}>{displayValue}<small className="ml-1 text-[11px] font-semibold text-cyan-200">{reading.unit}</small></span></div><div className="h-2.5 overflow-hidden bg-blue-950/80"><div className={`h-full transition-all ${abnormal ? 'bg-gradient-to-r from-rose-500 to-pink-400 shadow-[0_0_12px_#fb7185]' : hasValue ? 'bg-gradient-to-r from-cyan-300 to-blue-400' : 'bg-cyan-300/20'}`} style={{ width: `${percent}%` }} /></div><div className="mt-2 flex justify-between text-[11px] font-medium text-cyan-100/65"><span>{min}</span><span>{statusLabel}</span><span>{max}</span></div></div>;
 }
 
 function EmptyState({ icon = 'fa-circle-info', text }) {

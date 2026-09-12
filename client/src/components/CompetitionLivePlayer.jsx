@@ -6,6 +6,7 @@ export default function CompetitionLivePlayer({ deviceId, active = true }) {
     const videoRef = useRef(null);
     const playerRef = useRef(null);
     const retryTimerRef = useRef(null);
+    const latencyTimerRef = useRef(null);
     const retryDelayRef = useRef(3000);
     const lastDeviceIdRef = useRef('');
     const [retryKey, setRetryKey] = useState(0);
@@ -21,6 +22,8 @@ export default function CompetitionLivePlayer({ deviceId, active = true }) {
         }
 
         const destroyPlayer = () => {
+            clearInterval(latencyTimerRef.current);
+            latencyTimerRef.current = null;
             if (!playerRef.current) return;
             try {
                 playerRef.current.pause();
@@ -62,7 +65,11 @@ export default function CompetitionLivePlayer({ deviceId, active = true }) {
                 }, {
                     enableWorker: false,
                     enableStashBuffer: false,
+                    stashInitialSize: 128 * 1024,
                     lazyLoad: false,
+                    autoCleanupSourceBuffer: true,
+                    autoCleanupMaxBackwardDuration: 3,
+                    autoCleanupMinBackwardDuration: 1,
                     headers: token ? { Authorization: `Bearer ${token}` } : {},
                 });
                 playerRef.current = player;
@@ -72,6 +79,21 @@ export default function CompetitionLivePlayer({ deviceId, active = true }) {
                     scheduleRetry('视频流暂时离线，正在重连...');
                 });
                 player.load();
+                const chaseLiveEdge = () => {
+                    const video = videoRef.current;
+                    if (!video || !video.buffered.length || video.seeking) return;
+                    const liveEdge = video.buffered.end(video.buffered.length - 1);
+                    const latency = liveEdge - video.currentTime;
+                    if (latency > 2) {
+                        video.currentTime = Math.max(0, liveEdge - 0.3);
+                        video.playbackRate = 1;
+                    } else if (latency > 0.8) {
+                        video.playbackRate = 1.08;
+                    } else if (video.playbackRate !== 1) {
+                        video.playbackRate = 1;
+                    }
+                };
+                latencyTimerRef.current = setInterval(chaseLiveEdge, 1000);
                 await player.play().catch(() => {
                     setStatus('画面已连接，点击播放');
                 });
