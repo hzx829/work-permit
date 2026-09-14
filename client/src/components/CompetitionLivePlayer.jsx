@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import flvjs from 'flv.js';
 import { competitionLiveUrl, loadCompetitionPlayInfo } from '../utils/api';
 
-export default function CompetitionLivePlayer({ deviceId, active = true }) {
+export default function CompetitionLivePlayer({ deviceId, active = true, fill = false }) {
     const videoRef = useRef(null);
     const playerRef = useRef(null);
     const retryTimerRef = useRef(null);
@@ -114,7 +114,7 @@ export default function CompetitionLivePlayer({ deviceId, active = true }) {
     }, [active, deviceId, retryKey]);
 
     return (
-        <div className="relative aspect-video overflow-hidden bg-slate-950">
+        <div className={`relative overflow-hidden bg-slate-950 ${fill ? 'h-full w-full' : 'aspect-video'}`}>
             <video
                 ref={videoRef}
                 muted

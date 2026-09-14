@@ -4,6 +4,8 @@ const NODES = {
     dismissed: { x: 15, y: 147, w: 135, h: 46, lines: ['排除险情', '记录归档'] },
     assess: { x: 205, y: 146, w: 110, h: 62, lines: ['智能研判', '险情大小判断'], diamond: true },
     onsite: { x: 155, y: 236, w: 210, h: 54, lines: ['启动现场处置方案', '初期处置 · 自救 · 互救'] },
+    'rescue-non-entry': { lines: ['非进入式救援'], side: 'left' },
+    'rescue-entry': { lines: ['进入式救援'], side: 'right' },
     effective: { x: 205, y: 318, w: 110, h: 62, lines: ['处置有效？'], diamond: true },
     special: { x: 330, y: 405, w: 175, h: 54, lines: ['上报升级', '启动专项应急预案'] },
     controlled: { x: 365, y: 487, w: 110, h: 62, lines: ['事态可控？'], diamond: true },
@@ -16,37 +18,19 @@ const NODES = {
     closed: { x: 170, y: 1020, w: 130, h: 44, lines: ['闭环归档'] },
 };
 
-const EDGES = [
-    ['incident', 'verify', 'M260 54V78'],
-    ['verify', 'assess', 'M260 124V146'],
-    ['verify', 'dismissed', 'M160 101H82V147', '否', 112, 92],
-    ['assess', 'onsite', 'M260 208V236', '启动险情', 298, 222],
-    ['onsite', 'effective', 'M260 290V318'],
-    ['effective', 'recovery', 'M205 349H120V829H150', '是', 130, 338],
-    ['effective', 'special', 'M315 349H418V405', '否', 377, 340],
-    ['special', 'controlled', 'M418 459V487'],
-    ['controlled', 'recovery', 'M365 518H280V805', '是', 292, 508],
-    ['controlled', 'command', 'M475 518H492V577', '否', 482, 508],
-    ['command', 'comprehensive', 'M418 623V650'],
-    ['comprehensive', 'disposed', 'M418 704V733'],
-    ['disposed', 'recovery', 'M330 756H280V805'],
-    ['dismissed', 'recovery', 'M82 193V829H150'],
-    ['recovery', 'end', 'M235 853V880'],
-    ['end', 'review', 'M235 924V950'],
-    ['review', 'closed', 'M235 994V1020'],
-];
-
 function getFlowState(event) {
     if (!event) return { current: 'incident', visited: new Set() };
     const stage = event.stage || 'verification';
     const level = event.responseLevel || event.state?.responseLevel || '';
+    const rescueMode = event.rescueMode || event.state?.rescueMode || '';
+    const rescueNode = rescueMode === '非进入式救援' ? 'rescue-non-entry' : rescueMode === '进入式救援' ? 'rescue-entry' : '';
     const visited = new Set(['incident', 'verify']);
     let current = 'verify';
 
     if (stage === 'dismissed') return { current: 'dismissed', visited: new Set([...visited, 'dismissed']) };
     if (stage !== 'verification') visited.add('assess');
     if (stage === 'plan') current = 'assess';
-    if (['report', 'fence', 'rescue-q1', 'rescue-q2', 'rescue-q3'].includes(stage)) {
+    if (['report', 'fence', 'rescue-q1', 'rescue-q2', 'rescue-q3', 'rescue-mode'].includes(stage)) {
         visited.add('onsite');
         current = 'onsite';
     }
@@ -54,6 +38,7 @@ function getFlowState(event) {
     const laterStages = ['control', 'escalate-special', 'escalate-comprehensive', 'recovery', 'end', 'review', 'complete'];
     if (laterStages.includes(stage)) {
         if (level === 'onsite' || !level) visited.add('onsite');
+        if (rescueNode) visited.add(rescueNode);
         visited.add('effective');
         current = 'effective';
     }
@@ -67,51 +52,60 @@ function getFlowState(event) {
         visited.add('comprehensive');
         current = 'comprehensive';
     }
-    if (level === 'comprehensive' && ['recovery', 'end', 'review', 'complete'].includes(stage)) visited.add('disposed');
+    if (['recovery', 'end', 'review', 'complete'].includes(stage)) visited.add('disposed');
     if (stage === 'recovery') { visited.add('recovery'); current = 'recovery'; }
     if (stage === 'end') { visited.add('recovery'); visited.add('end'); current = 'end'; }
     if (stage === 'review') { visited.add('recovery'); visited.add('end'); visited.add('review'); current = 'review'; }
     if (stage === 'complete') { ['recovery', 'end', 'review', 'closed'].forEach((id) => visited.add(id)); current = 'closed'; }
 
-    visited.add(current);
-    return { current, visited };
+    const currentAction = {
+        assess: 'verify',
+        effective: rescueNode || 'onsite',
+        controlled: level === 'comprehensive' ? 'comprehensive' : 'special',
+    }[current] || current;
+    visited.add(currentAction);
+    return { current: currentAction, visited };
 }
 
 export default function EmergencyFlowChart({ event }) {
     const { current, visited } = getFlowState(event);
+    const scrollRef = useRef(null);
+    const nodeRefs = useRef(new Map());
+    const level = event?.responseLevel || event?.state?.responseLevel || '';
+    const showsComprehensive = level === 'comprehensive' || ['command', 'comprehensive'].includes(current);
+    const showsSpecial = ['special', 'comprehensive'].includes(level) || ['special', 'command', 'comprehensive'].includes(current);
+    const rescueNode = event?.rescueMode === '非进入式救援' || event?.state?.rescueMode === '非进入式救援'
+        ? 'rescue-non-entry'
+        : event?.rescueMode === '进入式救援' || event?.state?.rescueMode === '进入式救援' ? 'rescue-entry' : '';
+    const responseNodes = ['onsite', ...(rescueNode ? [rescueNode] : []), ...(showsSpecial ? ['special'] : []), ...(showsComprehensive ? ['command', 'comprehensive'] : [])];
+    const flowOrder = current === 'dismissed' ? ['incident', 'verify', 'dismissed'] : ['incident', 'verify', ...responseNodes, 'disposed', 'recovery', 'end', 'review', 'closed'];
+
+    useEffect(() => {
+        const container = scrollRef.current;
+        const node = nodeRefs.current.get(current);
+        if (!container || !node) return;
+        const targetTop = node.offsetTop - container.clientHeight / 2 + node.clientHeight / 2;
+        container.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
+    }, [current]);
+
     return <div className="flex h-full min-h-0 flex-col overflow-hidden">
-        <div className="mb-1 flex shrink-0 items-center justify-center gap-4 text-[10px] text-cyan-100/55"><span><i className="mr-1 inline-block h-2 w-2 rounded-full bg-cyan-300 shadow-[0_0_8px_#67e8f9]" />当前节点</span><span><i className="mr-1 inline-block h-2 w-2 rounded-full bg-emerald-400" />已走路径</span></div>
-        <div className="relative min-h-0 flex-1 overflow-hidden">
-        <svg viewBox="0 0 520 1080" preserveAspectRatio="xMidYMid meet" className="absolute inset-0 h-full w-full" role="img" aria-label="完整应急预案流程图">
-            <defs>
-                <filter id="activeGlow"><feGaussianBlur stdDeviation="4" result="blur" /><feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
-                <marker id="arrowIdle" markerWidth="7" markerHeight="7" refX="6.4" refY="3.5" orient="auto"><path d="M0 0L7 3.5L0 7Z" fill="#2563eb" /></marker>
-                <marker id="arrowDone" markerWidth="7" markerHeight="7" refX="6.4" refY="3.5" orient="auto"><path d="M0 0L7 3.5L0 7Z" fill="#34d399" /></marker>
-            </defs>
-            {EDGES.map(([from, to, d, label, lx, ly]) => {
-                const done = visited.has(from) && visited.has(to);
-                return <g key={`${from}-${to}`}><path d={d} fill="none" stroke={done ? '#34d399' : '#2563eb'} strokeWidth={done ? 3 : 2} opacity={done ? 1 : .55} markerEnd={`url(#${done ? 'arrowDone' : 'arrowIdle'})`} />{label && <EdgeLabel text={label} x={lx} y={ly} done={done} />}</g>;
+        <div className="mb-2 flex shrink-0 items-center justify-center gap-4 border-b border-cyan-400/20 pb-2 text-[12px] font-semibold text-cyan-50/70"><span><i className="mr-1.5 inline-block h-2.5 w-2.5 rounded-full bg-amber-300 shadow-[0_0_10px_#fbbf24]" />当前节点</span><span><i className="mr-1.5 inline-block h-2.5 w-2.5 rounded-full bg-cyan-300 shadow-[0_0_8px_#22d3ee]" />已完成</span></div>
+        <div ref={scrollRef} className="relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-2 pb-8 pt-2 [scrollbar-color:#22d3ee_#06234c] [scrollbar-width:thin]" role="list" aria-label="应急处置流程">
+            {flowOrder.map((id, index) => {
+                const node = NODES[id];
+                const state = id === current ? 'current' : visited.has(id) ? 'done' : 'idle';
+                const connectorState = id === current ? 'current' : visited.has(id) && visited.has(flowOrder[index + 1]) ? 'done' : 'idle';
+                const branchSide = node.side || (['special', 'command', 'comprehensive'].includes(id) ? 'right' : id === 'recovery' && !showsSpecial ? 'left' : 'center');
+                const alignment = branchSide === 'left' ? 'items-start pr-7' : branchSide === 'right' ? 'items-end pl-7' : 'items-center';
+                return <div key={id} ref={(element) => element ? nodeRefs.current.set(id, element) : nodeRefs.current.delete(id)} className={`flex flex-col ${alignment}`} role="listitem">
+                    <div className={`relative w-full border px-3 py-3 text-center text-[15px] font-bold leading-6 tracking-wide transition-all duration-500 ${state === 'current' ? 'animate-pulse border-amber-300 bg-amber-500/20 text-amber-50 shadow-[inset_0_0_18px_rgba(251,191,36,.18),0_0_18px_rgba(251,191,36,.5)]' : state === 'done' ? 'border-cyan-300/90 bg-cyan-500/15 text-cyan-50 shadow-[inset_0_0_16px_rgba(34,211,238,.14),0_0_10px_rgba(34,211,238,.2)]' : 'border-blue-500/45 bg-blue-950/35 text-blue-100/65'}`} style={{ clipPath: 'polygon(8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px), 0 8px)' }}>
+                        {state === 'current' && <span className="absolute left-2 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-amber-200 shadow-[0_0_10px_#fbbf24]" />}
+                        {node.lines.join(' · ')}
+                    </div>
+                    {index < flowOrder.length - 1 && <div className={`h-6 border-l-2 border-dashed ${branchSide === 'left' ? 'ml-[calc(50%+14px)]' : branchSide === 'right' ? 'mr-[calc(50%+14px)]' : ''} ${connectorState === 'current' ? 'animate-pulse border-amber-300 shadow-[0_0_8px_#fbbf24]' : connectorState === 'done' ? 'border-cyan-300 shadow-[0_0_6px_#22d3ee]' : 'border-blue-600/45'}`} />}
+                </div>;
             })}
-            {Object.entries(NODES).map(([id, node]) => <FlowNode key={id} node={node} state={id === current ? 'current' : visited.has(id) ? 'done' : 'idle'} />)}
-        </svg>
         </div>
     </div>;
 }
-
-function FlowNode({ node, state }) {
-    const stroke = state === 'current' ? '#67e8f9' : state === 'done' ? '#34d399' : '#2563eb';
-    const fill = state === 'current' ? '#0e7490' : state === 'done' ? '#064e3b' : '#071c46';
-    const shape = node.diamond
-        ? <polygon points={`${node.x + node.w / 2},${node.y} ${node.x + node.w},${node.y + node.h / 2} ${node.x + node.w / 2},${node.y + node.h} ${node.x},${node.y + node.h / 2}`} fill={fill} stroke={stroke} strokeWidth={state === 'current' ? 3 : 2} />
-        : <rect x={node.x} y={node.y} width={node.w} height={node.h} rx="5" fill={fill} stroke={stroke} strokeWidth={state === 'current' ? 3 : 2} />;
-    const centerX = node.x + node.w / 2;
-    const centerY = node.y + node.h / 2;
-    const lineGap = node.diamond ? 16 : 18;
-    const fontSize = node.diamond ? 14 : 15;
-    return <g filter={state === 'current' ? 'url(#activeGlow)' : undefined}>{shape}{node.lines.map((line, index) => <text key={line} x={centerX} y={centerY + (index - (node.lines.length - 1) / 2) * lineGap} fill={state === 'idle' ? '#d5e6ff' : '#ecfeff'} fontSize={fontSize} fontWeight={state === 'current' ? '700' : '600'} textAnchor="middle" dominantBaseline="middle">{line}</text>)}</g>;
-}
-
-function EdgeLabel({ text, x, y, done }) {
-    const width = Math.max(26, text.length * 15 + 12);
-    return <g><rect x={x - width / 2} y={y - 11} width={width} height="22" rx="4" fill="#061b3b" fillOpacity=".96" /><text x={x} y={y} fill={done ? '#a7f3d0' : '#67e8f9'} fontSize="14" fontWeight="600" textAnchor="middle" dominantBaseline="middle">{text}</text></g>;
-}
+import { useEffect, useRef } from 'react';

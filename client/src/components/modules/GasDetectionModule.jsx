@@ -49,15 +49,27 @@ export default function GasDetectionModule({ data, onChange, readOnly, currentUs
         setUploadingRecordIndex(index);
         try {
             const photos = await compressImages(files, { maxWidth: 1200, maxHeight: 1200, quality: 0.7 });
-            updateRecord(index, 'photos', [...(records[index].photos || []), ...photos]);
+            const updatedRecords = records.map((record, recordIndex) => recordIndex === index ? {
+                ...record,
+                photos: [...(record.photos || []), ...photos]
+            } : record);
+            onChange('gas_detection_records', updatedRecords);
+            await onSave?.({ gas_detection_records: updatedRecords }, null);
         } catch (error) {
-            console.error('气体检测照片上传失败:', error);
-            window.alert('照片上传失败，请重试');
+            console.error('气体检测照片保存失败:', error);
+            window.alert('照片保存失败，请重试');
         } finally {
             setUploadingRecordIndex(null);
         }
     };
-    const removePhoto = (recordIndex, photoIndex) => updateRecord(recordIndex, 'photos', (records[recordIndex].photos || []).filter((_, index) => index !== photoIndex));
+    const removePhoto = async (recordIndex, photoIndex) => {
+        const updatedRecords = records.map((record, index) => index === recordIndex ? {
+            ...record,
+            photos: (record.photos || []).filter((_, index) => index !== photoIndex)
+        } : record);
+        onChange('gas_detection_records', updatedRecords);
+        await onSave?.({ gas_detection_records: updatedRecords }, null);
+    };
     const removeRecord = (index) => {
         onChange('gas_detection_records', records.filter((_, recordIndex) => recordIndex !== index));
         if (selectedRecordIndex !== null) setSelectedRecordIndex(records.length <= 1 ? null : 0);
@@ -70,6 +82,7 @@ export default function GasDetectionModule({ data, onChange, readOnly, currentUs
     };
     const commitGuardianSignature = async (signature) => {
         const updates = {
+            gas_detection_records: records,
             gas_detection_guardian_signature: signature || '',
             gas_detection_guardian_sign: signature ? getGuardianName() : '',
             gas_detection_guardian_time: signature ? (guardianTime || nowLocal()) : ''

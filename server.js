@@ -219,7 +219,7 @@ app.get('/api/competition/devices/:deviceId/live.flv', async (req, res) => {
 
 const EMERGENCY_STAGES = new Set([
     'verification', 'plan', 'report', 'fence', 'rescue-q1', 'rescue-q2',
-    'rescue-q3', 'control', 'escalate-special', 'escalate-comprehensive',
+    'rescue-q3', 'rescue-mode', 'control', 'escalate-special', 'escalate-comprehensive',
     'recovery', 'end', 'review', 'complete', 'dismissed', 'merged',
 ]);
 const EMERGENCY_STATUSES = new Set(['pending', 'active', 'recovering', 'closed', 'dismissed', 'merged']);
