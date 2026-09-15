@@ -29,6 +29,13 @@ const normalizeSpeechText = (text) => normalizeAssistantText(text)
     .replace(/[“”]/g, '')
     .replace(/120/g, '幺二零');
 
+const speechTextForMessage = (text) => {
+    const normalized = normalizeSpeechText(text);
+    return normalized.includes('AI研判') || normalized.length > 120
+        ? '请确认如下内容'
+        : normalized;
+};
+
 export default function EmergencyInteraction({ event, onEventChange }) {
     const plans = event.availablePlans?.length ? event.availablePlans : [{ id: 'comprehensive', name: '综合应急预案' }];
     const recommendedPlan = plans.find((plan) => plan.recommended) || plans.find((plan) => plan.id === 'onsite') || plans[0];
@@ -53,7 +60,7 @@ export default function EmergencyInteraction({ event, onEventChange }) {
     const speak = useCallback((text) => {
         if (!speechSupported || !text) return;
         window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(normalizeSpeechText(text));
+        const utterance = new SpeechSynthesisUtterance(speechTextForMessage(text));
         utterance.lang = 'zh-CN';
         utterance.rate = 0.95;
         window.speechSynthesis.speak(utterance);

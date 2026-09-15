@@ -30,6 +30,18 @@ const ModuleLoading = () => (
     </div>
 );
 
+const formatPermitDuration = (startedAt, nowMs) => {
+    const startedMs = startedAt ? new Date(startedAt).getTime() : NaN;
+    if (!Number.isFinite(startedMs)) return '--:--:--';
+    const totalSeconds = Math.max(0, Math.floor((nowMs - startedMs) / 1000));
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    const clock = [hours, minutes, seconds].map((value) => String(value).padStart(2, '0')).join(':');
+    return days > 0 ? `${days}天 ${clock}` : clock;
+};
+
 export default function Detail() {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -39,6 +51,7 @@ export default function Detail() {
     const [approving, setApproving] = useState(false);
     const [savingExtra, setSavingExtra] = useState(false);
     const [activeTab, setActiveTab] = useState('basic'); // 'basic', 'gas', 'safety', 'approval', 'briefing', 'inspection'
+    const [timerNow, setTimerNow] = useState(Date.now());
 
     useEffect(() => {
         const fetchPermit = async () => {
@@ -59,6 +72,13 @@ export default function Detail() {
 
         fetchPermit();
     }, [id, navigate]);
+
+    useEffect(() => {
+        if (!permit?.timer_started_at) return undefined;
+        setTimerNow(Date.now());
+        const timerId = window.setInterval(() => setTimerNow(Date.now()), 1000);
+        return () => window.clearInterval(timerId);
+    }, [permit?.timer_started_at]);
 
     const reloadPermit = async () => {
         const data = await getPermit(id);
@@ -568,7 +588,22 @@ export default function Detail() {
                                         票证智能校验
                                     </span>
                                 </div>
-                                
+
+                                <div className="mb-5 rounded-xl border border-blue-100 bg-white/75 p-4 text-center shadow-sm">
+                                    <div className="flex items-center justify-center gap-2 text-xs font-bold tracking-wider text-blue-700">
+                                        <i className="fas fa-stopwatch"></i>
+                                        票证统一计时
+                                    </div>
+                                    <div className="mt-2 font-mono text-2xl font-black tabular-nums text-slate-800">
+                                        {formatPermitDuration(permit.timer_started_at, timerNow)}
+                                    </div>
+                                    <p className="mt-1 text-xs text-gray-500">
+                                        {permit.timer_started_at
+                                            ? `自安全员首次打开票证起累计 · ${formatDate(permit.timer_started_at)}`
+                                            : '等待安全员首次打开票证后自动开始'}
+                                    </p>
+                                </div>
+
                                 <div className="space-y-3">
                                     {stages.map((label, idx) => {
                                         const step = idx + 1;
@@ -660,6 +695,10 @@ export default function Detail() {
                                                         <ul className="space-y-2 text-gray-300">
                                                             <li className="flex items-start gap-3">
                                                                 <i className="fas fa-check-circle text-green-400 mt-1"></i>
+                                                                <span>2026年度安全生产教育培训 (合格)</span>
+                                                            </li>
+                                                            <li className="flex items-start gap-3">
+                                                                <i className="fas fa-check-circle text-green-400 mt-1"></i>
                                                                 <span>2025年度安全生产教育培训 (合格)</span>
                                                             </li>
                                                             <li className="flex items-start gap-3">
@@ -741,6 +780,10 @@ export default function Detail() {
                                                         <ul className="space-y-2 text-gray-300">
                                                             <li className="flex items-start gap-3">
                                                                 <i className="fas fa-check-circle text-green-400 mt-1"></i>
+                                                                <span>2026年度安全生产教育培训 (合格)</span>
+                                                            </li>
+                                                            <li className="flex items-start gap-3">
+                                                                <i className="fas fa-check-circle text-green-400 mt-1"></i>
                                                                 <span>2025年度安全生产教育培训 (合格)</span>
                                                             </li>
                                                             <li className="flex items-start gap-3">
@@ -816,6 +859,10 @@ export default function Detail() {
                                                             培训考核教育纪录
                                                         </h4>
                                                         <ul className="space-y-2 text-gray-300">
+                                                            <li className="flex items-start gap-3">
+                                                                <i className="fas fa-check-circle text-green-400 mt-1"></i>
+                                                                <span>2026年度安全生产教育培训 (合格)</span>
+                                                            </li>
                                                             <li className="flex items-start gap-3">
                                                                 <i className="fas fa-check-circle text-green-400 mt-1"></i>
                                                                 <span>2025年度安全生产教育培训 (合格)</span>

@@ -148,7 +148,6 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
     const [relatedPermitInfo, setRelatedPermitInfo] = React.useState([]);
     const [hasQueriedRelatedPermit, setHasQueriedRelatedPermit] = React.useState(false);
     const [ventilationSeconds, setVentilationSeconds] = React.useState(DEFAULT_VENTILATION_SECONDS);
-    const [ventilationStartTime] = React.useState(() => Date.now());
 
     const { user } = useAuth();
     
@@ -228,14 +227,14 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
 
     // 通风时长计时器
     React.useEffect(() => {
-        // 优先使用数据库中保存的时间（用于readOnly模式）
-        const startTime = data?.ventilation_start_time 
-            ? new Date(data.ventilation_start_time).getTime() 
-            : ventilationStartTime;
+        // 统一使用服务端保存的首次安全员打开时间；兼容旧票证原有字段。
+        // 没有服务端起点时保持初始值，不能退回页面挂载时间，否则刷新会重置。
+        const persistedStartTime = data?.timer_started_at || data?.ventilation_start_time;
+        const startTime = persistedStartTime ? new Date(persistedStartTime).getTime() : NaN;
         
-        if (!startTime || isNaN(startTime)) {
+        if (!Number.isFinite(startTime)) {
             setVentilationSeconds(DEFAULT_VENTILATION_SECONDS);
-            return;
+            return undefined;
         }
         
         const update = () => {
@@ -247,7 +246,7 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
         // 每1秒更新一次
         const intervalId = setInterval(update, 1000);
         return () => clearInterval(intervalId);
-    }, [ventilationStartTime, data?.ventilation_start_time]);
+    }, [data?.timer_started_at, data?.ventilation_start_time]);
 
     const handleChange = React.useCallback((e) => {
         if (readOnly) return;

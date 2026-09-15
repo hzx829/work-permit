@@ -48,6 +48,10 @@ function initDb() {
         db.run("ALTER TABLE work_permits ADD COLUMN extra_data TEXT", (err) => {
             // Ignore error if column already exists
         });
+        db.run("ALTER TABLE work_permits ADD COLUMN timer_started_at TEXT", (err) => {
+            // Ignore error if column already exists. The timer is started once,
+            // by the first safety-account detail view, and never reset by clients.
+        });
 
         // Uploaded laws, regulations and operating procedures are shared by the
         // management center and the digital cockpit.

@@ -1302,15 +1302,38 @@ app.get('/api/work-permits/:id', (req, res) => {
             res.status(500).json({ error: err.message });
             return;
         }
-        if (row) {
+        if (!row) {
+            res.status(404).json({ error: "Work permit not found" });
+            return;
+        }
+
+        const sendPermit = (permitRow) => {
             let extra = {};
             try {
-                extra = JSON.parse(row.extra_data || '{}');
+                extra = JSON.parse(permitRow.extra_data || '{}');
             } catch (e) {}
-            res.json({ ...row, ...extra });
-        } else {
-            res.status(404).json({ error: "Work permit not found" });
+            res.json({ ...permitRow, ...extra });
+        };
+
+        // A worker opening the ticket must never start or reset the shared timer.
+        // COALESCE makes simultaneous safety-account opens converge on one start time.
+        if (req.user?.role !== 'safety' || row.timer_started_at) {
+            sendPermit(row);
+            return;
         }
+
+        const startedAt = new Date().toISOString();
+        db.run(
+            'UPDATE work_permits SET timer_started_at = COALESCE(timer_started_at, ?) WHERE id = ?',
+            [startedAt, id],
+            (updateErr) => {
+                if (updateErr) return sendInternalError(res, 'Start work permit timer failed:', updateErr);
+                db.get('SELECT * FROM work_permits WHERE id = ?', [id], (reloadErr, updatedRow) => {
+                    if (reloadErr) return sendInternalError(res, 'Reload timed work permit failed:', reloadErr);
+                    sendPermit(updatedRow);
+                });
+            },
+        );
     });
 });
 
