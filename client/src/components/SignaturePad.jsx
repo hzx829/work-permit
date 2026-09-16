@@ -169,17 +169,17 @@ const SignaturePad = ({ value, onChange, onCommit, disabled = false, className =
                     className="pointer-events-none absolute inset-0 h-full w-full"
                 />
             )}
-            {!disabled && (
-                <div className="absolute top-1 right-1 flex gap-2">
-                     <button 
-                        type="button"
-                        onClick={clearSignature}
-                        className="px-1.5 py-0.5 text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 rounded border border-gray-300 transition-colors"
-                    >
-                        清除
-                    </button>
-                </div>
-            )}
+            <div className="absolute right-1 top-1 z-10 flex gap-2">
+                <button
+                    type="button"
+                    onClick={clearSignature}
+                    disabled={disabled}
+                    title={disabled ? '当前签字为只读状态，无法清除' : '清除签字'}
+                    className="rounded border border-gray-300 bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600 transition-colors hover:bg-gray-200 disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-50 disabled:text-gray-300"
+                >
+                    清除
+                </button>
+            </div>
         </div>
     );
 };
