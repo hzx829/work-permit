@@ -12,7 +12,9 @@ const {
     CompetitionApiError,
     getLatestGasReadings,
     getPlayInfo: getCompetitionPlayInfo,
+    toEmergencyGasReading,
 } = require('./services/competitionPlatform');
+const { applyEmergencyGasRules, gasExceeded, getGasAlarmSourceKey } = require('./services/emergencyGas');
 
 const app = express();
 
@@ -244,6 +246,80 @@ function dbGetAsync(sql, params = []) {
     });
 }
 
+function dbRunAsync(sql, params = []) {
+    return new Promise((resolve, reject) => {
+        db.run(sql, params, function onRun(err) {
+            if (err) reject(err);
+            else resolve({ lastID: this.lastID, changes: this.changes });
+        });
+    });
+}
+
+async function getEmergencyAlarmEpisode(gas, { triggered, recovered, measuredAt, simulationAlarmKey }) {
+    const sourceKey = getGasAlarmSourceKey(gas);
+    const existing = await dbGetAsync(
+        'SELECT * FROM emergency_alarm_states WHERE source_key = ?',
+        [sourceKey],
+    );
+
+    if (recovered) {
+        if (existing?.active) {
+            await dbRunAsync(
+                `UPDATE emergency_alarm_states
+                 SET active = 0, acknowledged = 0, alarm_key = NULL,
+                     recovered_at = ?, last_measured_at = ?, updated_at = CURRENT_TIMESTAMP
+                 WHERE source_key = ?`,
+                [measuredAt || new Date().toISOString(), measuredAt || null, sourceKey],
+            );
+        }
+        return null;
+    }
+    if (!triggered) return null;
+
+    if (existing?.active && existing.alarm_key) {
+        await dbRunAsync(
+            `UPDATE emergency_alarm_states
+             SET last_measured_at = ?, updated_at = CURRENT_TIMESTAMP
+             WHERE source_key = ?`,
+            [measuredAt || null, sourceKey],
+        );
+        return {
+            alarmKey: existing.alarm_key,
+            acknowledged: Boolean(existing.acknowledged),
+        };
+    }
+
+    const startedAt = measuredAt || new Date().toISOString();
+    const alarmKey = simulationAlarmKey || `gas:${sourceKey}:${startedAt}`;
+    await dbRunAsync(
+        `INSERT INTO emergency_alarm_states (
+            source_key, alarm_key, active, acknowledged, started_at,
+            acknowledged_at, recovered_at, last_measured_at, updated_at
+         ) VALUES (?, ?, 1, 0, ?, NULL, NULL, ?, CURRENT_TIMESTAMP)
+         ON CONFLICT(source_key) DO UPDATE SET
+            alarm_key = excluded.alarm_key,
+            active = 1,
+            acknowledged = 0,
+            started_at = excluded.started_at,
+            acknowledged_at = NULL,
+            recovered_at = NULL,
+            last_measured_at = excluded.last_measured_at,
+            updated_at = CURRENT_TIMESTAMP`,
+        [sourceKey, alarmKey, startedAt, measuredAt || null],
+    );
+    return { alarmKey, acknowledged: false };
+}
+
+async function acknowledgeEmergencyAlarm(alarmKey) {
+    if (!alarmKey) return;
+    await dbRunAsync(
+        `UPDATE emergency_alarm_states
+         SET acknowledged = 1, acknowledged_at = ?, updated_at = CURRENT_TIMESTAMP
+         WHERE alarm_key = ? AND active = 1`,
+        [new Date().toISOString(), alarmKey],
+    );
+}
+
 function emergencyEventFromRow(row, attachments = []) {
     if (!row) return null;
     return {
@@ -302,30 +378,6 @@ function gasReadingFromRow(row) {
     };
 }
 
-function gasExceeded(gas) {
-    if (!gas?.readings?.length) return false;
-    return gas.readings.some((reading) => {
-        const value = Number(reading.value);
-        if (!Number.isFinite(value)) return false;
-        const key = String(reading.key || '').toUpperCase();
-        if (key === 'OXYGEN' || key === 'O2') return value < 19.5 || value > 23.5;
-        if (key === 'CO') return value > 20;
-        if (key === 'H2S') return value > 10;
-        if (key === 'COMBUSTIBLE') return value > 25;
-        return Number.isFinite(Number(reading.threshold)) && value > Number(reading.threshold);
-    });
-}
-
-function watchAbnormal(watch) {
-    if (!watch) return false;
-    return Boolean(
-        watch.alert
-        || (watch.heartRate && (watch.heartRate < 40 || watch.heartRate > 130))
-        || (watch.bloodOxygen && watch.bloodOxygen < 90)
-        || (watch.bodyTemperature && watch.bodyTemperature > 39),
-    );
-}
-
 function emergencySimulationAllowed() {
     return process.env.NODE_ENV !== 'production'
         || String(process.env.ENABLE_EMERGENCY_SIMULATION || '').toLowerCase() === 'true';
@@ -353,7 +405,7 @@ function buildEmergencySimulation(activatedAt) {
         readings: [
             { key: 'CH4', label: '甲烷浓度', value: 0, unit: 'Vol' },
             { key: 'CO2', label: '二氧化碳浓度', value: 0.04, unit: 'Vol' },
-            { key: 'O2', label: '氧气浓度', value: 17.8, unit: 'Vol', threshold: 19.5, upperThreshold: 23.5 },
+            { key: 'O2', label: '氧气浓度', value: 17.8, unit: 'Vol' },
             { key: 'CO', label: '一氧化碳浓度', value: 35, unit: 'ppm', threshold: 20 },
         ],
     };
@@ -411,44 +463,49 @@ app.get('/api/emergency-monitoring', async (req, res) => {
     try {
         const simulationRow = await dbGetAsync('SELECT * FROM emergency_simulation_state WHERE id = 1');
         const simulationActive = emergencySimulationAllowed() && Boolean(simulationRow?.active);
-        let watchSnapshot;
         let gas;
         let simulation;
         if (simulationActive) {
             simulation = buildEmergencySimulation(simulationRow.activated_at);
-            watchSnapshot = simulation.watchSnapshot;
             gas = simulation.gas;
         } else {
+            const storedGas = gasReadingFromRow(await dbGetAsync('SELECT * FROM emergency_gas_readings ORDER BY id DESC LIMIT 1'));
+            let competitionGas = null;
             try {
-                watchSnapshot = await getWatchSnapshot();
-            } catch (watchError) {
-                console.error('Emergency watch linkage failed:', watchError.message);
-                watchSnapshot = {
-                    configured: true,
-                    source: 'aiday',
-                    updatedAt: new Date().toISOString(),
-                    stats: { total: 0, online: 0, offline: 0, located: 0, withHealthData: 0, alerts: 0 },
-                    watches: [],
-                    error: '手表平台暂时无法同步',
-                };
+                competitionGas = toEmergencyGasReading(await getLatestGasReadings());
+            } catch (competitionError) {
+                console.error('Emergency gas linkage failed:', competitionError.message);
             }
-            gas = gasReadingFromRow(await dbGetAsync('SELECT * FROM emergency_gas_readings ORDER BY id DESC LIMIT 1'));
+            const storedTimestamp = storedGas?.measuredAt ? Date.parse(storedGas.measuredAt) : NaN;
+            const competitionTimestamp = competitionGas?.measuredAt ? Date.parse(competitionGas.measuredAt) : NaN;
+            gas = Number.isFinite(competitionTimestamp)
+                && (!Number.isFinite(storedTimestamp) || competitionTimestamp >= storedTimestamp)
+                ? competitionGas
+                : storedGas;
         }
-            const watch = simulation?.watch || watchSnapshot.watches.find(watchAbnormal) || null;
-            const gasTimestamp = gas?.measuredAt ? Date.parse(gas.measuredAt) : NaN;
-            const gasFresh = Number.isFinite(gasTimestamp) && Date.now() - gasTimestamp <= 2 * 60 * 1000;
-            const triggered = Boolean(watch && gasFresh && gasExceeded(gas));
-            const measuredAt = gas?.measuredAt || watchSnapshot.updatedAt;
-            const alarmKey = triggered
-                ? simulation?.alarmKey || `${watch.id}:${gas.deviceId || 'gas'}:${String(measuredAt || '').slice(0, 16)}`
-                : null;
-            const handledEvent = alarmKey
-                ? await dbGetAsync('SELECT id FROM emergency_events WHERE alarm_key = ? LIMIT 1', [alarmKey])
-                : null;
-            const shouldRaiseAlarm = triggered && !handledEvent;
-            res.set('Cache-Control', 'no-store');
-            res.json({
-                watchSnapshot,
+        gas = applyEmergencyGasRules(gas);
+        const gasTimestamp = gas?.measuredAt ? Date.parse(gas.measuredAt) : NaN;
+        const gasFresh = Number.isFinite(gasTimestamp) && Date.now() - gasTimestamp <= 2 * 60 * 1000;
+        const exceeded = gasExceeded(gas);
+        const triggered = Boolean(gasFresh && exceeded);
+        const recovered = Boolean(gasFresh && !exceeded);
+        const measuredAt = gas?.measuredAt;
+        const alarmEpisode = gas
+            ? await getEmergencyAlarmEpisode(gas, {
+                triggered,
+                recovered,
+                measuredAt,
+                simulationAlarmKey: simulation?.alarmKey,
+            })
+            : null;
+        const alarmKey = alarmEpisode?.alarmKey || null;
+        const handledEvent = alarmKey && !alarmEpisode.acknowledged
+            ? await dbGetAsync('SELECT id FROM emergency_events WHERE alarm_key = ? LIMIT 1', [alarmKey])
+            : null;
+        if (handledEvent) await acknowledgeEmergencyAlarm(alarmKey);
+        const shouldRaiseAlarm = triggered && !alarmEpisode?.acknowledged && !handledEvent;
+        res.set('Cache-Control', 'no-store');
+        res.json({
                 gas,
                 gasFresh,
                 simulation: {
@@ -460,13 +517,13 @@ app.get('/api/emergency-monitoring', async (req, res) => {
                     alarmKey,
                     title: '突发险情',
                     incidentType: '受限空间人员异常与气体超限',
-                    location: gas.location || watch.name || '现场作业点',
-                    watch,
+                    location: gas.location || gas.deviceName || '现场作业点',
+                    watch: null,
                     gas,
                     availablePlans: DEFAULT_EMERGENCY_PLANS,
                     simulated: simulationActive,
                 } : null,
-            });
+        });
     } catch (error) {
         sendInternalError(res, 'Load emergency monitoring failed:', error);
     }
@@ -524,7 +581,7 @@ app.get('/api/emergency-events/:id', (req, res) => {
     });
 });
 
-app.post('/api/emergency-events', (req, res) => {
+app.post('/api/emergency-events', async (req, res) => {
     const body = req.body || {};
     const decision = ['yes', 'no', 'other'].includes(body.alarmDecision) ? body.alarmDecision : 'yes';
     if (decision === 'no' && !String(body.rejectionReason || '').trim()) {
@@ -548,27 +605,30 @@ app.post('/api/emergency-events', (req, res) => {
         JSON.stringify(Array.isArray(body.availablePlans) && body.availablePlans.length ? body.availablePlans : DEFAULT_EMERGENCY_PLANS),
         JSON.stringify({ messages: [] }), JSON.stringify(timeline), req.user.id, req.user.full_name || req.user.username,
     ];
-    db.run(
-        `INSERT INTO emergency_events (
-            alarm_key, title, incident_type, location, status, stage, alarm_decision,
-            rejection_reason, merged_into_id, watch_data, gas_data, available_plans,
-            state_data, timeline, created_by, created_by_name
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        values,
-        function onInserted(err) {
-            if (err && err.code === 'SQLITE_CONSTRAINT') {
-                return db.get('SELECT * FROM emergency_events WHERE alarm_key = ?', [body.alarmKey], (findErr, row) => {
-                    if (findErr) return sendInternalError(res, 'Find existing emergency event failed:', findErr);
-                    res.status(200).json(emergencyEventFromRow(row));
-                });
+    try {
+        const result = await dbRunAsync(
+            `INSERT INTO emergency_events (
+                alarm_key, title, incident_type, location, status, stage, alarm_decision,
+                rejection_reason, merged_into_id, watch_data, gas_data, available_plans,
+                state_data, timeline, created_by, created_by_name
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            values,
+        );
+        await acknowledgeEmergencyAlarm(body.alarmKey);
+        const row = await dbGetAsync('SELECT * FROM emergency_events WHERE id = ?', [result.lastID]);
+        res.status(201).json(emergencyEventFromRow(row));
+    } catch (error) {
+        if (error?.code === 'SQLITE_CONSTRAINT' && body.alarmKey) {
+            try {
+                await acknowledgeEmergencyAlarm(body.alarmKey);
+                const row = await dbGetAsync('SELECT * FROM emergency_events WHERE alarm_key = ?', [body.alarmKey]);
+                return res.status(200).json(emergencyEventFromRow(row));
+            } catch (findError) {
+                return sendInternalError(res, 'Find existing emergency event failed:', findError);
             }
-            if (err) return sendInternalError(res, 'Create emergency event failed:', err);
-            db.get('SELECT * FROM emergency_events WHERE id = ?', [this.lastID], (findErr, row) => {
-                if (findErr) return sendInternalError(res, 'Load created emergency event failed:', findErr);
-                res.status(201).json(emergencyEventFromRow(row));
-            });
-        },
-    );
+        }
+        return sendInternalError(res, 'Create emergency event failed:', error);
+    }
 });
 
 app.patch('/api/emergency-events/:id', (req, res) => {

@@ -1,5 +1,7 @@
 const DEFAULT_API_BASE = 'https://dev.api.lingan.tech';
-const REQUEST_TIMEOUT_MS = 10 * 1000;
+const REQUEST_TIMEOUT_MS = 4 * 1000;
+const GAS_CACHE_TTL_MS = 750;
+let latestGasCache = { key: '', expiresAt: 0, value: null, pending: null };
 
 class CompetitionApiError extends Error {
     constructor(message, status = 502, body = null) {
@@ -19,8 +21,7 @@ function getConfig() {
     };
 }
 
-async function requestJson(pathname) {
-    const config = getConfig();
+async function requestJson(pathname, config = getConfig()) {
     if (!config.token) {
         throw new CompetitionApiError('后台尚未配置比赛设备接口凭证', 503);
     }
@@ -82,16 +83,88 @@ function validateDeviceId(deviceId) {
 }
 
 async function getLatestGasReadings() {
-    const result = await requestJson('/gas-readings/latest');
     const config = getConfig();
-    if (!Array.isArray(result.devices) || !config.primaryDeviceId) return result;
+    const cacheKey = [
+        config.apiBase,
+        config.token,
+        config.primaryDeviceId,
+        config.primaryDeviceName,
+    ].join('\u0000');
+    const now = Date.now();
+    if (latestGasCache.key === cacheKey && latestGasCache.value && now < latestGasCache.expiresAt) {
+        return latestGasCache.value;
+    }
+    if (latestGasCache.key === cacheKey && latestGasCache.pending) {
+        return latestGasCache.pending;
+    }
 
-    const devices = result.devices.map((device) => (
-        device.deviceId === config.primaryDeviceId
-            ? { ...device, deviceName: config.primaryDeviceName || device.deviceName || device.deviceId, primary: true }
-            : device
-    )).sort((left, right) => Number(Boolean(right.primary)) - Number(Boolean(left.primary)));
-    return { ...result, devices };
+    const pending = requestJson('/gas-readings/latest', config).then((result) => {
+        if (!Array.isArray(result.devices) || !config.primaryDeviceId) return result;
+
+        const devices = result.devices.map((device) => (
+            device.deviceId === config.primaryDeviceId
+                ? { ...device, deviceName: config.primaryDeviceName || device.deviceName || device.deviceId, primary: true }
+                : device
+        )).sort((left, right) => Number(Boolean(right.primary)) - Number(Boolean(left.primary)));
+        return { ...result, devices };
+    });
+    latestGasCache = { key: cacheKey, expiresAt: 0, value: null, pending };
+
+    try {
+        const result = await pending;
+        latestGasCache = {
+            key: cacheKey,
+            expiresAt: Date.now() + GAS_CACHE_TTL_MS,
+            value: result,
+            pending: null,
+        };
+        return result;
+    } catch (error) {
+        if (latestGasCache.pending === pending) {
+            latestGasCache = { key: cacheKey, expiresAt: 0, value: null, pending: null };
+        }
+        throw error;
+    }
+}
+
+const GAS_LABELS = {
+    CH4: '甲烷浓度',
+    CO2: '二氧化碳浓度',
+    O2: '氧气浓度',
+    CO: '一氧化碳浓度',
+};
+
+function toEmergencyGasReading(snapshot) {
+    const devices = Array.isArray(snapshot?.devices) ? snapshot.devices : [];
+    const primaryDevice = devices.find((device) => device?.primary);
+    const device = primaryDevice || devices.find((candidate) => (
+        candidate?.dataStatus === 'fresh'
+        && candidate.gasData
+        && Object.keys(candidate.gasData).length > 0
+    ));
+    if (!device || device.dataStatus !== 'fresh' || !device.gasData) return null;
+
+    const readings = Object.entries(device.gasData).flatMap(([rawKey, reading]) => {
+        const key = String(rawKey || '').toUpperCase();
+        const value = Number(reading?.value);
+        if (!key || !Number.isFinite(value)) return [];
+        return [{
+            key,
+            label: GAS_LABELS[key] || key,
+            value,
+            unit: String(reading?.unit || ''),
+        }];
+    });
+    if (!readings.length) return null;
+
+    return {
+        id: device.readingId || null,
+        deviceId: device.deviceId || null,
+        deviceName: device.deviceName || device.deviceId || '智能气体检测仪',
+        location: device.location || '',
+        readings,
+        measuredAt: device.sampledAt || device.receivedAt || null,
+    };
 }
 
 async function getPlayInfo(deviceId, protocol = 'flv') {
@@ -106,4 +179,5 @@ module.exports = {
     CompetitionApiError,
     getLatestGasReadings,
     getPlayInfo,
+    toEmergencyGasReading,
 };

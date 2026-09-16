@@ -5,7 +5,7 @@ const PASSWORD_PASSPHRASE = 'oviphone20250718UserPwdShanghai';
 const SNAPSHOT_CACHE_MS = 15 * 1000;
 const SESSION_CACHE_MS = 20 * 60 * 1000;
 const ONLINE_WINDOW_MS = 12 * 60 * 1000;
-const DEFAULT_DEVICE_NAMES = ['化院1', '化院2'];
+const DEFAULT_DEVICE_NAMES = ['智控A', '智控B', '智控C', '智控D', '智控E'];
 
 let sessionCache = null;
 let snapshotCache = null;

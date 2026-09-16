@@ -125,6 +125,22 @@ function initDb() {
         )`);
         db.run('CREATE INDEX IF NOT EXISTS idx_emergency_gas_readings_created ON emergency_gas_readings(created_at)');
 
+        // One continuous gas-limit exceedance is one alarm episode. Once an
+        // operator acknowledges it, fresh abnormal samples stay suppressed
+        // until the same device reports a fresh normal reading.
+        db.run(`CREATE TABLE IF NOT EXISTS emergency_alarm_states (
+            source_key TEXT PRIMARY KEY,
+            alarm_key TEXT UNIQUE,
+            active INTEGER NOT NULL DEFAULT 0,
+            acknowledged INTEGER NOT NULL DEFAULT 0,
+            started_at TEXT,
+            acknowledged_at TEXT,
+            recovered_at TEXT,
+            last_measured_at TEXT,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`);
+        db.run('CREATE INDEX IF NOT EXISTS idx_emergency_alarm_states_active ON emergency_alarm_states(active, acknowledged)');
+
         db.run(`CREATE TABLE IF NOT EXISTS emergency_attachments (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             event_id INTEGER NOT NULL,

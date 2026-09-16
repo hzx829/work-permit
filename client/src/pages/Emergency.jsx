@@ -231,9 +231,11 @@ function GasReading({ reading, dataStatus }) {
     const displayValue = (hasValue ? value : 0).toFixed(2);
     const thresholdValue = reading.threshold === null || reading.threshold === undefined ? null : Number(reading.threshold);
     const hasThreshold = Number.isFinite(thresholdValue);
-    const abnormal = hasValue && hasThreshold && (key === 'OXYGEN' || key === 'O2'
-        ? value < thresholdValue || value > Number(reading.upperThreshold ?? 23.5)
-        : value > thresholdValue);
+    const abnormal = hasValue && (typeof reading.exceeded === 'boolean'
+        ? reading.exceeded
+        : hasThreshold && (key === 'OXYGEN' || key === 'O2'
+            ? value <= thresholdValue || value > Number(reading.upperThreshold ?? 23.5)
+            : reading.alarmInclusive ? value >= thresholdValue : value > thresholdValue));
     const percent = hasValue ? Math.max(2, Math.min(100, ((value - min) / (max - min || 1)) * 100)) : 0;
     const statusLabel = !hasValue ? '暂未上报' : dataStatus === 'stale' ? '数据过期' : dataStatus === 'no_data' ? '暂无数据' : hasThreshold ? (abnormal ? '已超限' : '正常') : '实时读数';
     return <div className={`border p-3.5 shadow-[inset_0_0_18px_rgba(59,130,246,.08)] ${abnormal ? 'border-rose-300/65 bg-rose-500/15' : dataStatus === 'stale' && hasValue ? 'border-amber-300/55 bg-amber-500/10' : 'border-cyan-300/35 bg-blue-950/40'}`}><div className="mb-2.5 flex items-center justify-between"><span className="text-[15px] font-black tracking-wide text-white">{reading.label}</span><span className={`font-mono text-base font-bold ${abnormal ? 'text-rose-100' : hasValue ? 'text-white' : 'text-cyan-100/45'}`}>{displayValue}<small className="ml-1 text-[11px] font-semibold text-cyan-200">{reading.unit}</small></span></div><div className="h-2.5 overflow-hidden bg-blue-950/80"><div className={`h-full transition-all ${abnormal ? 'bg-gradient-to-r from-rose-500 to-pink-400 shadow-[0_0_12px_#fb7185]' : hasValue ? 'bg-gradient-to-r from-cyan-300 to-blue-400' : 'bg-cyan-300/20'}`} style={{ width: `${percent}%` }} /></div><div className="mt-2 flex justify-between text-[11px] font-medium text-cyan-100/65"><span>{min}</span><span>{statusLabel}</span><span>{max}</span></div></div>;

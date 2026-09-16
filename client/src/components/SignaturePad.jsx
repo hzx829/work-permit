@@ -3,6 +3,7 @@ import React, { useRef, useEffect, useState } from 'react';
 const SignaturePad = ({ value, onChange, onCommit, disabled = false, className = "" }) => {
     const canvasRef = useRef(null);
     const commitTimerRef = useRef(null);
+    const canvasValueRef = useRef(Symbol('unrendered'));
     const [isDrawing, setIsDrawing] = useState(false);
 
     const setupCanvas = () => {
@@ -30,20 +31,33 @@ const SignaturePad = ({ value, onChange, onCommit, disabled = false, className =
     };
 
     useEffect(() => {
+        // The canvas already contains a signature created locally. Avoid clearing it
+        // while React feeds that same data URL back through the controlled value.
+        if (value === canvasValueRef.current) return;
+
         const setup = setupCanvas();
         if (!setup) return;
 
         const { ctx, rect } = setup;
         ctx.clearRect(0, 0, rect.width, rect.height);
+        let cancelled = false;
 
         if (value) {
             const img = new Image();
             img.onload = () => {
+                if (cancelled) return;
                 ctx.clearRect(0, 0, rect.width, rect.height);
                 ctx.drawImage(img, 0, 0, rect.width, rect.height);
+                canvasValueRef.current = value;
             };
             img.src = value;
+        } else {
+            canvasValueRef.current = '';
         }
+
+        return () => {
+            cancelled = true;
+        };
     }, [value]);
 
     const scheduleCommit = (signature) => {
@@ -99,6 +113,7 @@ const SignaturePad = ({ value, onChange, onCommit, disabled = false, className =
             // 使用较低质量的 PNG 以减少数据大小
             // 签名一般是黑白线条，PNG 压缩效果好
             const signature = canvas.toDataURL('image/png', 0.8);
+            canvasValueRef.current = signature;
             onChange(signature);
             scheduleCommit(signature);
         }
@@ -114,6 +129,7 @@ const SignaturePad = ({ value, onChange, onCommit, disabled = false, className =
         const ctx = canvas.getContext('2d');
         const rect = canvas.getBoundingClientRect();
         ctx.clearRect(0, 0, rect.width, rect.height); // Clear scaled rect
+        canvasValueRef.current = '';
         
         if (onChange) onChange('');
         scheduleCommit('');

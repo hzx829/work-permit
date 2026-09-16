@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { loadCompetitionGasReadings } from '../utils/api';
 
-const SUCCESS_INTERVAL_MS = 3000;
+const SUCCESS_INTERVAL_MS = 1000;
 const MAX_RETRY_MS = 30000;
 
 export default function useCompetitionGasReadings() {
