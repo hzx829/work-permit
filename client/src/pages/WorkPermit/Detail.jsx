@@ -60,19 +60,12 @@ export default function Detail() {
         fetchPermit();
     }, [id, navigate]);
 
-    const reloadPermit = async () => {
-        const data = await getPermit(id);
-        if (data.permit_number) data.permit_code = data.permit_number;
-        setPermit(data);
-        return data;
-    };
-
     const saveExtraData = async (updates, successMessage = '保存成功') => {
         if (!updates || Object.keys(updates).length === 0) return;
+        setPermit(prev => ({ ...prev, ...updates }));
         setSavingExtra(true);
         try {
             await updatePermitExtraData(id, updates);
-            await reloadPermit();
             if (successMessage) alert(successMessage);
         } catch (error) {
             console.error('Error saving extra data:', error);
@@ -84,6 +77,7 @@ export default function Detail() {
 
     const saveApprovalExtraData = async (updates, successMessage = '保存成功') => {
         if (!updates || Object.keys(updates).length === 0) return;
+        setPermit(prev => ({ ...prev, ...updates }));
         setSavingExtra(true);
         try {
             await updatePermitExtraData(id, updates);
@@ -95,11 +89,12 @@ export default function Detail() {
             const currentStatus = permit?.status || '';
             if (hasApproverSign && currentStatus === '待审批') {
                 await updatePermitStatus(id, '已批准');
+                setPermit(prev => ({ ...prev, status: '已批准' }));
             } else if (!hasApproverSign && currentStatus === '已批准' && !permit?.safety_briefing_sign) {
                 await updatePermitStatus(id, '待审批');
+                setPermit(prev => ({ ...prev, status: '待审批' }));
             }
 
-            await reloadPermit();
             if (successMessage) alert(successMessage);
         } catch (error) {
             console.error('Error saving approval data:', error);
@@ -111,6 +106,7 @@ export default function Detail() {
 
     const saveInspectionExtraData = async (updates, successMessage = '保存成功') => {
         if (!updates || Object.keys(updates).length === 0) return;
+        setPermit(prev => ({ ...prev, ...updates }));
         setSavingExtra(true);
         try {
             await updatePermitExtraData(id, updates);
@@ -127,6 +123,7 @@ export default function Detail() {
             const currentStatus = permit?.status || '';
             if (hasPostInspectionSign && currentStatus !== '作业已完成' && currentStatus !== '已完工') {
                 await updatePermitStatus(id, '作业已完成');
+                setPermit(prev => ({ ...prev, status: '作业已完成' }));
             } else if (
                 hasPreInspectionSign &&
                 currentStatus !== '作业进行中' &&
@@ -137,9 +134,9 @@ export default function Detail() {
                 (permit?.approver_sign || permit?.status === '已批准')
             ) {
                 await updatePermitStatus(id, '作业进行中');
+                setPermit(prev => ({ ...prev, status: '作业进行中' }));
             }
 
-            await reloadPermit();
             if (successMessage) alert(successMessage);
         } catch (error) {
             console.error('Error saving inspection data:', error);
