@@ -5,6 +5,7 @@ const SignaturePad = ({ value, onChange, onCommit, disabled = false, className =
     const commitTimerRef = useRef(null);
     const canvasValueRef = useRef(Symbol('unrendered'));
     const [isDrawing, setIsDrawing] = useState(false);
+    const [previewValue, setPreviewValue] = useState(value || '');
 
     const setupCanvas = () => {
         const canvas = canvasRef.current;
@@ -35,24 +36,35 @@ const SignaturePad = ({ value, onChange, onCommit, disabled = false, className =
         // while React feeds that same data URL back through the controlled value.
         if (value === canvasValueRef.current) return;
 
-        const setup = setupCanvas();
-        if (!setup) return;
+        // Keep an optimistic local signature visible if a save/reload briefly returns
+        // an empty controlled value. Explicit clearing updates canvasValueRef first.
+        if (!value && typeof canvasValueRef.current === 'string' && canvasValueRef.current) return;
 
-        const { ctx, rect } = setup;
-        ctx.clearRect(0, 0, rect.width, rect.height);
         let cancelled = false;
 
         if (value) {
+            // Show the image layer while it is decoded. The existing canvas is left
+            // untouched until the replacement is ready, so there is no blank frame.
+            setPreviewValue(value);
             const img = new Image();
             img.onload = () => {
                 if (cancelled) return;
+                const setup = setupCanvas();
+                if (!setup) return;
+                const { ctx, rect } = setup;
                 ctx.clearRect(0, 0, rect.width, rect.height);
                 ctx.drawImage(img, 0, 0, rect.width, rect.height);
                 canvasValueRef.current = value;
+                setPreviewValue('');
             };
             img.src = value;
         } else {
+            const setup = setupCanvas();
+            if (!setup) return;
+            const { ctx, rect } = setup;
+            ctx.clearRect(0, 0, rect.width, rect.height);
             canvasValueRef.current = '';
+            setPreviewValue('');
         }
 
         return () => {
@@ -114,6 +126,7 @@ const SignaturePad = ({ value, onChange, onCommit, disabled = false, className =
             // 签名一般是黑白线条，PNG 压缩效果好
             const signature = canvas.toDataURL('image/png', 0.8);
             canvasValueRef.current = signature;
+            setPreviewValue('');
             onChange(signature);
             scheduleCommit(signature);
         }
@@ -130,6 +143,7 @@ const SignaturePad = ({ value, onChange, onCommit, disabled = false, className =
         const rect = canvas.getBoundingClientRect();
         ctx.clearRect(0, 0, rect.width, rect.height); // Clear scaled rect
         canvasValueRef.current = '';
+        setPreviewValue('');
         
         if (onChange) onChange('');
         scheduleCommit('');
@@ -148,6 +162,13 @@ const SignaturePad = ({ value, onChange, onCommit, disabled = false, className =
                 onTouchMove={draw}
                 onTouchEnd={stopDrawing}
             />
+            {previewValue && (
+                <img
+                    src={previewValue}
+                    alt="签名"
+                    className="pointer-events-none absolute inset-0 h-full w-full"
+                />
+            )}
             {!disabled && (
                 <div className="absolute top-1 right-1 flex gap-2">
                      <button 
