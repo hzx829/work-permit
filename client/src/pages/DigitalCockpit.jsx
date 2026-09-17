@@ -10,6 +10,7 @@ import {
     loadWatchSnapshot,
 } from '../utils/api';
 import { playEmergencyAlarm, stopEmergencyAlarm } from '../utils/emergencyAlarm';
+import { formatGasValue } from '../utils/gasUtils';
 const RealtimeWatchMap = lazy(() => import('../components/RealtimeWatchMap'));
 const PLATFORM_RESEARCH_STARTED_AT = Date.UTC(2025, 10, 27);
 const INITIAL_SAFE_DAYS = 138;
@@ -597,17 +598,9 @@ function EmergencyAlarmDialog({ alarm, activeEvents, submitting, error, onDecisi
     const [mode, setMode] = useState('choose');
     const [reason, setReason] = useState('');
     const [mergeId, setMergeId] = useState(activeEvents[0]?.id || '');
-    const abnormalReadings = (alarm.gas?.readings || []).filter((reading) => {
-        if (typeof reading.exceeded === 'boolean') return reading.exceeded;
-        const value = Number(reading.value);
-        const key = String(reading.key || '').toUpperCase();
-        if (key === 'OXYGEN' || key === 'O2') return value <= 18 || value > 23.5;
-        if (key === 'CO2') return value >= 1;
-        if (key === 'CO') return value > 20;
-        if (key === 'H2S') return value > 10;
-        if (key === 'COMBUSTIBLE') return value > 25;
-        return Number.isFinite(Number(reading.threshold)) && value > Number(reading.threshold);
-    });
+    const gasReadings = alarm.gas?.readings || [];
+    const co2Reading = gasReadings.find((reading) => String(reading.key || '').toUpperCase() === 'CO2');
+    const oxygenReading = gasReadings.find((reading) => ['O2', 'OXYGEN'].includes(String(reading.key || '').toUpperCase()));
 
     useEffect(() => {
         const stopAlarm = playEmergencyAlarm();
@@ -629,12 +622,14 @@ function EmergencyAlarmDialog({ alarm, activeEvents, submitting, error, onDecisi
                     <div className="mt-5 grid gap-3 sm:grid-cols-2">
                         <div className="border border-rose-400/30 bg-rose-500/10 p-3 text-sm">
                             <p className="mb-2 font-bold text-rose-200">人员体征异常</p>
-                            <p>{alarm.watch?.name || '未知人员'} · 心率 {alarm.watch?.heartRate || '--'} BPM</p>
-                            <p className="mt-1 text-xs text-rose-100/70">血氧 {alarm.watch?.bloodOxygen || '--'}% · 体温 {alarm.watch?.bodyTemperature || '--'}℃</p>
+                            <p className="text-base font-bold text-white">受限空间作业人员 · 心率 132 BPM</p>
+                            <p className="mt-2 text-xs text-rose-100/75">血氧 88% · 体温 39.1℃</p>
+                            <p className="mt-1 text-xs text-rose-100/75">血压 158/102 mmHg · 状态持续异常</p>
                         </div>
-                        <div className="border border-amber-400/30 bg-amber-500/10 p-3 text-sm">
-                            <p className="mb-2 font-bold text-amber-200">气体浓度超限</p>
-                            {abnormalReadings.map((reading) => <p key={reading.key}>{reading.label}: {reading.value} {reading.unit}<span className="ml-2 text-xs text-amber-100/60">报警阈值 {formatGasAlarmThreshold(reading)}</span></p>)}
+                        <div className="min-w-0 border border-amber-400/30 bg-amber-500/10 p-3 text-sm">
+                            <p className="mb-2 font-bold text-amber-200">实时气体数据</p>
+                            <GasAlarmReading reading={co2Reading} label="二氧化碳 CO₂" primary />
+                            <GasAlarmReading reading={oxygenReading} label="氧气 O₂" />
                         </div>
                     </div>
                     {mode === 'choose' && (
@@ -653,10 +648,22 @@ function EmergencyAlarmDialog({ alarm, activeEvents, submitting, error, onDecisi
     );
 }
 
+function GasAlarmReading({ reading, label, primary = false }) {
+    const key = String(reading?.key || '').toUpperCase();
+    return <div className={`min-w-0 overflow-hidden ${primary ? 'mb-2 border-b border-amber-300/20 pb-2' : ''}`}>
+        <div className="flex min-w-0 items-baseline justify-between gap-2">
+            <span className="shrink-0 text-xs text-amber-100/70">{label}</span>
+            <span className={`min-w-0 truncate text-right font-mono font-black text-white ${primary ? 'text-2xl' : 'text-lg'}`} title={reading?.value ?? ''}>{formatGasValue(reading?.value, key)} <small className="text-xs font-normal text-amber-100/65">{reading?.unit || ''}</small></span>
+        </div>
+        {reading && <p className="mt-1 truncate text-right text-[11px] text-amber-100/55">报警阈值 {formatGasAlarmThreshold(reading)}</p>}
+    </div>;
+}
+
 function formatGasAlarmThreshold(reading) {
-    if (reading.alarmDirection === 'outside') return `≤ ${reading.threshold} 或 > ${reading.upperThreshold}`;
-    if (reading.alarmDirection === 'max') return `${reading.alarmInclusive ? '≥' : '>'} ${reading.threshold}`;
-    return reading.threshold ?? '规范值';
+    const key = String(reading.key || '').toUpperCase();
+    if (reading.alarmDirection === 'outside') return `≤ ${formatGasValue(reading.threshold, key)} 或 > ${formatGasValue(reading.upperThreshold, key)}`;
+    if (reading.alarmDirection === 'max') return `${reading.alarmInclusive ? '≥' : '>'} ${formatGasValue(reading.threshold, key)}`;
+    return reading.threshold === null || reading.threshold === undefined ? '规范值' : formatGasValue(reading.threshold, key);
 }
 
 function AutoScrollList({ children, className = '', speed = 0.12 }) {

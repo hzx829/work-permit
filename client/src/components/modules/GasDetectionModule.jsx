@@ -2,6 +2,7 @@ import { useState } from 'react';
 import SignaturePad from '../SignaturePad';
 import { compressImages } from '../../utils/imageUtils';
 import useCompetitionGasReadings from '../../hooks/useCompetitionGasReadings';
+import { formatGasValue } from '../../utils/gasUtils';
 
 const nowLocal = () => {
     const date = new Date();
@@ -108,7 +109,7 @@ export default function GasDetectionModule({ data, onChange, readOnly, currentUs
             location: data?.confined_space_name || data?.location || '',
             gasName: readings.map((reading) => reading.label).join('、'),
             standard: '检测仪原始读数，按现场赛事标准人工判定',
-            result: readings.map((reading) => `${reading.label} ${reading.value} ${reading.unit}`).join('；'),
+            result: readings.map((reading) => `${reading.label} ${formatGasValue(reading.value, reading.key)} ${reading.unit}`).join('；'),
             qualified: null,
             photos: [],
             source: 'competition-device',
@@ -139,7 +140,7 @@ export default function GasDetectionModule({ data, onChange, readOnly, currentUs
                     {canEdit && <button type="button" onClick={captureDeviceReading} disabled={!selectedDevice || selectedDevice.dataStatus !== 'fresh' || !Object.keys(selectedDevice.gasData || {}).length || Boolean(devicesError)} className="rounded-lg bg-cyan-600 px-4 py-2 text-sm font-bold text-white hover:bg-cyan-700 disabled:cursor-not-allowed disabled:bg-slate-300"><i className="fas fa-download mr-1" />采集当前读数</button>}
                 </div>
             </div>
-            {devicesError ? <p className="mt-3 text-sm text-rose-600">连接中断：{devicesError.message}</p> : selectedDevice ? <div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-4">{['CH4', 'CO2', 'O2', 'CO'].map((key) => { const reading = selectedDevice.gasData?.[key]; return <div key={key} className="rounded-lg border border-cyan-100 bg-white px-3 py-2"><p className="text-[11px] text-slate-500">{gasNames[key]} {key}</p><p className="mt-1 font-mono text-lg font-bold text-slate-800">{reading?.value ?? '--'} <span className="text-xs font-normal text-slate-400">{reading?.unit || ''}</span></p></div>; })}</div> : null}
+            {devicesError ? <p className="mt-3 text-sm text-rose-600">连接中断：{devicesError.message}</p> : selectedDevice ? <div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-4">{['CH4', 'CO2', 'O2', 'CO'].map((key) => { const reading = selectedDevice.gasData?.[key]; return <div key={key} className="min-w-0 overflow-hidden rounded-lg border border-cyan-100 bg-white px-3 py-2"><p className="truncate text-[11px] text-slate-500">{gasNames[key]} {key}</p><p className="mt-1 truncate font-mono text-lg font-bold text-slate-800" title={reading?.value ?? ''}>{formatGasValue(reading?.value, key)} <span className="text-xs font-normal text-slate-400">{reading?.unit || ''}</span></p></div>; })}</div> : null}
             {selectedDevice && !devicesError && <p className={`mt-3 text-xs font-medium ${selectedDevice.dataStatus === 'fresh' ? 'text-emerald-600' : selectedDevice.dataStatus === 'stale' ? 'text-amber-600' : 'text-slate-500'}`}>{selectedDevice.dataStatus === 'fresh' ? '数据实时，可采集' : selectedDevice.dataStatus === 'stale' ? '数据已过期，不可采集' : '设备暂无气体数据'}</p>}
         </div>
 
@@ -160,7 +161,7 @@ export default function GasDetectionModule({ data, onChange, readOnly, currentUs
                             {record.source === 'competition-device' && (
                                 <div className="mt-5 rounded-lg border border-cyan-200 bg-cyan-50 p-4">
                                     <div className="flex flex-wrap items-center justify-between gap-2"><h4 className="text-sm font-semibold text-cyan-900">检测仪采集数据</h4><span className="font-mono text-xs text-cyan-700">{record.sourceDeviceId}</span></div>
-                                    <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">{(record.gasReadings || []).map((reading) => <div key={reading.key} className="rounded border border-cyan-100 bg-white px-2 py-2"><p className="text-[11px] text-slate-500">{reading.label}</p><p className="font-mono font-bold text-slate-800">{reading.value} <span className="text-[11px] font-normal text-slate-400">{reading.unit}</span></p></div>)}</div>
+                                    <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">{(record.gasReadings || []).map((reading) => <div key={reading.key} className="min-w-0 overflow-hidden rounded border border-cyan-100 bg-white px-2 py-2"><p className="truncate text-[11px] text-slate-500">{reading.label}</p><p className="truncate font-mono font-bold text-slate-800" title={reading.value ?? ''}>{formatGasValue(reading.value, reading.key)} <span className="text-[11px] font-normal text-slate-400">{reading.unit}</span></p></div>)}</div>
                                     <p className="mt-2 text-[11px] text-cyan-700">读数 ID：{record.sourceReadingId || '--'} · 采样时间：{record.sourceSampledAt ? new Date(record.sourceSampledAt).toLocaleString('zh-CN', { hour12: false }) : '--'}</p>
                                 </div>
                             )}

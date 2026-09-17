@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import CompetitionLivePlayer from './CompetitionLivePlayer';
 import useCompetitionGasReadings from '../hooks/useCompetitionGasReadings';
+import { formatGasValue } from '../utils/gasUtils';
 
 const GAS_ORDER = ['CH4', 'CO2', 'O2', 'CO'];
 const GAS_NAMES = { CH4: '甲烷', CO2: '二氧化碳', O2: '氧气', CO: '一氧化碳' };
@@ -75,7 +76,7 @@ export default function CompetitionDevicePanel() {
                         <div className="mt-5 grid grid-cols-2 gap-3">
                             {GAS_ORDER.map((key) => {
                                 const reading = selectedDevice.gasData?.[key];
-                                return <div key={key} className="rounded-lg border border-slate-100 bg-slate-50 p-4"><p className="text-xs font-medium text-slate-500">{GAS_NAMES[key]} <span className="font-mono">{key}</span></p><p className="mt-2 font-mono text-2xl font-bold text-slate-900">{reading?.value ?? '--'} <span className="text-xs font-normal text-slate-500">{reading?.unit || ''}</span></p></div>;
+                                return <div key={key} className="min-w-0 overflow-hidden rounded-lg border border-slate-100 bg-slate-50 p-4"><p className="truncate text-xs font-medium text-slate-500">{GAS_NAMES[key]} <span className="font-mono">{key}</span></p><p className="mt-2 truncate font-mono text-2xl font-bold text-slate-900" title={reading?.value ?? ''}>{formatGasValue(reading?.value, key)} <span className="text-xs font-normal text-slate-500">{reading?.unit || ''}</span></p></div>;
                             })}
                         </div>
                         <dl className="mt-5 space-y-2 border-t border-slate-100 pt-4 text-xs text-slate-500">
