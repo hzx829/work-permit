@@ -6,10 +6,49 @@ const SNAPSHOT_CACHE_MS = 15 * 1000;
 const SESSION_CACHE_MS = 20 * 60 * 1000;
 const ONLINE_WINDOW_MS = 12 * 60 * 1000;
 const DEFAULT_DEVICE_NAMES = ['智控A', '智控B', '智控C', '智控D', '智控E'];
+const DEVELOPMENT_WATCHES = [
+    { id: 'DEV-WATCH-BJ', name: '测试定位A', code: '北京', lat: 39.9042, lng: 116.4074, heartRate: 76, bloodOxygen: 98, bodyTemperature: 36.5, systolicPressure: 118, diastolicPressure: 76 },
+    { id: 'DEV-WATCH-SH', name: '测试定位B', code: '上海', lat: 31.2304, lng: 121.4737, heartRate: 82, bloodOxygen: 97, bodyTemperature: 36.6, systolicPressure: 122, diastolicPressure: 79 },
+    { id: 'DEV-WATCH-CD', name: '测试定位C', code: '成都', lat: 30.5728, lng: 104.0668, heartRate: 73, bloodOxygen: 98, bodyTemperature: 36.4, systolicPressure: 116, diastolicPressure: 75 },
+    { id: 'DEV-WATCH-SZ', name: '测试定位D', code: '深圳', lat: 22.5431, lng: 114.0579, heartRate: 79, bloodOxygen: 99, bodyTemperature: 36.5, systolicPressure: 120, diastolicPressure: 78 },
+];
 
 let sessionCache = null;
 let snapshotCache = null;
 let snapshotRequest = null;
+
+function buildDevelopmentSnapshot() {
+    const updatedAt = new Date().toISOString();
+    const watches = DEVELOPMENT_WATCHES.map((watch) => ({
+        ...watch,
+        model: 'Development Preview',
+        online: true,
+        alert: false,
+        coordinateSystem: 'WGS84',
+        sourceCoordinateSystem: 'WGS84',
+        lastCommunicationAt: updatedAt,
+        deviceTime: updatedAt,
+        healthUpdatedAt: updatedAt,
+        wristTemperature: null,
+        steps: null,
+        signal: 100,
+    }));
+
+    return {
+        configured: true,
+        source: 'development-preview',
+        updatedAt,
+        stats: {
+            total: watches.length,
+            online: watches.length,
+            offline: 0,
+            located: watches.length,
+            withHealthData: watches.length,
+            alerts: 0,
+        },
+        watches,
+    };
+}
 
 function getConfig() {
     const configuredNames = String(process.env.WATCH_PLATFORM_DEVICE_NAMES || '')
@@ -363,6 +402,7 @@ async function fetchSnapshot(config, allowRetry = true) {
 async function getWatchSnapshot() {
     const config = getConfig();
     if (!config.username || !config.password) {
+        if (process.env.NODE_ENV !== 'production') return buildDevelopmentSnapshot();
         return {
             configured: false,
             source: 'aiday',

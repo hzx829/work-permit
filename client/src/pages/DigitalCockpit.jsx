@@ -47,7 +47,7 @@ class MapLoadBoundary extends React.Component {
 
     render() {
         if (this.state.failed) {
-            return <div className="h-full w-full rounded-xl border border-cyan-300/55 bg-[url('/sichuan-satellite-texture.jpg')] bg-cover bg-center" />;
+            return <div className="h-full w-full rounded-xl border border-cyan-300/55 bg-[radial-gradient(circle_at_center,rgba(14,165,233,.25),rgba(2,6,23,.96)_72%)]" />;
         }
         return this.props.children;
     }
@@ -430,7 +430,7 @@ export default function DigitalCockpit() {
                 <div className="col-span-12 lg:col-span-6 flex flex-col gap-3 h-full min-h-0 relative">
                     <div className="flex-1 min-h-0 relative">
                         <MapLoadBoundary>
-                            <Suspense fallback={<div className="h-full w-full rounded-xl border border-cyan-300/55 bg-[url('/sichuan-satellite-texture.jpg')] bg-cover bg-center shadow-[0_0_30px_rgba(14,165,233,.3)]" />}>
+                            <Suspense fallback={<div className="h-full w-full rounded-xl border border-cyan-300/55 bg-[radial-gradient(circle_at_center,rgba(14,165,233,.25),rgba(2,6,23,.96)_72%)] shadow-[0_0_30px_rgba(14,165,233,.3)]" />}>
                                 <RealtimeWatchMap
                                     watches={watchSnapshot.watches}
                                     loading={watchLoading}

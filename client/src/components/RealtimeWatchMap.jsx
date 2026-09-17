@@ -5,9 +5,8 @@ import 'leaflet.markercluster';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 
-const LUZHOU_CENTER = [28.89684, 105.41907];
-const LUZHOU_BOUNDARIES_URL = 'https://geo.datav.aliyun.com/areas_v3/bound/510500_full.json';
-const DISTRICT_COLORS = ['#22d3ee', '#38bdf8', '#818cf8', '#a78bfa', '#2dd4bf', '#60a5fa', '#c084fc'];
+const CHINA_CENTER = [35.8617, 104.1954];
+const CHINA_NAVIGATION_BOUNDS = L.latLngBounds([3, 70], [60, 140]);
 
 function formatMetric(value, unit = '') {
     return value === null || value === undefined ? '--' : `${value}${unit}`;
@@ -71,13 +70,8 @@ export default function RealtimeWatchMap({
     const mapRef = useRef(null);
     const tileLayersRef = useRef(null);
     const markerLayerRef = useRef(null);
-    const boundaryLayerRef = useRef(null);
-    const boundaryVisibleRef = useRef(true);
-    const hasCenteredRef = useRef(false);
     const [mapReady, setMapReady] = useState(false);
     const [baseMode, setBaseMode] = useState('satellite');
-    const [showBoundaries, setShowBoundaries] = useState(true);
-    const [boundaryNames, setBoundaryNames] = useState([]);
     const [tileError, setTileError] = useState('');
     const [internalSelectedWatchId, setInternalSelectedWatchId] = useState('');
     const [detailsCollapsed, setDetailsCollapsed] = useState(false);
@@ -100,10 +94,12 @@ export default function RealtimeWatchMap({
         if (!containerRef.current || mapRef.current) return undefined;
 
         const map = L.map(containerRef.current, {
-            center: LUZHOU_CENTER,
-            zoom: 15,
-            minZoom: 8,
+            center: CHINA_CENTER,
+            zoom: 4,
+            minZoom: 3,
             maxZoom: 20,
+            maxBounds: CHINA_NAVIGATION_BOUNDS,
+            maxBoundsViscosity: 0.75,
             zoomControl: false,
             attributionControl: true,
         });
@@ -142,50 +138,12 @@ export default function RealtimeWatchMap({
         const observer = new ResizeObserver(() => map.invalidateSize({ animate: false }));
         observer.observe(containerRef.current);
 
-        let cancelled = false;
-        fetch(LUZHOU_BOUNDARIES_URL)
-            .then((response) => {
-                if (!response.ok) throw new Error(`行政区边界加载失败：${response.status}`);
-                return response.json();
-            })
-            .then((data) => {
-                if (cancelled) return;
-                const names = (data.features || []).map((feature) => feature?.properties?.name).filter(Boolean);
-                setBoundaryNames(names);
-                const boundaryLayer = L.geoJSON(data, {
-                    style: (feature) => {
-                        const index = Math.max(0, names.indexOf(feature?.properties?.name));
-                        return {
-                            color: DISTRICT_COLORS[index % DISTRICT_COLORS.length],
-                            weight: 1.6,
-                            opacity: 0.9,
-                            dashArray: '6 5',
-                            fillColor: DISTRICT_COLORS[index % DISTRICT_COLORS.length],
-                            fillOpacity: 0.035,
-                        };
-                    },
-                    onEachFeature: (feature, layer) => {
-                        const name = escapeHtml(feature?.properties?.name || '行政区');
-                        layer.bindTooltip(name, {
-                            permanent: true,
-                            direction: 'center',
-                            className: 'district-name-label',
-                        });
-                    },
-                });
-                boundaryLayerRef.current = boundaryLayer;
-                if (boundaryVisibleRef.current) boundaryLayer.addTo(map);
-            })
-            .catch((boundaryError) => console.warn(boundaryError.message));
-
         return () => {
-            cancelled = true;
             observer.disconnect();
             map.remove();
             mapRef.current = null;
             tileLayersRef.current = null;
             markerLayerRef.current = null;
-            boundaryLayerRef.current = null;
         };
     }, []);
 
@@ -207,15 +165,6 @@ export default function RealtimeWatchMap({
             street.addTo(map);
         }
     }, [baseMode, mapReady]);
-
-    useEffect(() => {
-        boundaryVisibleRef.current = showBoundaries;
-        const map = mapRef.current;
-        const boundaryLayer = boundaryLayerRef.current;
-        if (!map || !boundaryLayer) return;
-        if (showBoundaries) boundaryLayer.addTo(map);
-        else map.removeLayer(boundaryLayer);
-    }, [showBoundaries]);
 
     useEffect(() => {
         if (!mapReady || !mapRef.current) return;
@@ -246,10 +195,6 @@ export default function RealtimeWatchMap({
 
         markerLayerRef.current = cluster;
         cluster.addTo(map);
-        if (!hasCenteredRef.current && locatedWatches.length) {
-            map.setView([selectedWatch?.lat || locatedWatches[0].lat, selectedWatch?.lng || locatedWatches[0].lng], 17);
-            hasCenteredRef.current = true;
-        }
     }, [locatedWatches, mapReady, selectWatch, selectedWatch?.id, selectedWatch?.lat, selectedWatch?.lng]);
 
     const focusWatch = useCallback((watchId) => {
@@ -269,7 +214,7 @@ export default function RealtimeWatchMap({
             data-testid="realtime-watch-map"
             className="relative h-full min-h-[390px] w-full overflow-hidden rounded-xl border border-cyan-300/55 bg-slate-950 shadow-[0_0_30px_rgba(14,165,233,.3)]"
         >
-            <div ref={containerRef} className="absolute inset-0 z-0" aria-label="手表实时定位地图" />
+            <div ref={containerRef} className="absolute inset-0 z-0" aria-label="全国手表实时定位地图" />
 
             <style>{`
                 .watch-pin-wrapper { background: transparent; border: 0; }
@@ -282,8 +227,6 @@ export default function RealtimeWatchMap({
                 .watch-cluster strong, .watch-cluster span { transform:rotate(45deg); line-height:1; }
                 .watch-cluster strong { font:800 16px ui-monospace,monospace; }
                 .watch-cluster span { margin-top:2px; font:700 8px "Microsoft YaHei",sans-serif; }
-                .district-name-label { border:1px solid rgba(103,232,249,.35); border-radius:999px; background:rgba(2,12,27,.72); color:#cffafe; box-shadow:none; font:700 10px "Microsoft YaHei",sans-serif; }
-                .district-name-label::before { display:none; }
                 .leaflet-control-attribution { background:rgba(2,12,27,.72)!important; color:#94a3b8; font-size:9px; }
                 .leaflet-control-attribution a { color:#67e8f9; }
                 .leaflet-control-zoom a { background:#07182c; border-color:rgba(34,211,238,.3); color:#cffafe; }
@@ -293,7 +236,7 @@ export default function RealtimeWatchMap({
 
             <div className="pointer-events-none absolute left-3 top-3 z-[800] rounded-lg border border-cyan-300/35 bg-slate-950/88 px-3 py-2 text-xs text-cyan-100 shadow-lg backdrop-blur-md">
                 <div className="flex items-center gap-3">
-                    <span className="font-bold tracking-wider text-white">手表实时定位</span>
+                    <span className="font-bold tracking-wider text-white">全国实时定位</span>
                     <span className="text-emerald-300">在线 {watches.filter((watch) => watch.online).length}</span>
                     <span className="text-slate-300">定位 {locatedWatches.length}/{watches.length}</span>
                 </div>
@@ -305,12 +248,11 @@ export default function RealtimeWatchMap({
             <div className="absolute left-3 top-[70px] z-[800] flex overflow-hidden rounded-md border border-cyan-300/30 bg-slate-950/88 text-[10px] font-bold shadow-lg">
                 <button type="button" onClick={() => { setTileError(''); setBaseMode('satellite'); }} className={`px-3 py-1.5 ${baseMode === 'satellite' ? 'bg-cyan-500/25 text-white' : 'text-slate-300'}`}>卫星影像</button>
                 <button type="button" onClick={() => { setTileError(''); setBaseMode('street'); }} className={`px-3 py-1.5 ${baseMode === 'street' ? 'bg-cyan-500/25 text-white' : 'text-slate-300'}`}>道路地图</button>
-                <button type="button" onClick={() => setShowBoundaries((value) => !value)} className={`border-l border-cyan-300/20 px-3 py-1.5 ${showBoundaries ? 'text-cyan-200' : 'text-slate-500'}`}>区县边界</button>
             </div>
 
-            {(tileError || !boundaryNames.length) && (
+            {tileError && (
                 <div className="pointer-events-none absolute bottom-8 left-1/2 z-[800] -translate-x-1/2 rounded-full border border-amber-400/35 bg-slate-950/85 px-3 py-1 text-[10px] text-amber-200">
-                    {tileError || '正在加载泸州区县边界...'}
+                    {tileError}
                 </div>
             )}
 
@@ -373,12 +315,6 @@ export default function RealtimeWatchMap({
                     )}
                 </div>
             )}
-
-            <div className="pointer-events-none absolute bottom-2 left-2 z-[700] hidden max-w-[58%] flex-wrap gap-x-3 gap-y-1 rounded-md border border-cyan-300/20 bg-slate-950/75 px-3 py-2 text-[9px] text-cyan-100 backdrop-blur sm:flex">
-                {boundaryNames.map((name, index) => (
-                    <span key={name}><i className="mr-1 inline-block h-2 w-2 rounded-sm" style={{ background: DISTRICT_COLORS[index % DISTRICT_COLORS.length] }} />{name}</span>
-                ))}
-            </div>
         </div>
     );
 }
