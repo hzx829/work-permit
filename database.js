@@ -127,7 +127,8 @@ function initDb() {
 
         // One continuous gas-limit exceedance is one alarm episode. Once an
         // operator acknowledges it, fresh abnormal samples stay suppressed
-        // until the same device reports a fresh normal reading.
+        // until the same device reports normal data or stops reporting long
+        // enough to make a later abnormal reconnect a new alarm episode.
         db.run(`CREATE TABLE IF NOT EXISTS emergency_alarm_states (
             source_key TEXT PRIMARY KEY,
             alarm_key TEXT UNIQUE,

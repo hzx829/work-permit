@@ -12,9 +12,15 @@ const {
     CompetitionApiError,
     getLatestGasReadings,
     getPlayInfo: getCompetitionPlayInfo,
-    toEmergencyGasReading,
+    toEmergencyGasReadings,
 } = require('./services/competitionPlatform');
-const { applyEmergencyGasRules, gasExceeded, getGasAlarmSourceKey } = require('./services/emergencyGas');
+const {
+    GAS_FRESH_WINDOW_MS,
+    applyEmergencyGasRules,
+    gasExceeded,
+    getGasAlarmSourceKey,
+    isAlarmEpisodeStale,
+} = require('./services/emergencyGas');
 
 const app = express();
 
@@ -246,6 +252,12 @@ function dbGetAsync(sql, params = []) {
     });
 }
 
+function dbAllAsync(sql, params = []) {
+    return new Promise((resolve, reject) => {
+        db.all(sql, params, (err, rows) => err ? reject(err) : resolve(rows || []));
+    });
+}
+
 function dbRunAsync(sql, params = []) {
     return new Promise((resolve, reject) => {
         db.run(sql, params, function onRun(err) {
@@ -253,6 +265,23 @@ function dbRunAsync(sql, params = []) {
             else resolve({ lastID: this.lastID, changes: this.changes });
         });
     });
+}
+
+async function recoverStaleEmergencyAlarmStates(now = Date.now()) {
+    const activeStates = await dbAllAsync(
+        'SELECT * FROM emergency_alarm_states WHERE active = 1',
+    );
+    const staleStates = activeStates.filter((state) => isAlarmEpisodeStale(state, now));
+    if (!staleStates.length) return;
+
+    const recoveredAt = new Date(now).toISOString();
+    await Promise.all(staleStates.map((state) => dbRunAsync(
+        `UPDATE emergency_alarm_states
+         SET active = 0, acknowledged = 0, alarm_key = NULL,
+             recovered_at = ?, updated_at = CURRENT_TIMESTAMP
+         WHERE source_key = ? AND active = 1`,
+        [recoveredAt, state.source_key],
+    )));
 }
 
 async function getEmergencyAlarmEpisode(gas, { triggered, recovered, measuredAt, simulationAlarmKey }) {
@@ -378,6 +407,26 @@ function gasReadingFromRow(row) {
     };
 }
 
+function mergeEmergencyGasReadings(readings) {
+    const newestBySource = new Map();
+    readings.filter(Boolean).forEach((reading) => {
+        const sourceKey = getGasAlarmSourceKey(reading);
+        const existing = newestBySource.get(sourceKey);
+        const timestamp = Date.parse(reading.measuredAt || '');
+        const existingTimestamp = Date.parse(existing?.measuredAt || '');
+        if (!existing || (Number.isFinite(timestamp)
+            && (!Number.isFinite(existingTimestamp) || timestamp >= existingTimestamp))) {
+            newestBySource.set(sourceKey, reading);
+        }
+    });
+    return [...newestBySource.values()].sort((left, right) => {
+        const leftTimestamp = Date.parse(left?.measuredAt || '');
+        const rightTimestamp = Date.parse(right?.measuredAt || '');
+        return (Number.isFinite(rightTimestamp) ? rightTimestamp : 0)
+            - (Number.isFinite(leftTimestamp) ? leftTimestamp : 0);
+    });
+}
+
 function emergencySimulationAllowed() {
     return process.env.NODE_ENV !== 'production'
         || String(process.env.ENABLE_EMERGENCY_SIMULATION || '').toLowerCase() === 'true';
@@ -461,49 +510,54 @@ app.post('/api/emergency-simulation', async (req, res) => {
 
 app.get('/api/emergency-monitoring', async (req, res) => {
     try {
+        const now = Date.now();
+        await recoverStaleEmergencyAlarmStates(now);
         const simulationRow = await dbGetAsync('SELECT * FROM emergency_simulation_state WHERE id = 1');
         const simulationActive = emergencySimulationAllowed() && Boolean(simulationRow?.active);
-        let gas;
+        let gases;
         let simulation;
         if (simulationActive) {
             simulation = buildEmergencySimulation(simulationRow.activated_at);
-            gas = simulation.gas;
+            gases = [simulation.gas];
         } else {
             const storedGas = gasReadingFromRow(await dbGetAsync('SELECT * FROM emergency_gas_readings ORDER BY id DESC LIMIT 1'));
-            let competitionGas = null;
+            let competitionGases = [];
             try {
-                competitionGas = toEmergencyGasReading(await getLatestGasReadings());
+                competitionGases = toEmergencyGasReadings(await getLatestGasReadings());
             } catch (competitionError) {
                 console.error('Emergency gas linkage failed:', competitionError.message);
             }
-            const storedTimestamp = storedGas?.measuredAt ? Date.parse(storedGas.measuredAt) : NaN;
-            const competitionTimestamp = competitionGas?.measuredAt ? Date.parse(competitionGas.measuredAt) : NaN;
-            gas = Number.isFinite(competitionTimestamp)
-                && (!Number.isFinite(storedTimestamp) || competitionTimestamp >= storedTimestamp)
-                ? competitionGas
-                : storedGas;
+            gases = mergeEmergencyGasReadings([...competitionGases, storedGas]);
         }
-        gas = applyEmergencyGasRules(gas);
-        const gasTimestamp = gas?.measuredAt ? Date.parse(gas.measuredAt) : NaN;
-        const gasFresh = Number.isFinite(gasTimestamp) && Date.now() - gasTimestamp <= 2 * 60 * 1000;
-        const exceeded = gasExceeded(gas);
-        const triggered = Boolean(gasFresh && exceeded);
-        const recovered = Boolean(gasFresh && !exceeded);
-        const measuredAt = gas?.measuredAt;
-        const alarmEpisode = gas
-            ? await getEmergencyAlarmEpisode(gas, {
+        gases = mergeEmergencyGasReadings((gases || []).map(applyEmergencyGasRules));
+        const gas = gases[0] || null;
+        const gasTimestamp = Date.parse(gas?.measuredAt || '');
+        const gasFresh = Number.isFinite(gasTimestamp) && now - gasTimestamp <= GAS_FRESH_WINDOW_MS;
+        let pendingAlarm = null;
+
+        for (const candidate of gases) {
+            const measuredAt = candidate?.measuredAt;
+            const timestamp = Date.parse(measuredAt || '');
+            const fresh = Number.isFinite(timestamp) && now - timestamp <= GAS_FRESH_WINDOW_MS;
+            const exceeded = gasExceeded(candidate);
+            const triggered = Boolean(fresh && exceeded);
+            const recovered = Boolean(fresh && !exceeded);
+            const alarmEpisode = await getEmergencyAlarmEpisode(candidate, {
                 triggered,
                 recovered,
                 measuredAt,
-                simulationAlarmKey: simulation?.alarmKey,
-            })
-            : null;
-        const alarmKey = alarmEpisode?.alarmKey || null;
-        const handledEvent = alarmKey && !alarmEpisode.acknowledged
-            ? await dbGetAsync('SELECT id FROM emergency_events WHERE alarm_key = ? LIMIT 1', [alarmKey])
-            : null;
-        if (handledEvent) await acknowledgeEmergencyAlarm(alarmKey);
-        const shouldRaiseAlarm = triggered && !alarmEpisode?.acknowledged && !handledEvent;
+                simulationAlarmKey: simulationActive ? simulation?.alarmKey : null,
+            });
+            const alarmKey = alarmEpisode?.alarmKey || null;
+            const handledEvent = alarmKey && !alarmEpisode.acknowledged
+                ? await dbGetAsync('SELECT id FROM emergency_events WHERE alarm_key = ? LIMIT 1', [alarmKey])
+                : null;
+            if (handledEvent) await acknowledgeEmergencyAlarm(alarmKey);
+            if (!pendingAlarm && triggered && !alarmEpisode?.acknowledged && !handledEvent) {
+                pendingAlarm = { alarmKey, gas: candidate };
+            }
+        }
+
         res.set('Cache-Control', 'no-store');
         res.json({
                 gas,
@@ -513,13 +567,13 @@ app.get('/api/emergency-monitoring', async (req, res) => {
                     active: simulationActive,
                     activatedAt: simulationRow?.activated_at || null,
                 },
-                alarm: shouldRaiseAlarm ? {
-                    alarmKey,
+                alarm: pendingAlarm ? {
+                    alarmKey: pendingAlarm.alarmKey,
                     title: '突发险情',
                     incidentType: '受限空间人员异常与气体超限',
-                    location: gas.location || gas.deviceName || '现场作业点',
+                    location: pendingAlarm.gas.location || pendingAlarm.gas.deviceName || '现场作业点',
                     watch: null,
-                    gas,
+                    gas: pendingAlarm.gas,
                     availablePlans: DEFAULT_EMERGENCY_PLANS,
                     simulated: simulationActive,
                 } : null,

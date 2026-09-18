@@ -6,6 +6,7 @@ const GAS_ALARM_RULES = Object.freeze({
     H2S: Object.freeze({ threshold: 10, direction: 'max', inclusive: false }),
     COMBUSTIBLE: Object.freeze({ threshold: 25, direction: 'max', inclusive: false }),
 });
+const GAS_FRESH_WINDOW_MS = 2 * 60 * 1000;
 
 function isReadingExceeded(reading) {
     const value = Number(reading?.value);
@@ -53,10 +54,18 @@ function getGasAlarmSourceKey(gas) {
     return identity.slice(0, 160) || 'unknown';
 }
 
+function isAlarmEpisodeStale(state, now = Date.now(), maxAgeMs = GAS_FRESH_WINDOW_MS) {
+    if (!state?.active) return false;
+    const timestamp = Date.parse(state.last_measured_at || state.started_at || '');
+    return Number.isFinite(timestamp) && now - timestamp > maxAgeMs;
+}
+
 module.exports = {
     GAS_ALARM_RULES,
+    GAS_FRESH_WINDOW_MS,
     applyEmergencyGasRules,
     gasExceeded,
     getGasAlarmSourceKey,
     isReadingExceeded,
+    isAlarmEpisodeStale,
 };

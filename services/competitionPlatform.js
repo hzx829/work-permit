@@ -134,16 +134,8 @@ const GAS_LABELS = {
     CO: '一氧化碳浓度',
 };
 
-function toEmergencyGasReading(snapshot) {
-    const devices = Array.isArray(snapshot?.devices) ? snapshot.devices : [];
-    const primaryDevice = devices.find((device) => device?.primary);
-    const device = primaryDevice || devices.find((candidate) => (
-        candidate?.dataStatus === 'fresh'
-        && candidate.gasData
-        && Object.keys(candidate.gasData).length > 0
-    ));
+function normalizeEmergencyGasDevice(device) {
     if (!device || device.dataStatus !== 'fresh' || !device.gasData) return null;
-
     const readings = Object.entries(device.gasData).flatMap(([rawKey, reading]) => {
         const key = String(rawKey || '').toUpperCase();
         const value = Number(reading?.value);
@@ -167,6 +159,26 @@ function toEmergencyGasReading(snapshot) {
     };
 }
 
+function toEmergencyGasReadings(snapshot) {
+    const devices = Array.isArray(snapshot?.devices) ? snapshot.devices : [];
+    return devices
+        .map(normalizeEmergencyGasDevice)
+        .filter(Boolean);
+}
+
+function toEmergencyGasReading(snapshot) {
+    const devices = Array.isArray(snapshot?.devices) ? snapshot.devices : [];
+    const freshPrimary = devices.find((device) => (
+        device?.primary
+        && device.dataStatus === 'fresh'
+        && device.gasData
+        && Object.keys(device.gasData).length > 0
+    ));
+    return normalizeEmergencyGasDevice(freshPrimary)
+        || toEmergencyGasReadings(snapshot)[0]
+        || null;
+}
+
 async function getPlayInfo(deviceId, protocol = 'flv') {
     const safeDeviceId = validateDeviceId(deviceId);
     if (!['flv', 'hls', 'webrtc'].includes(protocol)) {
@@ -180,4 +192,5 @@ module.exports = {
     getLatestGasReadings,
     getPlayInfo,
     toEmergencyGasReading,
+    toEmergencyGasReadings,
 };

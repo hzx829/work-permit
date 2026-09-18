@@ -4,6 +4,7 @@ const {
     applyEmergencyGasRules,
     gasExceeded,
     getGasAlarmSourceKey,
+    isAlarmEpisodeStale,
     isReadingExceeded,
 } = require('../services/emergencyGas');
 
@@ -44,4 +45,20 @@ test('uses a stable device identity for one continuous alarm episode', () => {
     assert.equal(getGasAlarmSourceKey({ deviceId: 'gas-detector-01', measuredAt: 'first' }), 'gas-detector-01');
     assert.equal(getGasAlarmSourceKey({ deviceId: 'gas-detector-01', measuredAt: 'later' }), 'gas-detector-01');
     assert.equal(getGasAlarmSourceKey({ deviceName: '备用检测仪' }), '备用检测仪');
+});
+
+test('expires an active alarm episode after its device stops reporting', () => {
+    const now = Date.parse('2026-09-17T09:00:00Z');
+    assert.equal(isAlarmEpisodeStale({
+        active: 1,
+        last_measured_at: '2026-09-17T08:57:59Z',
+    }, now), true);
+    assert.equal(isAlarmEpisodeStale({
+        active: 1,
+        last_measured_at: '2026-09-17T08:58:01Z',
+    }, now), false);
+    assert.equal(isAlarmEpisodeStale({
+        active: 0,
+        last_measured_at: '2026-09-17T08:00:00Z',
+    }, now), false);
 });

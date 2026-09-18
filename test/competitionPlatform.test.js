@@ -5,6 +5,7 @@ const {
     getLatestGasReadings,
     getPlayInfo,
     toEmergencyGasReading,
+    toEmergencyGasReadings,
 } = require('../services/competitionPlatform');
 
 test.afterEach(() => {
@@ -130,4 +131,34 @@ test('does not turn stale competition data into an emergency reading', () => {
         dataStatus: 'stale',
         gasData: { O2: { value: 18.8, unit: 'Vol' } },
     }] }), null);
+});
+
+test('falls back to a fresh device when the configured primary device is stale', () => {
+    const reading = toEmergencyGasReading({ devices: [
+        {
+            deviceId: 'primary-stale',
+            primary: true,
+            dataStatus: 'stale',
+            gasData: { CO2: { value: 2.5, unit: 'Vol' } },
+        },
+        {
+            deviceId: 'secondary-fresh',
+            dataStatus: 'fresh',
+            sampledAt: '2026-09-17T08:00:00Z',
+            gasData: { CO2: { value: 1.2, unit: 'Vol' } },
+        },
+    ] });
+
+    assert.equal(reading.deviceId, 'secondary-fresh');
+});
+
+test('normalizes every fresh device for per-device emergency evaluation', () => {
+    const readings = toEmergencyGasReadings({ devices: [
+        { deviceId: 'device-a', dataStatus: 'fresh', gasData: { CO2: { value: 1.2, unit: 'Vol' } } },
+        { deviceId: 'device-b', dataStatus: 'fresh', gasData: { O2: { value: 17.8, unit: 'Vol' } } },
+        { deviceId: 'device-empty', dataStatus: 'fresh', gasData: {} },
+        { deviceId: 'device-stale', dataStatus: 'stale', gasData: { CO: { value: 30, unit: 'ppm' } } },
+    ] });
+
+    assert.deepEqual(readings.map((reading) => reading.deviceId), ['device-a', 'device-b']);
 });
