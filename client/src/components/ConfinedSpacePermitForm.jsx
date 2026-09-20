@@ -1,7 +1,7 @@
 ﻿import React from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import SignaturePad from './SignaturePad';
-import { loadRelatedPermits } from '../utils/api';
+import { loadPermitAttachment, loadRelatedPermits } from '../utils/api';
 
 const FormField = ({ label, required = false, children, className = "" }) => (
     <div className={`flex flex-col ${className}`}>
@@ -72,6 +72,38 @@ const RISK_OPTIONS = [
 // 将常量移到组件外部，避免每次渲染重新创建
 const VENTILATION_REQUIREMENT_SECONDS = 30 * 60;
 const DEFAULT_VENTILATION_SECONDS = VENTILATION_REQUIREMENT_SECONDS;
+const DOCUMENT_VERIFICATION_DELAY_MS = 3000;
+const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024;
+const SUPPORTED_ATTACHMENT_NAME = /\.(pdf|doc|docx|png|jpe?g|gif|webp|bmp)$/i;
+
+const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error(`无法读取附件：${file.name}`));
+    reader.readAsDataURL(file);
+});
+
+const prepareSelectedFiles = async (fileList) => {
+    const files = Array.from(fileList || []);
+    for (const file of files) {
+        if (!SUPPORTED_ATTACHMENT_NAME.test(file.name)) {
+            throw new Error(`不支持的文件格式：${file.name}`);
+        }
+        if (file.size > MAX_ATTACHMENT_BYTES) {
+            throw new Error(`附件不能超过 8MB：${file.name}`);
+        }
+    }
+    return await Promise.all(files.map(async (file) => ({
+        name: file.name,
+        type: file.type || 'application/octet-stream',
+        size: file.size,
+        uploadedAt: new Date().toLocaleString('zh-CN'),
+        dataUrl: await readFileAsDataUrl(file),
+    })));
+};
+
+const isPdfFile = (file) => file?.type === 'application/pdf' || /\.pdf$/i.test(file?.name || '');
+const isImageFile = (file) => String(file?.type || '').startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp)$/i.test(file?.name || '');
 
 const INITIAL_SAFETY_MEASURES = [
     { id: 1, content: '盛装过有毒、可燃物料的受限空间，所有与受限空间有联系的阀门、管线已加盲板 隔离，并落实盲板责任人，未采用水封或关闭阀门代替盲板', applicable: '', confirmer: '' },
@@ -148,8 +180,39 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
     const [relatedPermitInfo, setRelatedPermitInfo] = React.useState([]);
     const [hasQueriedRelatedPermit, setHasQueriedRelatedPermit] = React.useState(false);
     const [ventilationSeconds, setVentilationSeconds] = React.useState(DEFAULT_VENTILATION_SECONDS);
+    const jsaFiles = data?.jsa_files || [];
+    const workPlanFiles = data?.work_plan_files || [];
+    const shouldVerifyDocuments = readOnly
+        && userRole === 'safety'
+        && data?.status === '待审批'
+        && (jsaFiles.length > 0 || workPlanFiles.length > 0);
+    const documentVerificationKey = shouldVerifyDocuments
+        ? `${data?.permit_code || data?.permit_number || 'permit'}:${jsaFiles.length}:${workPlanFiles.length}`
+        : '';
+    const [documentVerification, setDocumentVerification] = React.useState({ key: '', complete: false });
+    const [attachmentPreview, setAttachmentPreview] = React.useState(null);
+    const [readingAttachmentField, setReadingAttachmentField] = React.useState('');
+    const documentsVerifying = shouldVerifyDocuments && (
+        documentVerification.key !== documentVerificationKey
+        || !documentVerification.complete
+    );
 
     const { user } = useAuth();
+
+    React.useEffect(() => {
+        if (!shouldVerifyDocuments) return undefined;
+
+        setDocumentVerification({ key: documentVerificationKey, complete: false });
+        const timer = window.setTimeout(() => {
+            setDocumentVerification({ key: documentVerificationKey, complete: true });
+        }, DOCUMENT_VERIFICATION_DELAY_MS);
+
+        return () => window.clearTimeout(timer);
+    }, [documentVerificationKey, shouldVerifyDocuments]);
+
+    React.useEffect(() => () => {
+        if (attachmentPreview?.objectUrl) URL.revokeObjectURL(attachmentPreview.objectUrl);
+    }, [attachmentPreview?.objectUrl]);
     
     const getCurrentUserName = React.useCallback(() => {
         if (!user) return '当前用户';
@@ -254,29 +317,82 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
         onChange(name, type === 'checkbox' ? checked : value);
     }, [readOnly, onChange]);
 
-    const handleJsaFileChange = React.useCallback((event) => {
+    const handleJsaFileChange = React.useCallback(async (event) => {
         if (readOnly) return;
-        const files = Array.from(event.target.files || []).map((file) => ({
-            name: file.name,
-            type: file.type || '文件',
-            size: file.size,
-            uploadedAt: new Date().toLocaleString('zh-CN')
-        }));
-        if (files.length) onChange('jsa_files', [...(data.jsa_files || []), ...files]);
+        // Snapshot File objects before resetting the input. Some browsers clear
+        // the live FileList together with input.value, leaving nothing to read.
+        const selectedFiles = Array.from(event.target.files || []);
         event.target.value = '';
+        if (!selectedFiles.length) return;
+        setReadingAttachmentField('jsa');
+        try {
+            const files = await prepareSelectedFiles(selectedFiles);
+            if (files.length) onChange('jsa_files', [...(data.jsa_files || []), ...files]);
+        } catch (error) {
+            window.alert(error.message || '附件读取失败，请重试');
+        } finally {
+            setReadingAttachmentField('');
+        }
     }, [data.jsa_files, onChange, readOnly]);
 
-    const handleWorkPlanFileChange = React.useCallback((event) => {
+    const handleWorkPlanFileChange = React.useCallback(async (event) => {
         if (readOnly) return;
-        const files = Array.from(event.target.files || []).map((file) => ({
-            name: file.name,
-            type: file.type || '文件',
-            size: file.size,
-            uploadedAt: new Date().toLocaleString('zh-CN')
-        }));
-        if (files.length) onChange('work_plan_files', [...(data.work_plan_files || []), ...files]);
+        const selectedFiles = Array.from(event.target.files || []);
         event.target.value = '';
+        if (!selectedFiles.length) return;
+        setReadingAttachmentField('work_plan');
+        try {
+            const files = await prepareSelectedFiles(selectedFiles);
+            if (files.length) onChange('work_plan_files', [...(data.work_plan_files || []), ...files]);
+        } catch (error) {
+            window.alert(error.message || '附件读取失败，请重试');
+        } finally {
+            setReadingAttachmentField('');
+        }
     }, [data.work_plan_files, onChange, readOnly]);
+
+    const closeAttachmentPreview = React.useCallback(() => {
+        setAttachmentPreview(null);
+    }, []);
+
+    const openAttachmentPreview = React.useCallback(async (file) => {
+        if (!file?.dataUrl && !file?.viewUrl) {
+            window.alert('该历史附件只保留了文件名，无法在线查看，请重新上传原文件。');
+            return;
+        }
+        if (!isPdfFile(file) && !isImageFile(file)) {
+            window.alert('Word 文件暂不支持浏览器内预览，请上传 PDF 版本后查看。');
+            return;
+        }
+
+        // Chromium does not reliably render PDF data: URLs inside an iframe.
+        // Always give the built-in PDF viewer a Blob URL instead.
+        setAttachmentPreview({ file, loading: true, url: '' });
+        try {
+            const blob = file.dataUrl
+                ? await fetch(file.dataUrl).then((response) => response.blob())
+                : await loadPermitAttachment(file.viewUrl);
+            const objectUrl = URL.createObjectURL(blob);
+            setAttachmentPreview({ file, loading: false, url: objectUrl, objectUrl });
+        } catch (error) {
+            setAttachmentPreview({ file, loading: false, error: error.message || '附件加载失败' });
+        }
+    }, []);
+
+    const renderAttachment = React.useCallback((file, index, files, field, colorClass, borderClass) => (
+        <div key={`${file.name}-${index}`} className={`flex items-center justify-between rounded border ${borderClass} bg-white px-3 py-2 text-sm text-gray-700`}>
+            <button type="button" onClick={() => openAttachmentPreview(file)} className={`min-w-0 flex-1 truncate text-left ${colorClass} hover:underline`} title={`点击查看 ${file.name}`}>
+                <i className={`fas ${isPdfFile(file) ? 'fa-file-pdf' : 'fa-paperclip'} mr-2`} />
+                {file.name}
+            </button>
+            <div className="ml-3 flex shrink-0 items-center gap-3">
+                <button type="button" onClick={() => openAttachmentPreview(file)} className={`text-xs font-medium ${colorClass} hover:underline`}>
+                    <i className="fas fa-eye mr-1" />查看
+                </button>
+                {!readOnly && <button type="button" onClick={() => onChange(field, files.filter((_, fileIndex) => fileIndex !== index))} className="text-red-500 hover:text-red-700" aria-label={`删除 ${file.name}`}><i className="fas fa-times" /></button>}
+            </div>
+        </div>
+    ), [onChange, openAttachmentPreview, readOnly]);
 
     const handleRelatedPermitAssociate = React.useCallback(() => {
         if (readOnly) return;
@@ -350,28 +466,113 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
 
             {/* Application attachments */}
             <div className="mb-8 grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
-                <div className="rounded-xl border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-5 shadow-sm">
+                <div className="relative rounded-xl border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-5 shadow-sm">
                     <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                         <div className="min-w-0">
                             <div className="text-base font-bold text-blue-800"><i className="fas fa-file-shield mr-2" />JSA 作业安全分析资料</div>
                             <p className="mt-1 text-xs text-blue-600">请上传本次作业对应的 JSA 分析表，支持图片、Word、PDF。</p>
                         </div>
-                        {!readOnly && <label className="shrink-0 cursor-pointer rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow hover:bg-blue-700"><i className="fas fa-cloud-upload-alt mr-2" />上传 JSA 文件<input type="file" className="hidden" multiple accept="image/*,.doc,.docx,.pdf" onChange={handleJsaFileChange} /></label>}
+                        {!readOnly && <label className={`shrink-0 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow ${readingAttachmentField ? 'cursor-wait opacity-70' : 'cursor-pointer hover:bg-blue-700'}`}><i className={`fas ${readingAttachmentField === 'jsa' ? 'fa-spinner fa-spin' : 'fa-cloud-upload-alt'} mr-2`} />{readingAttachmentField === 'jsa' ? '正在读取...' : '上传 JSA 文件'}<input type="file" className="hidden" multiple accept="image/*,.doc,.docx,.pdf,application/pdf" onChange={handleJsaFileChange} disabled={Boolean(readingAttachmentField)} /></label>}
                     </div>
-                    {(data.jsa_files || []).length > 0 && <div className="mt-3 space-y-2">{data.jsa_files.map((file, index) => <div key={`${file.name}-${index}`} className="flex items-center justify-between rounded border border-blue-100 bg-white px-3 py-2 text-sm text-gray-700"><span className="truncate"><i className="fas fa-paperclip mr-2 text-blue-500" />{file.name}</span>{!readOnly && <button type="button" onClick={() => onChange('jsa_files', data.jsa_files.filter((_, fileIndex) => fileIndex !== index))} className="ml-3 text-red-500 hover:text-red-700"><i className="fas fa-times" /></button>}</div>)}</div>}
+                    {documentsVerifying ? (
+                        <div className="mt-4 overflow-hidden rounded-lg border border-blue-200 bg-white/90 px-4 py-5">
+                            <div className="flex items-center justify-center gap-3 text-blue-700">
+                                <span className="relative flex h-9 w-9 items-center justify-center rounded-full bg-blue-100">
+                                    <i className="fas fa-robot animate-pulse" />
+                                    <span className="absolute inset-0 animate-ping rounded-full border border-blue-300 opacity-50" />
+                                </span>
+                                <div>
+                                    <div className="text-sm font-bold">AI 正在联动核验</div>
+                                    <div className="mt-1 text-xs text-blue-500">正在解析 JSA 内容与作业风险...</div>
+                                </div>
+                            </div>
+                            <div className="relative mt-4 h-1.5 overflow-hidden rounded-full bg-blue-100">
+                                <div className="absolute inset-y-0 w-1/3 animate-[pulse_1s_ease-in-out_infinite] rounded-full bg-gradient-to-r from-transparent via-blue-500 to-transparent" />
+                            </div>
+                        </div>
+                    ) : (
+                        <>
+                            {jsaFiles.length > 0 && <div className="mt-3 space-y-2 pb-7">{jsaFiles.map((file, index) => renderAttachment(file, index, jsaFiles, 'jsa_files', 'text-blue-600', 'border-blue-100'))}</div>}
+                            {shouldVerifyDocuments && jsaFiles.length > 0 && (
+                                <div className="absolute bottom-3 right-4 flex items-center gap-1.5 text-xs font-bold text-emerald-600">
+                                    <i className="fas fa-check-circle" />
+                                    核验成功
+                                </div>
+                            )}
+                        </>
+                    )}
                 </div>
 
-                <div className="rounded-xl border-2 border-cyan-200 bg-gradient-to-r from-cyan-50 to-blue-50 p-5 shadow-sm">
+                <div className="relative rounded-xl border-2 border-cyan-200 bg-gradient-to-r from-cyan-50 to-blue-50 p-5 shadow-sm">
                     <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                         <div className="min-w-0">
                             <div className="text-base font-bold text-cyan-800"><i className="fas fa-file-alt mr-2" />作业方案</div>
                             <p className="mt-1 text-xs text-cyan-700">请上传本次作业对应的作业方案，支持图片、Word、PDF。</p>
                         </div>
-                        {!readOnly && <label className="shrink-0 cursor-pointer rounded-lg bg-cyan-600 px-5 py-2.5 text-sm font-bold text-white shadow hover:bg-cyan-700"><i className="fas fa-cloud-upload-alt mr-2" />上传作业方案<input type="file" className="hidden" multiple accept="image/*,.doc,.docx,.pdf" onChange={handleWorkPlanFileChange} /></label>}
+                        {!readOnly && <label className={`shrink-0 rounded-lg bg-cyan-600 px-5 py-2.5 text-sm font-bold text-white shadow ${readingAttachmentField ? 'cursor-wait opacity-70' : 'cursor-pointer hover:bg-cyan-700'}`}><i className={`fas ${readingAttachmentField === 'work_plan' ? 'fa-spinner fa-spin' : 'fa-cloud-upload-alt'} mr-2`} />{readingAttachmentField === 'work_plan' ? '正在读取...' : '上传作业方案'}<input type="file" className="hidden" multiple accept="image/*,.doc,.docx,.pdf,application/pdf" onChange={handleWorkPlanFileChange} disabled={Boolean(readingAttachmentField)} /></label>}
                     </div>
-                    {(data.work_plan_files || []).length > 0 && <div className="mt-3 space-y-2">{data.work_plan_files.map((file, index) => <div key={`${file.name}-${index}`} className="flex items-center justify-between rounded border border-cyan-100 bg-white px-3 py-2 text-sm text-gray-700"><span className="truncate"><i className="fas fa-paperclip mr-2 text-cyan-600" />{file.name}</span>{!readOnly && <button type="button" onClick={() => onChange('work_plan_files', data.work_plan_files.filter((_, fileIndex) => fileIndex !== index))} className="ml-3 text-red-500 hover:text-red-700"><i className="fas fa-times" /></button>}</div>)}</div>}
+                    {documentsVerifying ? (
+                        <div className="mt-4 overflow-hidden rounded-lg border border-cyan-200 bg-white/90 px-4 py-5">
+                            <div className="flex items-center justify-center gap-3 text-cyan-700">
+                                <span className="relative flex h-9 w-9 items-center justify-center rounded-full bg-cyan-100">
+                                    <i className="fas fa-brain animate-pulse" />
+                                    <span className="absolute inset-0 animate-ping rounded-full border border-cyan-300 opacity-50" />
+                                </span>
+                                <div>
+                                    <div className="text-sm font-bold">AI 正在联动核验</div>
+                                    <div className="mt-1 text-xs text-cyan-600">正在匹配作业方案与安全措施...</div>
+                                </div>
+                            </div>
+                            <div className="relative mt-4 h-1.5 overflow-hidden rounded-full bg-cyan-100">
+                                <div className="absolute inset-y-0 w-1/3 animate-[pulse_1s_ease-in-out_infinite] rounded-full bg-gradient-to-r from-transparent via-cyan-500 to-transparent" />
+                            </div>
+                        </div>
+                    ) : (
+                        <>
+                            {workPlanFiles.length > 0 && <div className="mt-3 space-y-2 pb-7">{workPlanFiles.map((file, index) => renderAttachment(file, index, workPlanFiles, 'work_plan_files', 'text-cyan-700', 'border-cyan-100'))}</div>}
+                            {shouldVerifyDocuments && workPlanFiles.length > 0 && (
+                                <div className="absolute bottom-3 right-4 flex items-center gap-1.5 text-xs font-bold text-emerald-600">
+                                    <i className="fas fa-check-circle" />
+                                    核验成功
+                                </div>
+                            )}
+                        </>
+                    )}
                 </div>
             </div>
+
+            {attachmentPreview && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4" role="dialog" aria-modal="true" aria-label={`查看附件 ${attachmentPreview.file?.name || ''}`} onClick={closeAttachmentPreview}>
+                    <div className="flex h-[88vh] w-full max-w-6xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl" onClick={(event) => event.stopPropagation()}>
+                        <div className="flex items-center justify-between border-b border-gray-200 px-5 py-3">
+                            <div className="min-w-0">
+                                <div className="truncate font-bold text-gray-800">{attachmentPreview.file?.name}</div>
+                                <div className="mt-0.5 text-xs text-gray-500">PDF 与图片支持在线查看</div>
+                            </div>
+                            <div className="ml-4 flex shrink-0 items-center gap-2">
+                                {attachmentPreview.url && <a href={attachmentPreview.url} target="_blank" rel="noreferrer" className="rounded-lg px-3 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50"><i className="fas fa-up-right-from-square mr-1.5" />新窗口打开</a>}
+                                <button type="button" onClick={closeAttachmentPreview} className="rounded-lg px-3 py-2 text-gray-500 hover:bg-gray-100 hover:text-gray-800" aria-label="关闭附件预览"><i className="fas fa-times text-lg" /></button>
+                            </div>
+                        </div>
+                        <div className="min-h-0 flex-1 bg-gray-100 p-3">
+                            {attachmentPreview.loading ? (
+                                <div className="flex h-full items-center justify-center text-blue-600"><i className="fas fa-spinner fa-spin mr-2" />正在加载附件...</div>
+                            ) : attachmentPreview.error ? (
+                                <div className="flex h-full items-center justify-center text-red-600">{attachmentPreview.error}</div>
+                            ) : isPdfFile(attachmentPreview.file) ? (
+                                <object key={attachmentPreview.url} aria-label={attachmentPreview.file.name} data={`${attachmentPreview.url}#view=FitH`} type="application/pdf" className="h-full w-full rounded bg-white">
+                                    <div className="flex h-full flex-col items-center justify-center gap-3 text-gray-600">
+                                        <div>当前浏览器无法内嵌显示该 PDF。</div>
+                                        <a href={attachmentPreview.url} target="_blank" rel="noreferrer" className="rounded-lg bg-blue-600 px-4 py-2 font-medium text-white">在新窗口中打开</a>
+                                    </div>
+                                </object>
+                            ) : (
+                                <img src={attachmentPreview.url} alt={attachmentPreview.file.name} className="h-full w-full object-contain" />
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Basic Information */}
             <div className="mb-8">
@@ -582,7 +783,7 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                             name="supervisor"
                             value={data.supervisor}
                             onChange={handleChange}
-                            options={['张三', '李四', '王五']}
+                            options={['1号', '张三', '李四', '王五']}
                             unqualifiedOptions={['陈子涵 (未授权)', '刘浩宇 (证书过期)', '王梓萱 (培训不合格)']}
                             placeholder="请选择负责人"
                             readOnly={readOnly}
@@ -593,7 +794,7 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                             name="workers"
                             value={data.workers}
                             onChange={handleChange}
-                            options={['赵六', '孙七', '周八']}
+                            options={['2号', '赵六', '孙七', '周八']}
                             unqualifiedOptions={['张一鸣 (未授权)', '李思琪 (证书过期)', '赵雨桐 (体检不合格)']}
                             placeholder="请选择作业人"
                             readOnly={readOnly}
@@ -604,7 +805,7 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                             name="guardian"
                             value={data.guardian}
                             onChange={handleChange}
-                            options={['吴九', '郑十', '陈十一']}
+                            options={['3号', '吴九', '郑十', '陈十一']}
                             unqualifiedOptions={['孙嘉怡 (未授权)', '周宇轩 (证书过期)', '吴欣怡 (培训不合格)']}
                             placeholder="请选择监护人"
                             readOnly={readOnly}

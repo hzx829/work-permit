@@ -24,8 +24,8 @@ const {
 
 const app = express();
 
-app.use(express.json({ limit: '12mb' })); // Supports compressed images and standard files encoded as data URLs.
-app.use(express.urlencoded({ extended: true, limit: '12mb' }));
+app.use(express.json({ limit: '24mb' })); // Supports permit PDFs and images encoded as data URLs during creation.
+app.use(express.urlencoded({ extended: true, limit: '24mb' }));
 
 // JWT 密钥：生产环境必须通过环境变量 JWT_SECRET 设置固定值，否则重启后 Token 失效
 if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
@@ -232,10 +232,23 @@ const EMERGENCY_STAGES = new Set([
 ]);
 const EMERGENCY_STATUSES = new Set(['pending', 'active', 'recovering', 'closed', 'dismissed', 'merged']);
 const DEFAULT_EMERGENCY_PLANS = [
-    { id: 'onsite', name: '现场处置方案', recommended: true },
-    { id: 'special', name: '受限空间专项应急预案' },
+    { id: 'onsite', name: '受限空间现场处置方案', recommended: true },
+    { id: 'special', name: '中毒事故应急预案' },
     { id: 'comprehensive', name: '综合应急预案' },
 ];
+const EMERGENCY_PLAN_NAMES = new Map(DEFAULT_EMERGENCY_PLANS.map((plan) => [plan.id, plan.name]));
+
+function normalizeEmergencyPlans(plans) {
+    const availablePlans = Array.isArray(plans) && plans.length ? plans : DEFAULT_EMERGENCY_PLANS;
+    return availablePlans.map((plan) => ({ ...plan, name: EMERGENCY_PLAN_NAMES.get(plan.id) || plan.name }));
+}
+
+function normalizeSelectedPlan(responseLevel, selectedPlan) {
+    return EMERGENCY_PLAN_NAMES.get(responseLevel)
+        || (selectedPlan === '现场处置方案' ? EMERGENCY_PLAN_NAMES.get('onsite') : null)
+        || (selectedPlan === '受限空间专项应急预案' ? EMERGENCY_PLAN_NAMES.get('special') : null)
+        || selectedPlan;
+}
 
 function parseJson(value, fallback) {
     if (!value) return fallback;
@@ -360,14 +373,14 @@ function emergencyEventFromRow(row, attachments = []) {
         status: row.status,
         stage: row.stage,
         responseLevel: row.response_level,
-        selectedPlan: row.selected_plan,
+        selectedPlan: normalizeSelectedPlan(row.response_level, row.selected_plan),
         rescueMode: row.rescue_mode,
         alarmDecision: row.alarm_decision,
         rejectionReason: row.rejection_reason,
         mergedIntoId: row.merged_into_id,
         watch: parseJson(row.watch_data, null),
         gas: parseJson(row.gas_data, null),
-        availablePlans: parseJson(row.available_plans, DEFAULT_EMERGENCY_PLANS),
+        availablePlans: normalizeEmergencyPlans(parseJson(row.available_plans, DEFAULT_EMERGENCY_PLANS)),
         state: parseJson(row.state_data, {}),
         timeline: parseJson(row.timeline, []),
         attachments,
@@ -656,7 +669,7 @@ app.post('/api/emergency-events', async (req, res) => {
         body.alarmKey || null, body.title || '突发险情', body.incidentType || '待确认', body.location || '',
         status, stage, decision, String(body.rejectionReason || '').trim() || null,
         Number(body.mergedIntoId) || null, JSON.stringify(body.watch || null), JSON.stringify(body.gas || null),
-        JSON.stringify(Array.isArray(body.availablePlans) && body.availablePlans.length ? body.availablePlans : DEFAULT_EMERGENCY_PLANS),
+        JSON.stringify(normalizeEmergencyPlans(Array.isArray(body.availablePlans) && body.availablePlans.length ? body.availablePlans : DEFAULT_EMERGENCY_PLANS)),
         JSON.stringify({ messages: [] }), JSON.stringify(timeline), req.user.id, req.user.full_name || req.user.username,
     ];
     try {
@@ -1290,6 +1303,95 @@ app.get('/api/fire-safety', (req, res) => {
 
 // --- Work Permit Routes ---
 
+const WORK_PERMIT_ATTACHMENT_FIELDS = {
+    jsa_files: 'jsa',
+    work_plan_files: 'work_plan',
+};
+const MAX_WORK_PERMIT_ATTACHMENT_BYTES = 8 * 1024 * 1024;
+const MAX_WORK_PERMIT_ATTACHMENTS_TOTAL_BYTES = 12 * 1024 * 1024;
+
+function prepareWorkPermitAttachments(fields) {
+    const cleanedFields = { ...fields };
+    const attachments = [];
+    let totalBytes = 0;
+
+    Object.entries(WORK_PERMIT_ATTACHMENT_FIELDS).forEach(([field, kind]) => {
+        const files = Array.isArray(fields[field]) ? fields[field] : [];
+        cleanedFields[field] = [];
+
+        files.forEach((file) => {
+            const filename = String(file?.name || '').slice(0, 255);
+            const dataUrl = String(file?.dataUrl || '');
+            if (!filename || !dataUrl) {
+                throw new Error('附件内容不完整，请重新选择文件');
+            }
+            if (!/\.(pdf|doc|docx|png|jpe?g|gif|webp|bmp)$/i.test(filename)) {
+                throw new Error('仅支持图片、Word 或 PDF 文件');
+            }
+
+            const match = dataUrl.match(/^data:([^;,]+)?(?:;charset=[^;,]+)?;base64,(.+)$/s);
+            if (!match) throw new Error('附件格式无效，请重新选择文件');
+            const content = Buffer.from(match[2], 'base64');
+            if (!content.length || content.length > MAX_WORK_PERMIT_ATTACHMENT_BYTES) {
+                throw new Error('单个附件必须小于 8MB');
+            }
+            totalBytes += content.length;
+            if (totalBytes > MAX_WORK_PERMIT_ATTACHMENTS_TOTAL_BYTES) {
+                throw new Error('本次上传的附件总大小不能超过 12MB');
+            }
+
+            attachments.push({
+                field,
+                kind,
+                filename,
+                mimeType: String(file?.type || match[1] || 'application/octet-stream').slice(0, 120),
+                size: content.length,
+                uploadedAt: file?.uploadedAt || new Date().toISOString(),
+                content,
+            });
+        });
+    });
+
+    return { cleanedFields, attachments };
+}
+
+function insertWorkPermitAttachment(permitId, attachment, userId) {
+    return new Promise((resolve, reject) => {
+        db.run(
+            `INSERT INTO work_permit_attachments
+             (permit_id, kind, filename, mime_type, size, content, uploaded_by)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [permitId, attachment.kind, attachment.filename, attachment.mimeType, attachment.size, attachment.content, userId || null],
+            function(err) {
+                if (err) return reject(err);
+                resolve({
+                    id: this.lastID,
+                    name: attachment.filename,
+                    type: attachment.mimeType,
+                    size: attachment.size,
+                    uploadedAt: attachment.uploadedAt,
+                    viewUrl: `/api/work-permit-attachments/${this.lastID}`,
+                });
+            },
+        );
+    });
+}
+
+app.get('/api/work-permit-attachments/:id', (req, res) => {
+    db.get(
+        'SELECT filename, mime_type, content FROM work_permit_attachments WHERE id = ?',
+        [req.params.id],
+        (err, row) => {
+            if (err) return sendInternalError(res, 'Load work permit attachment failed:', err);
+            if (!row) return res.status(404).json({ success: false, message: '附件不存在' });
+            res.type(row.mime_type || 'application/octet-stream');
+            res.setHeader('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(row.filename)}`);
+            res.setHeader('X-Content-Type-Options', 'nosniff');
+            res.send(row.content);
+        },
+    );
+});
+
 // Batch lookup used by the confined-space permit review. Keep this route above
 // /:id so Express does not interpret "related" as a permit id.
 app.get('/api/work-permits/related', (req, res) => {
@@ -1452,7 +1554,7 @@ app.get('/api/work-permits/:id', (req, res) => {
 });
 
 // Create new permit
-app.post('/api/work-permits', (req, res) => {
+app.post('/api/work-permits', async (req, res) => {
     try {
         const {
             type, applicant_id, applicant_name, department, location,
@@ -1473,6 +1575,13 @@ app.post('/api/work-permits', (req, res) => {
         const permit_number = `WP-${dateStr}-${randomSuffix}`;
         const status = '待审批';
 
+        let prepared;
+        try {
+            prepared = prepareWorkPermitAttachments(otherFields || {});
+        } catch (attachmentError) {
+            return res.status(400).json({ success: false, message: attachmentError.message });
+        }
+
         const sql = `INSERT INTO work_permits (
             permit_number, status, type, applicant_id, applicant_name,
             department, location, start_time, end_time, content,
@@ -1484,19 +1593,36 @@ app.post('/api/work-permits', (req, res) => {
             department || '', location || '', start_time, end_time, content || '',
             JSON.stringify(Array.isArray(safety_measures) ? safety_measures : []),
             JSON.stringify(signatures && typeof signatures === 'object' ? signatures : {}),
-            JSON.stringify(otherFields || {})
+            JSON.stringify(prepared.cleanedFields)
         ];
 
-        db.run(sql, params, function(err) {
+        db.run(sql, params, async function(err) {
             if (err) {
                 sendInternalError(res, 'Create work permit failed:', err);
                 return;
             }
-            res.json({
-                success: true,
-                id: this.lastID,
-                permit_number: permit_number
-            });
+            const permitId = this.lastID;
+            try {
+                const savedFiles = await Promise.all(
+                    prepared.attachments.map((attachment) => insertWorkPermitAttachment(permitId, attachment, req.user?.id)),
+                );
+                const storedFields = { ...prepared.cleanedFields };
+                Object.keys(WORK_PERMIT_ATTACHMENT_FIELDS).forEach((field) => {
+                    storedFields[field] = savedFiles.filter((_, index) => prepared.attachments[index].field === field);
+                });
+                await new Promise((resolve, reject) => {
+                    db.run(
+                        'UPDATE work_permits SET extra_data = ? WHERE id = ?',
+                        [JSON.stringify(storedFields), permitId],
+                        (updateErr) => updateErr ? reject(updateErr) : resolve(),
+                    );
+                });
+                res.json({ success: true, id: permitId, permit_number });
+            } catch (attachmentSaveError) {
+                db.run('DELETE FROM work_permit_attachments WHERE permit_id = ?', [permitId]);
+                db.run('DELETE FROM work_permits WHERE id = ?', [permitId]);
+                sendInternalError(res, 'Save work permit attachments failed:', attachmentSaveError);
+            }
         });
     } catch (createErr) {
         sendInternalError(res, 'Create work permit route failed:', createErr);

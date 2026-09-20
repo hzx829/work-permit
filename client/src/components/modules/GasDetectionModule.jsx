@@ -33,7 +33,7 @@ export default function GasDetectionModule({ data, onChange, readOnly, currentUs
     const guardianSignature = hasGuardianSignatureField ? (data?.gas_detection_guardian_signature || '') : (legacySignedRecord?.guardian_signature || '');
     const guardianName = hasGuardianSignatureField ? (data?.gas_detection_guardian_sign || '') : (legacySignedRecord?.guardian_confirm || data?.guardian || '');
     const guardianTime = hasGuardianSignatureField ? (data?.gas_detection_guardian_time || '') : (legacySignedRecord?.guardian_time || '');
-    const analysts = [...new Set([...splitPeople(data?.workers), data?.supervisor].filter(Boolean))];
+    const analysts = [...new Set(['1号', '2号', ...splitPeople(data?.workers), data?.supervisor].filter(Boolean))];
     const userName = currentUser?.full_name || currentUser?.name || currentUser?.username || '当前用户';
     const selectedDevice = devices.find((device) => device.deviceId === selectedDeviceId) || devices[0] || null;
 

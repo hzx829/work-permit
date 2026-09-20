@@ -53,6 +53,22 @@ function initDb() {
             // by the first safety-account detail view, and never reset by clients.
         });
 
+        // Keep permit application documents outside extra_data so PDFs and
+        // images can be opened after the permit has been submitted.
+        db.run(`CREATE TABLE IF NOT EXISTS work_permit_attachments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            permit_id INTEGER NOT NULL,
+            kind TEXT NOT NULL,
+            filename TEXT NOT NULL,
+            mime_type TEXT,
+            size INTEGER DEFAULT 0,
+            content BLOB NOT NULL,
+            uploaded_by INTEGER,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(permit_id) REFERENCES work_permits(id)
+        )`);
+        db.run('CREATE INDEX IF NOT EXISTS idx_work_permit_attachments_permit ON work_permit_attachments(permit_id, created_at)');
+
         // Uploaded laws, regulations and operating procedures are shared by the
         // management center and the digital cockpit.
         db.run(`CREATE TABLE IF NOT EXISTS regulation_documents (

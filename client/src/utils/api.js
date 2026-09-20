@@ -257,6 +257,14 @@ export async function updatePermitExtraData(id, data) {
     return await response.json();
 }
 
+export async function loadPermitAttachment(url) {
+    const response = await authFetch(url);
+    if (!response.ok) {
+        throw new Error(await getErrorMessage(response, '附件加载失败'));
+    }
+    return await response.blob();
+}
+
 export async function loadRelatedPermits(numbers, applyTime = '') {
     const query = new URLSearchParams({
         numbers: Array.isArray(numbers) ? numbers.join(',') : String(numbers || ''),

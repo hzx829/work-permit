@@ -45,6 +45,8 @@ Thumbs.db
 *.tmp
 *.temp
 *.local
+.codex-temp/
+~$*
 
 deploy
 deploy.zip

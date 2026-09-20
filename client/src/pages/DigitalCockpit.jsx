@@ -7,6 +7,7 @@ import {
     loadCurrentWeather,
     loadPermits,
     loadRegulations,
+    setEmergencySimulation,
     loadWatchSnapshot,
 } from '../utils/api';
 import { playEmergencyAlarm, stopEmergencyAlarm } from '../utils/emergencyAlarm';
@@ -70,6 +71,8 @@ export default function DigitalCockpit() {
     const [activeEmergencyEvents, setActiveEmergencyEvents] = useState([]);
     const [alarmSubmitting, setAlarmSubmitting] = useState(false);
     const [alarmError, setAlarmError] = useState('');
+    const [simulation, setSimulation] = useState({ enabled: false, active: false });
+    const [simulationBusy, setSimulationBusy] = useState(false);
     const today = Date.UTC(currentTime.getFullYear(), currentTime.getMonth(), currentTime.getDate());
     const safeDays = INITIAL_SAFE_DAYS + Math.max(0, Math.floor((today - PLATFORM_RESEARCH_STARTED_AT) / 86400000));
     const [weatherData, setWeatherData] = useState({
@@ -105,6 +108,7 @@ export default function DigitalCockpit() {
                 ]);
                 if (cancelled) return;
                 setActiveEmergencyEvents(activeResult.events || []);
+                setSimulation(monitoring.simulation || { enabled: false, active: false });
                 if (monitoring.alarm) {
                     const ignoredKey = sessionStorage.getItem('ignored-emergency-alarm-key');
                     if (ignoredKey !== monitoring.alarm.alarmKey) setEmergencyAlarm(monitoring.alarm);
@@ -148,6 +152,35 @@ export default function DigitalCockpit() {
             setAlarmError(error.message || '报警处理失败');
         } finally {
             setAlarmSubmitting(false);
+        }
+    };
+
+    const toggleEmergencySimulation = async () => {
+        if (simulationBusy) return;
+        const nextActive = !simulation.active;
+        const confirmed = window.confirm(nextActive
+            ? '确认启动测试事故？启动后会立即触发模拟报警，仅用于比赛演示。'
+            : '确认停止测试事故？');
+        if (!confirmed) return;
+
+        setSimulationBusy(true);
+        setAlarmError('');
+        try {
+            const next = await setEmergencySimulation(nextActive);
+            setSimulation(next);
+            const monitoring = await loadEmergencyMonitoring();
+            setSimulation(monitoring.simulation || next);
+            if (monitoring.alarm) {
+                sessionStorage.removeItem('ignored-emergency-alarm-key');
+                setEmergencyAlarm(monitoring.alarm);
+            } else if (emergencyAlarm?.simulated) {
+                stopEmergencyAlarm();
+                setEmergencyAlarm(null);
+            }
+        } catch (error) {
+            setAlarmError(error.message || '事故测试开关更新失败');
+        } finally {
+            setSimulationBusy(false);
         }
     };
 
@@ -293,6 +326,7 @@ export default function DigitalCockpit() {
                     submitting={alarmSubmitting}
                     error={alarmError}
                     onDecision={submitAlarmDecision}
+                    onStopSimulation={toggleEmergencySimulation}
                 />
             )}
             {alarmError && !emergencyAlarm && <div className="absolute right-6 top-24 z-[90] border border-rose-400/50 bg-slate-950/95 px-4 py-3 text-sm text-rose-200 shadow-lg">{alarmError}</div>}
@@ -589,12 +623,29 @@ export default function DigitalCockpit() {
                     </TechPanel>
                 </div>
             </main>
+
+            {simulation.enabled && (
+                <button
+                    type="button"
+                    onClick={toggleEmergencySimulation}
+                    disabled={simulationBusy}
+                    aria-label={simulation.active ? '停止事故测试' : '启动事故测试'}
+                    aria-pressed={simulation.active}
+                    title={simulation.active ? '停止事故测试' : '事故测试'}
+                    className={`group absolute bottom-1 left-1 z-[60] flex h-7 w-7 items-center justify-center rounded-full border transition-all duration-300 disabled:cursor-wait ${simulation.active
+                        ? 'border-rose-400/80 bg-rose-500/25 text-rose-200 opacity-100 shadow-[0_0_14px_rgba(244,63,94,.55)]'
+                        : 'border-cyan-300/20 bg-slate-950/25 text-cyan-100 opacity-[.12] hover:border-cyan-300/60 hover:bg-slate-950/80 hover:opacity-100 focus:opacity-100'
+                    }`}
+                >
+                    <i className={`fas ${simulationBusy ? 'fa-spinner fa-spin' : simulation.active ? 'fa-stop' : 'fa-flask'} text-[11px]`} />
+                </button>
+            )}
         </div>
     );
 }
 
 // Auto Scroll List Component
-function EmergencyAlarmDialog({ alarm, activeEvents, submitting, error, onDecision }) {
+function EmergencyAlarmDialog({ alarm, activeEvents, submitting, error, onDecision, onStopSimulation }) {
     const [mode, setMode] = useState('choose');
     const [reason, setReason] = useState('');
     const [mergeId, setMergeId] = useState(activeEvents[0]?.id || '');
@@ -642,6 +693,7 @@ function EmergencyAlarmDialog({ alarm, activeEvents, submitting, error, onDecisi
                     {mode === 'reject' && <div className="mt-5"><textarea autoFocus value={reason} onChange={(event) => setReason(event.target.value)} placeholder="请输入排除原因（必填）" className="h-24 w-full border border-rose-400/40 bg-slate-950 p-3 text-sm outline-none focus:border-rose-300" /><div className="mt-2 flex justify-end gap-2"><button onClick={() => setMode('choose')} className="px-4 py-2 text-sm text-slate-300">返回</button><button disabled={!reason.trim() || submitting} onClick={() => onDecision('no', { rejectionReason: reason.trim() })} className="bg-rose-600 px-4 py-2 text-sm font-bold disabled:opacity-40">确认并停止本次报警</button></div></div>}
                     {mode === 'merge' && <div className="mt-5"><label className="mb-2 block text-sm text-amber-100">选择需要并入的在处事件</label><select value={mergeId} onChange={(event) => setMergeId(event.target.value)} className="w-full border border-amber-400/40 bg-slate-950 p-3 text-sm">{activeEvents.map((event) => <option key={event.id} value={event.id}>#{event.id} {event.title} · {event.location}</option>)}</select><div className="mt-2 flex justify-end gap-2"><button onClick={() => setMode('choose')} className="px-4 py-2 text-sm text-slate-300">返回</button><button disabled={!mergeId || submitting} onClick={() => onDecision('other', { mergedIntoId: Number(mergeId) })} className="bg-amber-600 px-4 py-2 text-sm font-bold disabled:opacity-40">确认合并</button></div></div>}
                     {error && <p className="mt-3 text-sm text-rose-300">{error}</p>}
+                    {alarm.simulated && <div className="mt-4 border-t border-amber-400/25 pt-3 text-right"><button type="button" onClick={onStopSimulation} className="border border-amber-300/55 px-3 py-1.5 text-xs font-bold text-amber-200 hover:bg-amber-400/10">停止事故测试</button></div>}
                 </div>
             </div>
         </div>
