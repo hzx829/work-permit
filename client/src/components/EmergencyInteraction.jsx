@@ -3,6 +3,7 @@ import { updateEmergencyEvent, uploadEmergencyAttachment } from '../utils/api';
 
 const DEFAULT_BROADCAST = '1号污水井内有人晕倒，无关人员请勿靠近。';
 const PLAN_SELECTION_SPEECH = '请选择处置预案。';
+const INITIAL_PLAN_REVEAL_DELAY_MS = 1500;
 const PLAN_NAMES = {
     onsite: '受限空间现场处置方案',
     special: '中毒事故应急预案',
@@ -45,8 +46,9 @@ export default function EmergencyInteraction({ event, onEventChange }) {
     const initialPrompt = `AI研判\n根据企业提供预案，匹配本次事件预案有：\n${plans.map((plan) => plan.name).join('、')}。\n根据现场实际，建议采用${recommendedPlan.name}。`;
     const initialMessages = (event.state?.messages?.length ? event.state.messages : [{ id: 1, role: 'assistant', text: initialPrompt }])
         .map((message) => message.role === 'assistant' ? { ...message, text: normalizeAssistantText(message.text) } : message);
-    const [stage, setStage] = useState(event.stage || 'plan');
-    const [messages, setMessages] = useState(initialMessages);
+    const initialStage = event.stage || 'plan';
+    const [stage, setStage] = useState(initialStage);
+    const [messages, setMessages] = useState(initialStage === 'plan' ? [] : initialMessages);
     const [responseLevel, setResponseLevel] = useState(event.responseLevel || event.state?.responseLevel || '');
     const [rescueMode, setRescueMode] = useState(event.rescueMode || event.state?.rescueMode || '');
     const [reportStatus, setReportStatus] = useState(event.state?.reportStatus || '');
@@ -57,6 +59,7 @@ export default function EmergencyInteraction({ event, onEventChange }) {
     const [error, setError] = useState('');
     const scrollRef = useRef(null);
     const initialPlanSpeechPlayedRef = useRef(false);
+    const initialMessagesRef = useRef(initialMessages);
     const messageIdRef = useRef(Math.max(...initialMessages.map((message) => Number(message.id) || 0), 1));
     const speechSupported = typeof window !== 'undefined' && 'speechSynthesis' in window;
     const endAttachment = event.attachments?.find((item) => item.kind === 'end');
@@ -71,11 +74,26 @@ export default function EmergencyInteraction({ event, onEventChange }) {
         window.speechSynthesis.speak(utterance);
     }, [speechSupported]);
 
+    const speakSequence = useCallback((texts) => {
+        if (!speechSupported) return;
+        window.speechSynthesis.cancel();
+        texts.filter(Boolean).forEach((text) => {
+            const utterance = new SpeechSynthesisUtterance(speechTextForMessage(text));
+            utterance.lang = 'zh-CN';
+            utterance.rate = 0.95;
+            window.speechSynthesis.speak(utterance);
+        });
+    }, [speechSupported]);
+
     useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight }); }, [messages, busy, stage, editingBroadcast, recoveryChecks]);
     useEffect(() => {
-        if (stage !== 'plan' || initialPlanSpeechPlayedRef.current) return;
-        initialPlanSpeechPlayedRef.current = true;
-        speak(PLAN_SELECTION_SPEECH);
+        if (stage !== 'plan' || initialPlanSpeechPlayedRef.current) return undefined;
+        const timer = window.setTimeout(() => {
+            initialPlanSpeechPlayedRef.current = true;
+            setMessages(initialMessagesRef.current);
+            speak(PLAN_SELECTION_SPEECH);
+        }, INITIAL_PLAN_REVEAL_DELAY_MS);
+        return () => window.clearTimeout(timer);
     }, [speak, stage]);
     useEffect(() => () => { if (speechSupported) window.speechSynthesis.cancel(); }, [speechSupported]);
 
@@ -165,7 +183,7 @@ export default function EmergencyInteraction({ event, onEventChange }) {
 
     const renderActions = () => <>
         {activeStage === 'plan' && <ChoiceGrid options={plans.map((plan) => ({ value: plan, label: plan.name + (plan.recommended ? '（建议）' : '') }))} onSelect={choosePlan} />}
-        {activeStage === 'report' && <div className="space-y-2.5"><ChoiceGrid options={['已拨打120并上报', '暂未完成']} selectedValue={reportStatus} onSelect={(value) => { setReportStatus(value); setError(value === '已拨打120并上报' ? '' : '请完成上报并拨打120后，再确认救援方式'); }} /><div className="border-t border-cyan-200/25 pt-2.5"><div className="mb-2 text-[13px] font-bold text-cyan-50">请选择并确认救援方式</div><ChoiceGrid options={['非进入式救援', '进入式救援']} selectedValue="" disabled={reportStatus !== '已拨打120并上报'} onSelect={chooseRescueMode} /></div></div>}
+        {activeStage === 'report' && <div className="space-y-2.5"><ChoiceGrid options={['已拨打120并上报', '暂未完成']} selectedValue={reportStatus} onSelect={(value) => { setReportStatus(value); setError(value === '已拨打120并上报' ? '' : '请完成上报并拨打120后，再确认救援方式'); if (value === '已拨打120并上报') speakSequence(['已拨打120并上报', '请选择并确认救援方式']); }} /><div className="border-t border-cyan-200/25 pt-2.5"><div className="mb-2 text-[13px] font-bold text-cyan-50">请选择并确认救援方式</div><ChoiceGrid options={['非进入式救援', '进入式救援']} selectedValue="" disabled={reportStatus !== '已拨打120并上报'} onSelect={chooseRescueMode} /></div></div>}
         {activeStage === 'fence' && !editingBroadcast && <ChoiceGrid options={['设置10米电子围栏并播报', '修改播报内容', '暂不设置电子围栏']} onSelect={(value) => value === '修改播报内容' ? setEditingBroadcast(true) : ask(value, RESCUE_STRATEGY, 'rescue-mode')} />}
         {activeStage === 'fence' && editingBroadcast && <div className="flex gap-2"><input value={broadcastText} onChange={(e) => setBroadcastText(e.target.value)} className="min-w-0 flex-1 border border-cyan-300/50 bg-blue-950/60 px-3 py-2 text-[13px] text-white" /><button onClick={() => { setEditingBroadcast(false); ask('修改并播报：' + broadcastText, RESCUE_STRATEGY, 'rescue-mode', { broadcastText }); }} className="border border-cyan-200/70 bg-cyan-400/15 px-4 text-[13px] font-bold">确认</button></div>}
         {activeStage === 'rescue-mode' && <ChoiceGrid options={['非进入式救援', '进入式救援']} onSelect={chooseRescueMode} />}

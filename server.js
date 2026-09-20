@@ -20,6 +20,7 @@ const {
     gasExceeded,
     getGasAlarmSourceKey,
     isAlarmEpisodeStale,
+    prioritizeGasAlarmCandidates,
 } = require('./services/emergencyGas');
 
 const app = express();
@@ -527,28 +528,29 @@ app.get('/api/emergency-monitoring', async (req, res) => {
         await recoverStaleEmergencyAlarmStates(now);
         const simulationRow = await dbGetAsync('SELECT * FROM emergency_simulation_state WHERE id = 1');
         const simulationActive = emergencySimulationAllowed() && Boolean(simulationRow?.active);
-        let gases;
-        let simulation;
-        if (simulationActive) {
-            simulation = buildEmergencySimulation(simulationRow.activated_at);
-            gases = [simulation.gas];
-        } else {
-            const storedGas = gasReadingFromRow(await dbGetAsync('SELECT * FROM emergency_gas_readings ORDER BY id DESC LIMIT 1'));
-            let competitionGases = [];
-            try {
-                competitionGases = toEmergencyGasReadings(await getLatestGasReadings());
-            } catch (competitionError) {
-                console.error('Emergency gas linkage failed:', competitionError.message);
-            }
-            gases = mergeEmergencyGasReadings([...competitionGases, storedGas]);
+        const simulation = simulationActive
+            ? buildEmergencySimulation(simulationRow.activated_at)
+            : null;
+        const storedGas = gasReadingFromRow(await dbGetAsync('SELECT * FROM emergency_gas_readings ORDER BY id DESC LIMIT 1'));
+        let competitionGases = [];
+        try {
+            competitionGases = toEmergencyGasReadings(await getLatestGasReadings());
+        } catch (competitionError) {
+            console.error('Emergency gas linkage failed:', competitionError.message);
         }
-        gases = mergeEmergencyGasReadings((gases || []).map(applyEmergencyGasRules));
-        const gas = gases[0] || null;
+        const realGases = mergeEmergencyGasReadings([...competitionGases, storedGas])
+            .map(applyEmergencyGasRules);
+        const simulationGas = simulation
+            ? applyEmergencyGasRules({ ...simulation.gas, simulated: true })
+            : null;
+        // Real detector readings always stay ahead of the optional simulation fallback.
+        const alarmCandidates = prioritizeGasAlarmCandidates(realGases, simulationGas);
+        const gas = realGases[0] || simulationGas || null;
         const gasTimestamp = Date.parse(gas?.measuredAt || '');
         const gasFresh = Number.isFinite(gasTimestamp) && now - gasTimestamp <= GAS_FRESH_WINDOW_MS;
         let pendingAlarm = null;
 
-        for (const candidate of gases) {
+        for (const candidate of alarmCandidates) {
             const measuredAt = candidate?.measuredAt;
             const timestamp = Date.parse(measuredAt || '');
             const fresh = Number.isFinite(timestamp) && now - timestamp <= GAS_FRESH_WINDOW_MS;
@@ -559,7 +561,7 @@ app.get('/api/emergency-monitoring', async (req, res) => {
                 triggered,
                 recovered,
                 measuredAt,
-                simulationAlarmKey: simulationActive ? simulation?.alarmKey : null,
+                simulationAlarmKey: candidate.simulated ? simulation?.alarmKey : null,
             });
             const alarmKey = alarmEpisode?.alarmKey || null;
             const handledEvent = alarmKey && !alarmEpisode.acknowledged
@@ -567,7 +569,7 @@ app.get('/api/emergency-monitoring', async (req, res) => {
                 : null;
             if (handledEvent) await acknowledgeEmergencyAlarm(alarmKey);
             if (!pendingAlarm && triggered && !alarmEpisode?.acknowledged && !handledEvent) {
-                pendingAlarm = { alarmKey, gas: candidate };
+                pendingAlarm = { alarmKey, gas: candidate, simulated: Boolean(candidate.simulated) };
             }
         }
 
@@ -585,10 +587,10 @@ app.get('/api/emergency-monitoring', async (req, res) => {
                     title: '突发险情',
                     incidentType: '受限空间人员异常与气体超限',
                     location: pendingAlarm.gas.location || pendingAlarm.gas.deviceName || '现场作业点',
-                    watch: null,
+                    watch: pendingAlarm.simulated ? simulation?.watch : null,
                     gas: pendingAlarm.gas,
                     availablePlans: DEFAULT_EMERGENCY_PLANS,
-                    simulated: simulationActive,
+                    simulated: pendingAlarm.simulated,
                 } : null,
         });
     } catch (error) {

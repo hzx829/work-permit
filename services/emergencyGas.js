@@ -49,6 +49,13 @@ function gasExceeded(gas) {
     return Boolean(gas?.readings?.some(isReadingExceeded));
 }
 
+function prioritizeGasAlarmCandidates(realGases, simulationGas) {
+    return [
+        ...(Array.isArray(realGases) ? realGases.filter(Boolean) : []),
+        ...(simulationGas ? [simulationGas] : []),
+    ];
+}
+
 function getGasAlarmSourceKey(gas) {
     const identity = String(gas?.deviceId || gas?.deviceName || gas?.location || 'unknown').trim();
     return identity.slice(0, 160) || 'unknown';
@@ -68,4 +75,5 @@ module.exports = {
     getGasAlarmSourceKey,
     isReadingExceeded,
     isAlarmEpisodeStale,
+    prioritizeGasAlarmCandidates,
 };

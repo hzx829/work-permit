@@ -6,6 +6,7 @@ const {
     getGasAlarmSourceKey,
     isAlarmEpisodeStale,
     isReadingExceeded,
+    prioritizeGasAlarmCandidates,
 } = require('../services/emergencyGas');
 
 test('keeps normal oxygen and carbon dioxide readings below the alarm boundary', () => {
@@ -61,4 +62,18 @@ test('expires an active alarm episode after its device stops reporting', () => {
         active: 0,
         last_measured_at: '2026-09-17T08:00:00Z',
     }, now), false);
+});
+
+test('keeps real detector alarms ahead of the simulation fallback', () => {
+    const realAlarm = { deviceId: 'REAL-GAS-001' };
+    const simulationAlarm = { deviceId: 'SIM-GAS-001', simulated: true };
+
+    assert.deepEqual(
+        prioritizeGasAlarmCandidates([realAlarm], simulationAlarm),
+        [realAlarm, simulationAlarm],
+    );
+    assert.deepEqual(
+        prioritizeGasAlarmCandidates([], simulationAlarm),
+        [simulationAlarm],
+    );
 });
