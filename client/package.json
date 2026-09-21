@@ -19,6 +19,7 @@
     "react-dom": "^19.2.0",
     "react-globe.gl": "^2.38.0",
     "react-router-dom": "^7.9.6",
+    "tcplayer.js": "^5.3.4",
     "three": "^0.181.2"
   },
   "devDependencies": {

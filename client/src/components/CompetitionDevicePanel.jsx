@@ -64,7 +64,7 @@ export default function CompetitionDevicePanel() {
                     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                         <CompetitionLivePlayer deviceId={selectedDevice.deviceId} active={!error || error.status !== 403} />
                         <div className="flex items-center justify-between gap-4 border-t border-slate-100 px-4 py-3">
-                            <div className="min-w-0"><p className="truncate font-semibold text-slate-800">{selectedDevice.deviceName || '现场设备'} · {selectedDevice.deviceId}</p><p className="text-xs text-slate-500">同源 HTTP-FLV 实时画面</p></div>
+                            <div className="min-w-0"><p className="truncate font-semibold text-slate-800">{selectedDevice.deviceName || '现场设备'} · {selectedDevice.deviceId}</p><p className="text-xs text-slate-500">优先 WebRTC 低延迟实时画面</p></div>
                             <span className="whitespace-nowrap text-xs text-slate-400">服务器时间 {formatTime(serverTime)}</span>
                         </div>
                     </div>
