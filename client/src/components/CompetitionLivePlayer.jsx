@@ -6,12 +6,17 @@ import { competitionLiveUrl, loadCompetitionPlayInfo } from '../utils/api';
 
 const WEBRTC_RETRYABLE_STATUSES = new Set([0, 408, 422, 429, 500, 502, 503, 504]);
 const TCPLAYER_LICENSE_URL = 'https://1330783414.trtcube-license.cn/license/v2/1330783414_1/v_cube.license';
+const BUFFERING_INDICATOR_DELAY_MS = 1500;
+const STALL_RECOVERY_DELAY_MS = 8000;
+const FIRST_FRAME_TIMEOUT_MS = 10000;
 
 export default function CompetitionLivePlayer({ deviceId, active = true, fill = false }) {
     const videoRef = useRef(null);
     const playerRef = useRef(null);
     const retryTimerRef = useRef(null);
     const bufferingTimerRef = useRef(null);
+    const stallRecoveryTimerRef = useRef(null);
+    const firstFrameTimerRef = useRef(null);
     const retryDelayRef = useRef(3000);
     const lastDeviceIdRef = useRef('');
     const flvFallbackDeviceIdRef = useRef('');
@@ -22,8 +27,14 @@ export default function CompetitionLivePlayer({ deviceId, active = true, fill = 
     const [buffering, setBuffering] = useState(false);
 
     const markPlaying = useCallback(() => {
+        const media = videoRef.current;
+        if (!media || media.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || media.videoWidth === 0) return;
         clearTimeout(bufferingTimerRef.current);
+        clearTimeout(stallRecoveryTimerRef.current);
+        clearTimeout(firstFrameTimerRef.current);
         bufferingTimerRef.current = null;
+        stallRecoveryTimerRef.current = null;
+        firstFrameTimerRef.current = null;
         setPlaying(true);
         setBuffering(false);
         setStatus('');
@@ -47,11 +58,16 @@ export default function CompetitionLivePlayer({ deviceId, active = true, fill = 
 
         const destroyPlayer = () => {
             clearTimeout(bufferingTimerRef.current);
+            clearTimeout(stallRecoveryTimerRef.current);
+            clearTimeout(firstFrameTimerRef.current);
             bufferingTimerRef.current = null;
+            stallRecoveryTimerRef.current = null;
+            firstFrameTimerRef.current = null;
             const player = playerRef.current;
             playerRef.current = null;
             if (!player) return;
             try {
+                player.removeMediaListeners?.();
                 if (player.kind === 'tcplayer') player.instance.dispose();
                 else {
                     player.instance.pause();
@@ -67,6 +83,19 @@ export default function CompetitionLivePlayer({ deviceId, active = true, fill = 
         const markPlayingIfActive = () => {
             if (cancelled) return;
             markPlaying();
+        };
+
+        const startBufferingRecovery = (recover) => {
+            if (cancelled) return;
+            clearTimeout(bufferingTimerRef.current);
+            clearTimeout(stallRecoveryTimerRef.current);
+            bufferingTimerRef.current = setTimeout(() => setBuffering(true), BUFFERING_INDICATOR_DELAY_MS);
+            stallRecoveryTimerRef.current = setTimeout(recover, STALL_RECOVERY_DELAY_MS);
+        };
+
+        const startFirstFrameTimeout = (recover) => {
+            clearTimeout(firstFrameTimerRef.current);
+            firstFrameTimerRef.current = setTimeout(recover, FIRST_FRAME_TIMEOUT_MS);
         };
 
         const scheduleFlvRetry = (message) => {
@@ -112,13 +141,30 @@ export default function CompetitionLivePlayer({ deviceId, active = true, fill = 
                 autoCleanupMinBackwardDuration: 1,
                 headers: token ? { Authorization: `Bearer ${token}` } : {},
             });
-            playerRef.current = { kind: 'flv', instance: player };
+            const media = videoRef.current;
+            const recoverFlv = () => {
+                if (cancelled) return;
+                destroyPlayer();
+                scheduleFlvRetry('兼容视频流长时间无画面，正在重新连接...');
+            };
+            const handleFlvWaiting = () => startBufferingRecovery(recoverFlv);
+            media.addEventListener('waiting', handleFlvWaiting);
+            media.addEventListener('stalled', handleFlvWaiting);
+            playerRef.current = {
+                kind: 'flv',
+                instance: player,
+                removeMediaListeners: () => {
+                    media.removeEventListener('waiting', handleFlvWaiting);
+                    media.removeEventListener('stalled', handleFlvWaiting);
+                },
+            };
             player.on(flvjs.Events.ERROR, () => {
                 destroyPlayer();
                 scheduleFlvRetry('视频流暂时离线，正在重连...');
             });
             player.attachMediaElement(videoRef.current);
             player.load();
+            startFirstFrameTimeout(recoverFlv);
             await player.play().catch(() => setStatus('画面已连接，点击播放'));
         };
 
@@ -151,16 +197,14 @@ export default function CompetitionLivePlayer({ deviceId, active = true, fill = 
             playerRef.current = { kind: 'tcplayer', instance: player };
             player.on('playing', markPlayingIfActive);
             player.on('waiting', () => {
-                if (cancelled) return;
-                clearTimeout(bufferingTimerRef.current);
-                bufferingTimerRef.current = setTimeout(() => setBuffering(true), 1500);
+                startBufferingRecovery(() => fallbackToFlv('低延迟视频缓冲超时，正在切换兼容视频流...'));
             });
             player.on('error', () => fallbackToFlv('低延迟视频连接失败，正在切换兼容视频流...'));
             player.on('webrtcevent', (event) => {
                 const code = event?.data?.code;
-                if (code === 1003) markPlayingIfActive();
                 if (code === 1006) fallbackToFlv('低延迟视频暂无数据，正在切换兼容视频流...');
             });
+            startFirstFrameTimeout(() => fallbackToFlv('低延迟视频未收到画面，正在切换兼容视频流...'));
             await Promise.resolve(player.play()).catch(() => {
                 fallbackToFlv('低延迟视频连接失败，正在切换兼容视频流...');
             });
@@ -205,6 +249,7 @@ export default function CompetitionLivePlayer({ deviceId, active = true, fill = 
     return (
         <div className={`relative overflow-hidden bg-slate-950 ${fill ? 'h-full w-full' : 'aspect-video'}`}>
             <video
+                key={`${deviceId || 'device'}-${fallbackVersion}-${retryKey}`}
                 ref={videoRef}
                 id={`competition-live-player-${String(deviceId || 'device').replace(/[^a-zA-Z0-9_-]/g, '-')}`}
                 muted
@@ -212,11 +257,9 @@ export default function CompetitionLivePlayer({ deviceId, active = true, fill = 
                 controls
                 className="h-full w-full object-contain"
                 onPlaying={markPlaying}
-                onWaiting={() => {
-                    if (!playing) return;
-                    clearTimeout(bufferingTimerRef.current);
-                    bufferingTimerRef.current = setTimeout(() => setBuffering(true), 1500);
-                }}
+                onLoadedData={markPlaying}
+                onCanPlay={markPlaying}
+                onTimeUpdate={markPlaying}
             />
             {status && (
                 <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-950/75 px-6 text-center text-sm text-slate-200">
