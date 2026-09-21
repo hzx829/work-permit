@@ -7,11 +7,13 @@ export default function CompetitionLivePlayer({ deviceId, active = true, fill = 
     const playerRef = useRef(null);
     const retryTimerRef = useRef(null);
     const latencyTimerRef = useRef(null);
+    const bufferingTimerRef = useRef(null);
     const retryDelayRef = useRef(3000);
     const lastDeviceIdRef = useRef('');
     const [retryKey, setRetryKey] = useState(0);
     const [status, setStatus] = useState('正在连接记录仪...');
     const [playing, setPlaying] = useState(false);
+    const [buffering, setBuffering] = useState(false);
 
     useEffect(() => {
         let cancelled = false;
@@ -24,6 +26,8 @@ export default function CompetitionLivePlayer({ deviceId, active = true, fill = 
         const destroyPlayer = () => {
             clearInterval(latencyTimerRef.current);
             latencyTimerRef.current = null;
+            clearTimeout(bufferingTimerRef.current);
+            bufferingTimerRef.current = null;
             if (!playerRef.current) return;
             try {
                 playerRef.current.pause();
@@ -46,6 +50,8 @@ export default function CompetitionLivePlayer({ deviceId, active = true, fill = 
         };
 
         const connect = async () => {
+            setPlaying(false);
+            setBuffering(false);
             destroyPlayer();
             if (!active || !deviceId) return;
             if (!flvjs.isSupported()) {
@@ -64,12 +70,14 @@ export default function CompetitionLivePlayer({ deviceId, active = true, fill = 
                     url: competitionLiveUrl(deviceId),
                 }, {
                     enableWorker: false,
-                    enableStashBuffer: false,
-                    stashInitialSize: 128 * 1024,
+                    // Keep a small live buffer so brief upstream jitter does not
+                    // immediately drain the media element and trigger waiting.
+                    enableStashBuffer: true,
+                    stashInitialSize: 384 * 1024,
                     lazyLoad: false,
                     autoCleanupSourceBuffer: true,
-                    autoCleanupMaxBackwardDuration: 3,
-                    autoCleanupMinBackwardDuration: 1,
+                    autoCleanupMaxBackwardDuration: 12,
+                    autoCleanupMinBackwardDuration: 6,
                     headers: token ? { Authorization: `Bearer ${token}` } : {},
                 });
                 playerRef.current = player;
@@ -84,16 +92,16 @@ export default function CompetitionLivePlayer({ deviceId, active = true, fill = 
                     if (!video || !video.buffered.length || video.seeking) return;
                     const liveEdge = video.buffered.end(video.buffered.length - 1);
                     const latency = liveEdge - video.currentTime;
-                    if (latency > 2) {
-                        video.currentTime = Math.max(0, liveEdge - 0.3);
+                    if (latency > 8) {
+                        video.currentTime = Math.max(0, liveEdge - 3);
                         video.playbackRate = 1;
-                    } else if (latency > 0.8) {
-                        video.playbackRate = 1.08;
+                    } else if (latency > 5) {
+                        video.playbackRate = 1.03;
                     } else if (video.playbackRate !== 1) {
                         video.playbackRate = 1;
                     }
                 };
-                latencyTimerRef.current = setInterval(chaseLiveEdge, 1000);
+                latencyTimerRef.current = setInterval(chaseLiveEdge, 2000);
                 await player.play().catch(() => {
                     setStatus('画面已连接，点击播放');
                 });
@@ -121,14 +129,26 @@ export default function CompetitionLivePlayer({ deviceId, active = true, fill = 
                 playsInline
                 controls
                 className="h-full w-full object-contain"
-                onPlaying={() => { setPlaying(true); setStatus(''); retryDelayRef.current = 3000; }}
-                onWaiting={() => { if (playing) setStatus('视频缓冲中...'); }}
+                onPlaying={() => {
+                    clearTimeout(bufferingTimerRef.current);
+                    bufferingTimerRef.current = null;
+                    setPlaying(true);
+                    setBuffering(false);
+                    setStatus('');
+                    retryDelayRef.current = 3000;
+                }}
+                onWaiting={() => {
+                    if (!playing) return;
+                    clearTimeout(bufferingTimerRef.current);
+                    bufferingTimerRef.current = setTimeout(() => setBuffering(true), 1500);
+                }}
             />
             {status && (
                 <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-950/75 px-6 text-center text-sm text-slate-200">
                     <span><i className="fas fa-video mr-2 text-slate-400" />{status}</span>
                 </div>
             )}
+            {playing && buffering && !status && <span className="absolute bottom-3 right-3 rounded bg-slate-950/70 px-2.5 py-1.5 text-xs font-medium text-slate-200"><i className="fas fa-spinner fa-spin mr-1.5 text-slate-300" />网络波动，画面恢复中</span>}
             {playing && <span className="absolute left-3 top-3 rounded bg-rose-600/90 px-2 py-1 text-xs font-bold text-white">LIVE</span>}
         </div>
     );

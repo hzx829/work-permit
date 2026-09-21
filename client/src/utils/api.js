@@ -6,6 +6,18 @@ function getToken() {
     return localStorage.getItem('token');
 }
 
+function normalizeCompetitionUser(user) {
+    if (!user) return user;
+    const numberedName = user.username === 'worker'
+        ? '1号 (作业员)'
+        : user.username === 'safety'
+            ? '4号 (安全员)'
+            : '';
+    return numberedName && user.full_name !== numberedName
+        ? { ...user, full_name: numberedName }
+        : user;
+}
+
 function getAuthHeaders() {
     const token = getToken();
     return token ? { 'Authorization': `Bearer ${token}` } : {};
@@ -57,6 +69,7 @@ export async function login(username, password) {
         });
         const data = await response.json();
         if (data.success) {
+            data.user = normalizeCompetitionUser(data.user);
             localStorage.setItem('user', JSON.stringify(data.user));
             localStorage.setItem('token', data.token);
         }
@@ -74,7 +87,15 @@ export function logout() {
 
 export function getCurrentUser() {
     const userStr = localStorage.getItem('user');
-    return userStr ? JSON.parse(userStr) : null;
+    if (!userStr) return null;
+
+    const user = JSON.parse(userStr);
+    const normalizedUser = normalizeCompetitionUser(user);
+    if (normalizedUser !== user) {
+        localStorage.setItem('user', JSON.stringify(normalizedUser));
+        return normalizedUser;
+    }
+    return user;
 }
 
 // --- Smart Watch Functions ---

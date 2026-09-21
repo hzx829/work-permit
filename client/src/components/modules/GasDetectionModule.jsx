@@ -20,6 +20,32 @@ const toLocalInput = (value) => {
     return new Date(date.getTime() - offset).toISOString().slice(0, 16);
 };
 
+const formatDetectionTime = (value) => {
+    if (!value) return '未设置检测时间';
+    return String(value).replace('T', ' ');
+};
+
+const groupRecordsByAnalysisTime = (records) => {
+    const groups = [];
+    const groupIndexes = new Map();
+
+    records.forEach((record, recordIndex) => {
+        const analysisTime = record.analysis_time || record.samplingTime || '';
+        const groupKey = analysisTime || '__unset__';
+        let groupIndex = groupIndexes.get(groupKey);
+
+        if (groupIndex === undefined) {
+            groupIndex = groups.length;
+            groupIndexes.set(groupKey, groupIndex);
+            groups.push({ key: groupKey, analysisTime, records: [] });
+        }
+
+        groups[groupIndex].records.push({ record, recordIndex });
+    });
+
+    return groups;
+};
+
 export default function GasDetectionModule({ data, onChange, readOnly, currentUser, onSave, requireStrictSignAndPhotos = false }) {
     const [selectedRecordIndex, setSelectedRecordIndex] = useState(null);
     const [previewImage, setPreviewImage] = useState(null);
@@ -28,6 +54,7 @@ export default function GasDetectionModule({ data, onChange, readOnly, currentUs
     const { devices, loading: devicesLoading, error: devicesError, refresh: refreshDevices } = useCompetitionGasReadings();
     const canEdit = !readOnly && currentUser?.role === 'safety';
     const records = data?.gas_detection_records || [];
+    const recordGroups = groupRecordsByAnalysisTime(records);
     const legacySignedRecord = records.find((record) => record.guardian_signature);
     const hasGuardianSignatureField = Object.prototype.hasOwnProperty.call(data || {}, 'gas_detection_guardian_signature');
     const guardianSignature = hasGuardianSignatureField ? (data?.gas_detection_guardian_signature || '') : (legacySignedRecord?.guardian_signature || '');
@@ -200,14 +227,24 @@ export default function GasDetectionModule({ data, onChange, readOnly, currentUs
             </div>}
         </div> : <div className="min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
             <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4"><div><h3 className="font-semibold text-gray-800">气体浓度检测记录</h3><p className="mt-1 text-xs text-gray-500">支持从智能检测仪采集原始读数，合格结论按现场标准人工确认。</p></div>{canEdit && <button type="button" onClick={addRecord} className="rounded bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"><i className="fas fa-plus mr-1" />添加记录</button>}</div>
-            <div className="w-full overflow-x-auto">
-                <table className="w-full min-w-[820px] table-fixed text-sm">
-                    <colgroup><col className="w-[7%]" /><col className="w-[18%]" /><col className="w-[14%]" /><col className="w-[20%]" /><col className="w-[12%]" /><col className="w-[14%]" /><col className="w-[15%]" /></colgroup>
-                    <thead className="bg-blue-50 text-left text-sm text-blue-800"><tr>{['序号', '票号', '分析人', '分析时间', '分析结果', '采样地点', '监护人确认'].map((title) => <th key={title} className="whitespace-nowrap px-3 py-3 font-bold">{title}</th>)}</tr></thead>
-                    <tbody className="divide-y divide-gray-200">{records.length === 0 ? <tr><td colSpan="7" className="px-3 py-8 text-center text-gray-400">暂无检测记录，点击“添加记录”开始填写</td></tr> : records.map((record, index) => (
-                        <tr key={index} className="align-middle hover:bg-slate-50"><td className="whitespace-nowrap px-3 py-3 text-gray-500">{index + 1}</td><td className="truncate whitespace-nowrap px-3 py-3 font-mono text-xs text-gray-600" title={data?.permit_number || data?.permit_code || '自动生成'}>{data?.permit_number || data?.permit_code || '自动生成'}</td><td className="px-3 py-3"><select disabled={!canEdit} value={record.analyst || ''} onChange={(event) => updateRecord(index, 'analyst', event.target.value)} className="w-full rounded border border-gray-300 px-2 py-2 disabled:bg-gray-100"><option value="">请选择</option>{analysts.map((person) => <option key={person}>{person}</option>)}</select></td><td className="px-3 py-3"><input disabled={!canEdit} type="datetime-local" value={record.analysis_time || ''} onChange={(event) => updateRecordFields(index, { analysis_time: event.target.value, samplingTime: event.target.value })} className="w-full rounded border border-gray-300 px-2 py-2 disabled:bg-gray-100" /></td><td className="px-3 py-3"><select disabled={!canEdit} value={record.qualified === true ? '合格' : record.qualified === false ? '不合格' : ''} onChange={(event) => updateRecord(index, 'qualified', event.target.value === '合格' ? true : event.target.value === '不合格' ? false : null)} className="w-full rounded border border-gray-300 px-2 py-2 disabled:bg-gray-100"><option value="">待判断</option><option>合格</option><option>不合格</option></select></td><td className="px-3 py-3"><input disabled={!canEdit} value={record.location || ''} onChange={(event) => updateRecord(index, 'location', event.target.value)} placeholder="受限空间名称" className="w-full rounded border border-gray-300 px-2 py-2 disabled:bg-gray-100" /></td><td className="px-3 py-3"><div className="space-y-2">{guardianSignature ? <div className="flex items-center gap-2"><img src={guardianSignature} alt={`${guardianName || '监护人'}签字`} className="h-9 w-16 rounded border border-gray-200 bg-white object-contain" /><div className="min-w-0"><p className="truncate text-xs font-medium text-gray-700">{guardianName}</p><p className="text-[11px] text-green-600">全部记录已确认</p></div></div> : <span className="text-sm text-amber-600"><i className="far fa-clock mr-1" />待统一签字</span>}<div className="flex flex-wrap items-center gap-x-3 gap-y-1 whitespace-nowrap"><button type="button" onClick={() => setSelectedRecordIndex(index)} className="text-xs font-medium text-blue-600 hover:text-blue-800">检测详情</button><span className="text-[11px] text-gray-500">{(record.photos || []).length} 张照片</span>{canEdit && <button type="button" onClick={() => removeRecord(index)} className="text-xs text-red-500 hover:text-red-700">删除</button>}</div></div></td></tr>
-                    ))}</tbody>
-                </table>
+            <div className="space-y-4 bg-slate-50/70 p-4">
+                {records.length === 0 ? <div className="rounded-lg border border-dashed border-gray-300 bg-white px-3 py-8 text-center text-sm text-gray-400">暂无检测记录，点击“添加记录”开始填写</div> : recordGroups.map((group, groupIndex) => (
+                    <section key={group.key} className="overflow-hidden rounded-xl border border-blue-200 bg-white shadow-sm">
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-blue-100 bg-blue-50/80 px-4 py-3">
+                            <div className="flex items-center gap-2"><span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-blue-600 px-1.5 text-xs font-bold text-white">{groupIndex + 1}</span><h4 className="font-semibold text-slate-800">第 {groupIndex + 1} 次检测</h4></div>
+                            <p className="text-sm font-medium text-blue-700"><i className="far fa-clock mr-1.5" />{formatDetectionTime(group.analysisTime)}</p>
+                        </div>
+                        <div className="w-full overflow-x-auto">
+                            <table className="w-full min-w-[820px] table-fixed text-sm">
+                                <colgroup><col className="w-[7%]" /><col className="w-[18%]" /><col className="w-[14%]" /><col className="w-[20%]" /><col className="w-[12%]" /><col className="w-[14%]" /><col className="w-[15%]" /></colgroup>
+                                <thead className="bg-white text-left text-sm text-blue-800"><tr>{['序号', '票号', '分析人', '分析时间', '分析结果', '采样地点', '监护人确认'].map((title) => <th key={title} className="whitespace-nowrap px-3 py-3 font-bold">{title}</th>)}</tr></thead>
+                                <tbody className="divide-y divide-gray-200">{group.records.map(({ record, recordIndex }) => (
+                                    <tr key={recordIndex} className="align-middle hover:bg-slate-50"><td className="whitespace-nowrap px-3 py-3 text-gray-500">{recordIndex + 1}</td><td className="truncate whitespace-nowrap px-3 py-3 font-mono text-xs text-gray-600" title={data?.permit_number || data?.permit_code || '自动生成'}>{data?.permit_number || data?.permit_code || '自动生成'}</td><td className="px-3 py-3"><select disabled={!canEdit} value={record.analyst || ''} onChange={(event) => updateRecord(recordIndex, 'analyst', event.target.value)} className="w-full rounded border border-gray-300 px-2 py-2 disabled:bg-gray-100"><option value="">请选择</option>{analysts.map((person) => <option key={person}>{person}</option>)}</select></td><td className="px-3 py-3"><input disabled={!canEdit} type="datetime-local" value={record.analysis_time || ''} onChange={(event) => updateRecordFields(recordIndex, { analysis_time: event.target.value, samplingTime: event.target.value })} className="w-full rounded border border-gray-300 px-2 py-2 disabled:bg-gray-100" /></td><td className="px-3 py-3"><select disabled={!canEdit} value={record.qualified === true ? '合格' : record.qualified === false ? '不合格' : ''} onChange={(event) => updateRecord(recordIndex, 'qualified', event.target.value === '合格' ? true : event.target.value === '不合格' ? false : null)} className="w-full rounded border border-gray-300 px-2 py-2 disabled:bg-gray-100"><option value="">待判断</option><option>合格</option><option>不合格</option></select></td><td className="px-3 py-3"><input disabled={!canEdit} value={record.location || ''} onChange={(event) => updateRecord(recordIndex, 'location', event.target.value)} placeholder="受限空间名称" className="w-full rounded border border-gray-300 px-2 py-2 disabled:bg-gray-100" /></td><td className="px-3 py-3"><div className="space-y-2">{guardianSignature ? <div className="flex items-center gap-2"><img src={guardianSignature} alt={`${guardianName || '监护人'}签字`} className="h-9 w-16 rounded border border-gray-200 bg-white object-contain" /><div className="min-w-0"><p className="truncate text-xs font-medium text-gray-700">{guardianName}</p><p className="text-[11px] text-green-600">全部记录已确认</p></div></div> : <span className="text-sm text-amber-600"><i className="far fa-clock mr-1" />待统一签字</span>}<div className="flex flex-wrap items-center gap-x-3 gap-y-1 whitespace-nowrap"><button type="button" onClick={() => setSelectedRecordIndex(recordIndex)} className="text-xs font-medium text-blue-600 hover:text-blue-800">检测详情</button><span className="text-[11px] text-gray-500">{(record.photos || []).length} 张照片</span>{canEdit && <button type="button" onClick={() => removeRecord(recordIndex)} className="text-xs text-red-500 hover:text-red-700">删除</button>}</div></div></td></tr>
+                                ))}</tbody>
+                            </table>
+                        </div>
+                    </section>
+                ))}
             </div>
         </div>}
         {previewImage && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-6" onClick={() => setPreviewImage(null)}><button type="button" className="absolute right-6 top-6 text-3xl text-white" onClick={() => setPreviewImage(null)}>&times;</button><img src={previewImage} alt="检测照片预览" className="max-h-full max-w-full rounded-lg object-contain" /></div>}

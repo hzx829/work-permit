@@ -3,6 +3,8 @@ import { updateEmergencyEvent, uploadEmergencyAttachment } from '../utils/api';
 
 const DEFAULT_BROADCAST = '1号污水井内有人晕倒，无关人员请勿靠近。';
 const PLAN_SELECTION_SPEECH = '请选择处置预案。';
+const REPORT_PROMPT = '请立即上报并拨打120。';
+const REPORT_PROMPT_SPEECH = '请立即上报并拨打120，同时确认如下内容';
 const INITIAL_PLAN_REVEAL_DELAY_MS = 1500;
 const PLAN_NAMES = {
     onsite: '受限空间现场处置方案',
@@ -34,6 +36,7 @@ const normalizeSpeechText = (text) => normalizeAssistantText(text)
 
 const speechTextForMessage = (text) => {
     const normalized = normalizeSpeechText(text);
+    if (normalized.startsWith(normalizeSpeechText(REPORT_PROMPT))) return normalizeSpeechText(REPORT_PROMPT_SPEECH);
     return normalized.includes('AI研判') || normalized.length > 120
         ? '请确认如下内容'
         : normalized;
@@ -140,7 +143,7 @@ export default function EmergencyInteraction({ event, onEventChange }) {
 
     const choosePlan = (plan) => {
         const onsite = plan.id === 'onsite';
-        ask(plan.name, onsite ? `请立即上报并拨打120。\n${RESCUE_STRATEGY}` : '已启动' + plan.name + '。请按预案组织救援力量和区域管控，并确认事态是否受控。', onsite ? 'report' : 'control', { responseLevel: plan.id, selectedPlan: plan.name, reportStatus: onsite ? '' : reportStatus });
+        ask(plan.name, onsite ? `${REPORT_PROMPT}\n${RESCUE_STRATEGY}` : '已启动' + plan.name + '。请按预案组织救援力量和区域管控，并确认事态是否受控。', onsite ? 'report' : 'control', { responseLevel: plan.id, selectedPlan: plan.name, reportStatus: onsite ? '' : reportStatus });
     };
 
     const chooseRescueMode = (mode) => {
@@ -183,7 +186,7 @@ export default function EmergencyInteraction({ event, onEventChange }) {
 
     const renderActions = () => <>
         {activeStage === 'plan' && <ChoiceGrid options={plans.map((plan) => ({ value: plan, label: plan.name + (plan.recommended ? '（建议）' : '') }))} onSelect={choosePlan} />}
-        {activeStage === 'report' && <div className="space-y-2.5"><ChoiceGrid options={['已拨打120并上报', '暂未完成']} selectedValue={reportStatus} onSelect={(value) => { setReportStatus(value); setError(value === '已拨打120并上报' ? '' : '请完成上报并拨打120后，再确认救援方式'); if (value === '已拨打120并上报') speakSequence(['已拨打120并上报', '请选择并确认救援方式']); }} /><div className="border-t border-cyan-200/25 pt-2.5"><div className="mb-2 text-[13px] font-bold text-cyan-50">请选择并确认救援方式</div><ChoiceGrid options={['非进入式救援', '进入式救援']} selectedValue="" disabled={reportStatus !== '已拨打120并上报'} onSelect={chooseRescueMode} /></div></div>}
+        {activeStage === 'report' && <div className="space-y-4"><ChoiceGrid options={['已拨打120并上报', '暂未完成']} selectedValue={reportStatus} onSelect={(value) => { setReportStatus(value); setError(value === '已拨打120并上报' ? '' : '请完成上报并拨打120后，再确认救援方式'); if (value === '已拨打120并上报') speakSequence(['已拨打120并上报', '请选择并确认救援方式']); }} /><div className="whitespace-pre-line text-[14px] font-medium leading-6 text-cyan-50">{RESCUE_STRATEGY}</div><div className="border-t border-cyan-200/25 pt-2.5"><ChoiceGrid options={['非进入式救援', '进入式救援']} selectedValue="" disabled={reportStatus !== '已拨打120并上报'} onSelect={chooseRescueMode} /></div></div>}
         {activeStage === 'fence' && !editingBroadcast && <ChoiceGrid options={['设置10米电子围栏并播报', '修改播报内容', '暂不设置电子围栏']} onSelect={(value) => value === '修改播报内容' ? setEditingBroadcast(true) : ask(value, RESCUE_STRATEGY, 'rescue-mode')} />}
         {activeStage === 'fence' && editingBroadcast && <div className="flex gap-2"><input value={broadcastText} onChange={(e) => setBroadcastText(e.target.value)} className="min-w-0 flex-1 border border-cyan-300/50 bg-blue-950/60 px-3 py-2 text-[13px] text-white" /><button onClick={() => { setEditingBroadcast(false); ask('修改并播报：' + broadcastText, RESCUE_STRATEGY, 'rescue-mode', { broadcastText }); }} className="border border-cyan-200/70 bg-cyan-400/15 px-4 text-[13px] font-bold">确认</button></div>}
         {activeStage === 'rescue-mode' && <ChoiceGrid options={['非进入式救援', '进入式救援']} onSelect={chooseRescueMode} />}
@@ -197,7 +200,7 @@ export default function EmergencyInteraction({ event, onEventChange }) {
 
     return <div className="flex h-full min-h-0 flex-col">
         <div ref={scrollRef} className="min-h-0 flex-1 space-y-3.5 overflow-y-auto pr-1.5">
-            {messages.map((message, index) => { const isActiveAssistant = !busy && stage !== 'complete' && message.role === 'assistant' && index === messages.length - 1; return <div key={message.id} className={`flex gap-2.5 ${message.role === 'user' ? 'justify-end' : ''}`}>{message.role === 'assistant' && <span className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-cyan-200/60 bg-cyan-400/20 text-sm text-white shadow-[0_0_14px_rgba(34,211,238,.22)]"><i className="fas fa-robot" /></span>}<div className={`group relative max-w-[86%] whitespace-pre-line border px-4 py-2.5 text-[14px] font-medium leading-6 shadow-[0_5px_18px_rgba(2,8,23,.18)] ${message.role === 'user' ? 'border-cyan-200/65 bg-gradient-to-r from-cyan-500/35 to-blue-500/35 text-white' : 'border-cyan-200/45 bg-gradient-to-br from-blue-900/75 to-cyan-900/45 pr-11 text-cyan-50'}`}>{message.text}{message.role === 'assistant' && <button type="button" disabled={!speechSupported} onClick={() => speak(message.text)} title={speechSupported ? '重播此条语音' : '浏览器不支持语音播报'} className="absolute right-3 top-2.5 text-cyan-100/65 transition hover:text-white disabled:opacity-25"><i className="fas fa-volume-high" /></button>}{isActiveAssistant && <div className="mt-3 whitespace-normal border-t border-cyan-200/25 pt-2.5">{renderActions()}</div>}</div></div>; })}
+            {messages.map((message, index) => { const isActiveAssistant = !busy && stage !== 'complete' && message.role === 'assistant' && index === messages.length - 1; const isReportDecision = isActiveAssistant && activeStage === 'report'; const displayText = isReportDecision ? message.text.split('\n')[0] : message.text; return <div key={message.id} className={`flex gap-2.5 ${message.role === 'user' ? 'justify-end' : ''}`}>{message.role === 'assistant' && <span className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-cyan-200/60 bg-cyan-400/20 text-sm text-white shadow-[0_0_14px_rgba(34,211,238,.22)]"><i className="fas fa-robot" /></span>}<div className={`group relative max-w-[86%] whitespace-pre-line border px-4 py-2.5 text-[14px] font-medium leading-6 shadow-[0_5px_18px_rgba(2,8,23,.18)] ${message.role === 'user' ? 'border-cyan-200/65 bg-gradient-to-r from-cyan-500/35 to-blue-500/35 text-white' : 'border-cyan-200/45 bg-gradient-to-br from-blue-900/75 to-cyan-900/45 pr-11 text-cyan-50'}`}>{displayText}{message.role === 'assistant' && <button type="button" disabled={!speechSupported} onClick={() => speak(message.text)} title={speechSupported ? '重播此条语音' : '浏览器不支持语音播报'} className="absolute right-3 top-2.5 text-cyan-100/65 transition hover:text-white disabled:opacity-25"><i className="fas fa-volume-high" /></button>}{isActiveAssistant && <div className="mt-3 whitespace-normal border-t border-cyan-200/25 pt-2.5">{renderActions()}</div>}</div></div>; })}
             {error && <div className="ml-11 border border-rose-300/45 bg-rose-500/15 px-4 py-2.5 text-[13px] font-semibold text-rose-100"><i className="fas fa-circle-exclamation mr-2" />{error}</div>}
             {busy && <AssistantActionBubble><div className="flex items-center gap-2 py-1 text-[13px] font-semibold text-cyan-100"><span>AI 正在分析并生成回复</span><span className="flex gap-1">{[0, 1, 2].map((dot) => <i key={dot} className="h-1.5 w-1.5 animate-bounce rounded-full bg-cyan-200" style={{ animationDelay: `${dot * 140}ms` }} />)}</span></div></AssistantActionBubble>}
             {!busy && stage === 'complete' && <div className="ml-11 border border-emerald-300/45 bg-emerald-500/15 px-4 py-2.5 text-[13px] font-semibold text-emerald-50"><i className="fas fa-check-circle mr-2" />本次应急处置已闭环{rescueMode ? ' · ' + rescueMode : ''}</div>}

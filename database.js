@@ -187,8 +187,8 @@ function initDb() {
         db.get("SELECT count(*) as count FROM users", (err, row) => {
             if (row.count === 0) {
                 const stmt = db.prepare("INSERT INTO users (username, password, role, full_name) VALUES (?, ?, ?, ?)");
-                stmt.run("worker", bcrypt.hashSync("Schy123456#", 10), "worker", "张三 (作业员)");
-                stmt.run("safety", bcrypt.hashSync("Schy123456#", 10), "safety", "其他人员");
+                stmt.run("worker", bcrypt.hashSync("Schy123456#", 10), "worker", "1号 (作业员)");
+                stmt.run("safety", bcrypt.hashSync("Schy123456#", 10), "safety", "4号 (安全员)");
                 stmt.finalize();
                 console.log("Seeded initial users with hashed passwords.");
             } else {
@@ -207,6 +207,14 @@ function initDb() {
                     }
                 );
             }
+
+            // 比赛现场统一以编号展示人员；同时修正已存在数据库中的历史姓名。
+            db.run(
+                "UPDATE users SET full_name = CASE username WHEN 'worker' THEN '1号 (作业员)' WHEN 'safety' THEN '4号 (安全员)' ELSE full_name END WHERE username IN ('worker', 'safety')",
+                (updateErr) => {
+                    if (updateErr) console.error('Migrate competition user display names failed:', updateErr);
+                }
+            );
         });
     });
 }

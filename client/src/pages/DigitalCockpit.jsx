@@ -158,11 +158,6 @@ export default function DigitalCockpit() {
     const toggleEmergencySimulation = async () => {
         if (simulationBusy) return;
         const nextActive = !simulation.active;
-        const confirmed = window.confirm(nextActive
-            ? '确认启动测试事故？启动后会立即触发模拟报警，仅用于比赛演示。'
-            : '确认停止测试事故？');
-        if (!confirmed) return;
-
         setSimulationBusy(true);
         setAlarmError('');
         try {

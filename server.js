@@ -198,6 +198,7 @@ app.get('/api/competition/devices/:deviceId/live.flv', async (req, res) => {
 
         upstream = (target.protocol === 'https:' ? https : http).get(target, (stream) => {
             if (stream.statusCode !== 200) {
+                console.error(`[${new Date().toISOString()}] Competition live stream unavailable: device=${req.params.deviceId} upstreamStatus=${stream.statusCode}`);
                 stream.resume();
                 res.status(502).json({ success: false, message: '记录仪当前无可用视频流' });
                 return;
@@ -212,7 +213,7 @@ app.get('/api/competition/devices/:deviceId/live.flv', async (req, res) => {
         upstream.on('socket', (socket) => socket.setNoDelay(true));
         upstream.setTimeout(15000, () => upstream.destroy(new Error('Media timeout')));
         upstream.on('error', (error) => {
-            console.error('Competition live stream proxy failed:', error.message);
+            console.error(`[${new Date().toISOString()}] Competition live stream proxy failed: device=${req.params.deviceId} error=${error.message}`);
             if (!res.headersSent) res.status(502).json({ success: false, message: '记录仪视频流连接失败' });
             else res.destroy();
         });
@@ -1433,8 +1434,8 @@ app.get('/api/work-permits/related', (req, res) => {
             type,
             status: `${type}已完成`,
             completionTime: formatMockTime(completedAt),
-            workers: index < 2 ? '赵六' : '孙七',
-            reviewers: '王五',
+            workers: index < 2 ? '2号' : '5号',
+            reviewers: '4号',
         };
     });
     res.json({ data });
