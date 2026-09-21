@@ -783,8 +783,8 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                             name="supervisor"
                             value={data.supervisor}
                             onChange={handleChange}
-                            options={['1号', '张三', '李四', '王五']}
-                            unqualifiedOptions={['陈子涵 (未授权)', '刘浩宇 (证书过期)', '王梓萱 (培训不合格)']}
+                            options={['1号', '4号', '6号', '7号']}
+                            unqualifiedOptions={['12号 (未授权)', '13号 (证书过期)', '14号 (培训不合格)']}
                             placeholder="请选择负责人"
                             readOnly={readOnly}
                         />
@@ -794,8 +794,8 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                             name="workers"
                             value={data.workers}
                             onChange={handleChange}
-                            options={['2号', '赵六', '孙七', '周八']}
-                            unqualifiedOptions={['张一鸣 (未授权)', '李思琪 (证书过期)', '赵雨桐 (体检不合格)']}
+                            options={['2号', '5号', '8号']}
+                            unqualifiedOptions={['15号 (未授权)', '16号 (证书过期)', '17号 (体检不合格)']}
                             placeholder="请选择作业人"
                             readOnly={readOnly}
                         />
@@ -805,8 +805,8 @@ export default function ConfinedSpacePermitForm({ data, onChange, readOnly = fal
                             name="guardian"
                             value={data.guardian}
                             onChange={handleChange}
-                            options={['3号', '吴九', '郑十', '陈十一']}
-                            unqualifiedOptions={['孙嘉怡 (未授权)', '周宇轩 (证书过期)', '吴欣怡 (培训不合格)']}
+                            options={['3号', '9号', '10号', '11号']}
+                            unqualifiedOptions={['18号 (未授权)', '19号 (证书过期)', '20号 (培训不合格)']}
                             placeholder="请选择监护人"
                             readOnly={readOnly}
                         />
