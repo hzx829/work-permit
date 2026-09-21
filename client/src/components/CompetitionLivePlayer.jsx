@@ -11,7 +11,10 @@ const STALL_RECOVERY_DELAY_MS = 8000;
 const FIRST_FRAME_TIMEOUT_MS = 10000;
 
 export default function CompetitionLivePlayer({ deviceId, active = true, fill = false }) {
+    const mediaContainerRef = useRef(null);
     const videoRef = useRef(null);
+    const mediaCleanupRef = useRef(null);
+    const mediaSequenceRef = useRef(0);
     const playerRef = useRef(null);
     const retryTimerRef = useRef(null);
     const bufferingTimerRef = useRef(null);
@@ -65,24 +68,52 @@ export default function CompetitionLivePlayer({ deviceId, active = true, fill = 
             firstFrameTimerRef.current = null;
             const player = playerRef.current;
             playerRef.current = null;
-            if (!player) return;
-            try {
-                player.removeMediaListeners?.();
-                if (player.kind === 'tcplayer') player.instance.dispose();
-                else {
-                    player.instance.pause();
-                    player.instance.unload();
-                    player.instance.detachMediaElement();
-                    player.instance.destroy();
+            if (player) {
+                try {
+                    player.removeMediaListeners?.();
+                    if (player.kind === 'tcplayer') player.instance.dispose();
+                    else {
+                        player.instance.pause();
+                        player.instance.unload();
+                        player.instance.detachMediaElement();
+                        player.instance.destroy();
+                    }
+                } catch (error) {
+                    console.warn('Destroy live player failed:', error);
                 }
-            } catch (error) {
-                console.warn('Destroy live player failed:', error);
             }
+            mediaCleanupRef.current?.();
+            mediaCleanupRef.current = null;
+            videoRef.current = null;
+            mediaContainerRef.current?.replaceChildren();
         };
 
         const markPlayingIfActive = () => {
             if (cancelled) return;
             markPlaying();
+        };
+
+        const mountMediaElement = () => {
+            const container = mediaContainerRef.current;
+            if (!container) return null;
+            container.replaceChildren();
+            const media = document.createElement('video');
+            const safeDeviceId = String(deviceId || 'device').replace(/[^a-zA-Z0-9_-]/g, '-');
+            mediaSequenceRef.current += 1;
+            media.id = `competition-live-player-${safeDeviceId}-${mediaSequenceRef.current}`;
+            media.muted = true;
+            media.autoplay = true;
+            media.playsInline = true;
+            media.controls = true;
+            media.className = 'h-full w-full object-contain';
+            const readyEvents = ['playing', 'loadeddata', 'canplay', 'timeupdate'];
+            readyEvents.forEach((eventName) => media.addEventListener(eventName, markPlayingIfActive));
+            mediaCleanupRef.current = () => {
+                readyEvents.forEach((eventName) => media.removeEventListener(eventName, markPlayingIfActive));
+            };
+            container.appendChild(media);
+            videoRef.current = media;
+            return media;
         };
 
         const startBufferingRecovery = (recover) => {
@@ -110,12 +141,15 @@ export default function CompetitionLivePlayer({ deviceId, active = true, fill = 
         const fallbackToFlv = (message) => {
             if (cancelled || switchedToFlv) return;
             switchedToFlv = true;
-            destroyPlayer();
             setPlaying(false);
             setBuffering(false);
             setStatus(message || '低延迟视频不可用，正在切换兼容视频流...');
             flvFallbackDeviceIdRef.current = deviceId;
-            setFallbackVersion((value) => value + 1);
+            // Let TCPlayer finish its current error callback before React runs
+            // the effect cleanup and disposes the player instance.
+            setTimeout(() => {
+                if (!cancelled) setFallbackVersion((value) => value + 1);
+            }, 0);
         };
 
         const connectFlv = async () => {
@@ -215,6 +249,7 @@ export default function CompetitionLivePlayer({ deviceId, active = true, fill = 
             setBuffering(false);
             destroyPlayer();
             if (!active || !deviceId) return;
+            if (!mountMediaElement()) return;
             setStatus(effectiveTransport === 'webrtc' ? '正在连接低延迟视频...' : '正在连接兼容视频流...');
             try {
                 if (effectiveTransport === 'webrtc') await connectWebRtc();
@@ -248,19 +283,7 @@ export default function CompetitionLivePlayer({ deviceId, active = true, fill = 
 
     return (
         <div className={`relative overflow-hidden bg-slate-950 ${fill ? 'h-full w-full' : 'aspect-video'}`}>
-            <video
-                key={`${deviceId || 'device'}-${fallbackVersion}-${retryKey}`}
-                ref={videoRef}
-                id={`competition-live-player-${String(deviceId || 'device').replace(/[^a-zA-Z0-9_-]/g, '-')}`}
-                muted
-                playsInline
-                controls
-                className="h-full w-full object-contain"
-                onPlaying={markPlaying}
-                onLoadedData={markPlaying}
-                onCanPlay={markPlaying}
-                onTimeUpdate={markPlaying}
-            />
+            <div ref={mediaContainerRef} className="h-full w-full" />
             {status && (
                 <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-950/75 px-6 text-center text-sm text-slate-200">
                     <span><i className="fas fa-video mr-2 text-slate-400" />{status}</span>
