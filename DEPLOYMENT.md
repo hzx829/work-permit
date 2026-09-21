@@ -25,15 +25,9 @@
 
 ## 腾讯播放器 License（比赛记录仪低延迟播放）
 
-TCPlayer 5.x 需要腾讯云视立方为**实际访问的 HTTPS 域名**签发的 Web License。先在腾讯云控制台将该域名绑定到播放器 License，再在构建机创建被 Git 忽略的 `client/.env.production.local`：
+比赛播放器复用 `lyz-editor-dashboard` 的腾讯云 Web License。它是浏览器侧播放器授权，不是设备接口凭证；`COMPETITION_TOKEN` 仍只配置在服务器/PM2 环境中，不能写入前端配置。
 
-```dotenv
-VITE_TCPLAYER_LICENSE_URL=https://<腾讯云签发的 License URL>
-```
-
-该变量在 Vite 构建时写入前端，用于播放器授权；它不是设备接口凭证。`COMPETITION_TOKEN` 仍只配置在服务器/PM2 环境中，不能写入前端配置。若未配置 License，应用会自动回退到 HTTP-FLV 兼容播放，延迟会更高。
-
-当前文档中的裸 IP HTTP 地址不能作为播放器 Web License 的域名，也不能保证 WebRTC 可用。部署低延迟播放时，应通过已绑定 License 的 HTTPS 域名访问系统。
+播放器 Web License 绑定实际访问域名。部署低延迟播放时，应通过已绑定 License 的 HTTPS 域名访问系统；当前文档中的裸 IP HTTP 地址不能保证 WebRTC 可用。
 
 `build_and_package.ps1` 会：
 
