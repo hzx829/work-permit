@@ -5,6 +5,7 @@ import 'tcplayer.js/dist/tcplayer.min.css';
 import { competitionLiveUrl, loadCompetitionPlayInfo } from '../utils/api';
 
 const WEBRTC_RETRYABLE_STATUSES = new Set([0, 408, 422, 429, 500, 502, 503, 504]);
+const TCPLAYER_LICENSE_URL = String(import.meta.env.VITE_TCPLAYER_LICENSE_URL || '').trim();
 
 export default function CompetitionLivePlayer({ deviceId, active = true, fill = false }) {
     const videoRef = useRef(null);
@@ -122,6 +123,11 @@ export default function CompetitionLivePlayer({ deviceId, active = true, fill = 
         };
 
         const connectWebRtc = async () => {
+            if (!TCPLAYER_LICENSE_URL) {
+                const error = new Error('未配置腾讯播放器 License');
+                error.code = 'TCPLAYER_LICENSE_MISSING';
+                throw error;
+            }
             const playInfo = await loadCompetitionPlayInfo(deviceId, 'webrtc');
             if (!String(playInfo?.url || '').startsWith('webrtc://')) {
                 throw new Error('比赛设备没有返回 WebRTC 播放地址');
@@ -135,6 +141,7 @@ export default function CompetitionLivePlayer({ deviceId, active = true, fill = 
                 playsinline: true,
                 controls: true,
                 preload: 'auto',
+                licenseUrl: TCPLAYER_LICENSE_URL,
                 webrtcConfig: {
                     connectRetryCount: 2,
                     connectRetryDelay: 1,
@@ -177,6 +184,11 @@ export default function CompetitionLivePlayer({ deviceId, active = true, fill = 
                 if (cancelled) return;
                 if (error.status === 403) {
                     setStatus('无权访问该设备');
+                    return;
+                }
+                if (effectiveTransport === 'webrtc' && error.code === 'TCPLAYER_LICENSE_MISSING') {
+                    console.warn('TCPlayer License is not configured; using the HTTP-FLV compatibility stream.');
+                    fallbackToFlv('未配置腾讯播放器授权，正在切换兼容视频流...');
                     return;
                 }
                 if (effectiveTransport === 'webrtc'

@@ -4,6 +4,7 @@
 
 - 记录仪播放优先使用腾讯云播放器直连比赛接口返回的 WebRTC 地址，避免 HTTP-FLV 代理与播放器缓存带来的累计延迟。
 - WebRTC 地址不可用、浏览器不支持或连接失败时，自动回退到原有的同源 HTTP-FLV 播放链路，保持现有 HTTPS 页面兼容性和断流重连能力。
+- 腾讯播放器 License 从构建变量 `VITE_TCPLAYER_LICENSE_URL` 读取，须绑定实际 HTTPS 域名；比赛设备 `COMPETITION_TOKEN` 仍只保留在服务端。
 
 ## 更新日期：2026年9月21日（比赛现场客户反馈调整）
 
